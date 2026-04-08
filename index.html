@@ -93,6 +93,17 @@ const icons = {
   star: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
   whatsapp: "M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l5.07-1.35A9.96 9.96 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z",
   copy: "M8 8H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2 M8 8V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2",
+  alarm: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 6v6l4 2 M5 3l-2 2 M21 5l-2-2",
+  focus: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z M12 6v6l4 2 M8 12H6 M18 12h-2 M12 6V4 M12 18v2",
+  shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+  zap: "M13 2L3 14h9l-1 8 10-12h-9l1-8z",
+  trophy: "M8 21h8 M12 17v4 M7 4h10l1 7a5 5 0 0 1-5 5 5 5 0 0 1-5-5L7 4z M5 4h2 M17 4h2 M5 8H3a2 2 0 0 0 0 4h2 M19 8h2a2 2 0 0 1 0 4h-2",
+  lock: "M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z M7 11V7a5 5 0 0 1 10 0v4",
+  music: "M9 18V5l12-2v13 M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0z M21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z",
+  refresh: "M23 4v6h-6 M1 20v-6h6 M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15",
+  stop: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 0 2 2z",
+  coffee: "M18 8h1a4 4 0 0 1 0 8h-1 M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z M6 1v3 M10 1v3 M14 1v3",
+  infinity: "M12 12c-2-2.5-4-4-6-4a4 4 0 0 0 0 8c2 0 4-1.5 6-4z M12 12c2 2.5 4 4 6 4a4 4 0 0 0 0-8c-2 0-4 1.5-6 4z",
 };
 
 // ─── THEMES ──────────────────────────────────────────────────────────────────
@@ -393,6 +404,15 @@ const getCSS = (theme) => {
   ::-webkit-scrollbar{width:4px;height:4px}
   ::-webkit-scrollbar-track{background:transparent}
   ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+  /* Toggle */
+  .toggle{width:46px;height:26px;border-radius:99px;border:none;cursor:pointer;position:relative;transition:background .25s;flex-shrink:0;outline:none}
+  .toggle.on{background:var(--accent)}
+  .toggle.off{background:var(--bg4);border:1px solid var(--border2)}
+  .toggle::after{content:'';position:absolute;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .25s cubic-bezier(.16,1,.3,1),transform .25s}
+  .toggle.on::after{left:23px}
+  .toggle.off::after{left:3px}
+  /* Focus ring pulse */
+  @keyframes focusPulse{0%,100%{box-shadow:0 0 0 0 var(--accentglow)}50%{box-shadow:0 0 0 12px transparent}}
   `;
 };
 
@@ -1432,6 +1452,693 @@ function SettingsPage({ profile, setProfile, onLogout, theme, setTheme, allData,
   );
 }
 
+// ─── ALARM PAGE ──────────────────────────────────────────────────────────────
+function AlarmPage() {
+  const [alarms, setAlarms] = useState(() => storage.get("alarms", []));
+  const [showAdd, setShowAdd] = useState(false);
+  const [newAlarm, setNewAlarm] = useState({ label: "Wake Up", time: "05:15", days: [1,2,3,4,5,6], enabled: true, ringtoneName: "", ringtoneData: null });
+  const [testingAlarm, setTestingAlarm] = useState(null);
+  const [firingAlarm, setFiringAlarm] = useState(null);
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
+  const [captchaQ, setCaptchaQ] = useState(null);
+  const [captchaError, setCaptchaError] = useState(false);
+  const [activeAudio, setActiveAudio] = useState(null);
+  const [permGranted, setPermGranted] = useState(false);
+  const fileRef = useRef();
+  const audioRef = useRef(null);
+  const alarmIntervalRef = useRef(null);
+  const ringLoopRef = useRef(null);
+
+  const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  // Request notification permission
+  useEffect(() => {
+    if ("Notification" in window) {
+      Notification.requestPermission().then(p => setPermGranted(p === "granted"));
+    }
+  }, []);
+
+  // Save alarms whenever they change
+  useEffect(() => { storage.set("alarms", alarms); }, [alarms]);
+
+  // Alarm checker - runs every 30 seconds
+  useEffect(() => {
+    const check = () => {
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+      const dayIdx = now.getDay();
+      alarms.forEach(alarm => {
+        if (!alarm.enabled) return;
+        if (alarm.time !== timeStr) return;
+        if (!alarm.days.includes(dayIdx)) return;
+        const key = `fired_${alarm.id}_${today()}_${timeStr}`;
+        if (sessionStorage.getItem(key)) return;
+        sessionStorage.setItem(key, "1");
+        triggerAlarm(alarm);
+      });
+    };
+    check();
+    alarmIntervalRef.current = setInterval(check, 30000);
+    return () => clearInterval(alarmIntervalRef.current);
+  }, [alarms]);
+
+  const generateCaptcha = () => {
+    const ops = ["+","-","×"];
+    const op = ops[Math.floor(Math.random()*3)];
+    let a = Math.floor(Math.random()*10)+2;
+    let b = Math.floor(Math.random()*10)+2;
+    if (op==="-") { if (a<b) [a,b]=[b,a]; }
+    const answer = op==="+"? a+b : op==="-"? a-b : a*b;
+    return { q:`${a} ${op} ${b} = ?`, answer: String(answer) };
+  };
+
+  const triggerAlarm = (alarm) => {
+    const cq = generateCaptcha();
+    setCaptchaQ(cq);
+    setCaptchaAnswer("");
+    setCaptchaError(false);
+    setFiringAlarm(alarm);
+    // Play ringtone in loop
+    startRingtone(alarm);
+    // Send browser notification
+    if (permGranted && document.visibilityState === "hidden") {
+      new Notification(`⏰ ${alarm.label}`, { body: "Alarm! Solve CAPTCHA to dismiss.", icon: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E⏰%3C/text%3E%3C/svg%3E" });
+    }
+  };
+
+  const startRingtone = (alarm) => {
+    stopRingtone();
+    if (alarm.ringtoneData) {
+      const play = () => {
+        const audio = new Audio(alarm.ringtoneData);
+        audio.volume = 1.0;
+        audioRef.current = audio;
+        audio.play().catch(()=>{});
+        audio.onended = () => { if (ringLoopRef.current) play(); };
+        ringLoopRef.current = true;
+      };
+      play();
+    } else {
+      // Built-in beep using Web Audio API
+      const playBeep = () => {
+        if (!ringLoopRef.current) return;
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.frequency.value = 880;
+          osc.type = "sine";
+          gain.gain.setValueAtTime(0.4, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+          osc.start(); osc.stop(ctx.currentTime + 0.6);
+          osc.onended = () => { ctx.close(); if (ringLoopRef.current) setTimeout(playBeep, 400); };
+        } catch(e) {}
+      };
+      ringLoopRef.current = true;
+      playBeep();
+    }
+  };
+
+  const stopRingtone = () => {
+    ringLoopRef.current = false;
+    if (audioRef.current) { try { audioRef.current.pause(); audioRef.current = null; } catch(e){} }
+  };
+
+  const dismissAlarm = () => {
+    const correct = captchaAnswer.trim() === captchaQ?.answer;
+    if (!correct) { setCaptchaError(true); setCaptchaAnswer(""); return; }
+    stopRingtone();
+    setFiringAlarm(null);
+    setCaptchaQ(null);
+    setCaptchaAnswer("");
+    setCaptchaError(false);
+  };
+
+  const testRingtone = (alarm) => {
+    if (testingAlarm === alarm.id) { stopRingtone(); setTestingAlarm(null); return; }
+    setTestingAlarm(alarm.id);
+    startRingtone(alarm);
+    setTimeout(() => { stopRingtone(); setTestingAlarm(null); }, 5000);
+  };
+
+  const handleRingtoneFile = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    if (file.size > 3 * 1024 * 1024) { alert("File too large! Maximum 3MB allowed."); return; }
+    if (!file.type.startsWith("audio/")) { alert("Please select an audio file."); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => setNewAlarm(a => ({ ...a, ringtoneData: ev.target.result, ringtoneName: file.name }));
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const addAlarm = () => {
+    if (!newAlarm.time) return;
+    setAlarms(prev => [...prev, { ...newAlarm, id: Date.now() }]);
+    setNewAlarm({ label:"Wake Up", time:"05:15", days:[1,2,3,4,5,6], enabled:true, ringtoneName:"", ringtoneData:null });
+    setShowAdd(false);
+  };
+
+  const toggleAlarm = (id) => setAlarms(prev => prev.map(a => a.id===id ? {...a, enabled:!a.enabled} : a));
+  const deleteAlarm = (id) => setAlarms(prev => prev.filter(a => a.id!==id));
+  const toggleDay = (d) => setNewAlarm(a => ({ ...a, days: a.days.includes(d) ? a.days.filter(x=>x!==d) : [...a.days, d].sort() }));
+
+  const nextRing = (alarm) => {
+    if (!alarm.enabled) return "Disabled";
+    const now = new Date();
+    const [h,m] = alarm.time.split(":").map(Number);
+    for (let i=0;i<8;i++) {
+      const d = new Date(now); d.setDate(d.getDate()+i);
+      d.setHours(h,m,0,0);
+      if (d <= now) continue;
+      if (alarm.days.includes(d.getDay())) {
+        if (i===0) return `Today at ${alarm.time}`;
+        if (i===1) return `Tomorrow at ${alarm.time}`;
+        return `${DAYS[d.getDay()]} at ${alarm.time}`;
+      }
+    }
+    return "–";
+  };
+
+  return (
+    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
+      {/* CAPTCHA MODAL - Full Screen Overlay */}
+      {firingAlarm && (
+        <div style={{ position:"fixed",inset:0,zIndex:9999,background:"#000000ee",display:"flex",alignItems:"center",justifyContent:"center",padding:20,backdropFilter:"blur(8px)" }}>
+          <div style={{ background:"var(--bg2)",borderRadius:24,padding:32,width:"100%",maxWidth:380,border:"2px solid var(--red)",boxShadow:"0 0 60px #ef444430",animation:"pulse 1s ease-in-out infinite" }}>
+            <div style={{ textAlign:"center",marginBottom:20 }}>
+              <div style={{ fontSize:56,marginBottom:8,animation:"pulse .5s ease-in-out infinite" }}>⏰</div>
+              <div style={{ fontFamily:"Syne",fontSize:22,fontWeight:800,color:"var(--red)" }}>{firingAlarm.label}</div>
+              <div style={{ fontSize:13,color:"var(--text3)",marginTop:4 }}>Solve the CAPTCHA to dismiss alarm</div>
+            </div>
+            <div style={{ background:"var(--bg4)",borderRadius:16,padding:24,textAlign:"center",marginBottom:20,border:"1px solid var(--border2)" }}>
+              <div style={{ fontFamily:"Syne",fontSize:32,fontWeight:800,letterSpacing:4 }}>{captchaQ?.q}</div>
+            </div>
+            <input className="input" type="number" placeholder="Your answer..." value={captchaAnswer} onChange={e => { setCaptchaAnswer(e.target.value); setCaptchaError(false); }}
+              onKeyDown={e => e.key==="Enter" && dismissAlarm()}
+              style={{ textAlign:"center",fontSize:20,fontWeight:700,marginBottom:10,border: captchaError?"2px solid var(--red)":"1px solid var(--border)" }} autoFocus/>
+            {captchaError && <div style={{ color:"var(--red)",fontSize:12,textAlign:"center",marginBottom:10,fontWeight:600 }}>❌ Wrong answer! Try again.</div>}
+            <button className="btn btn-primary" style={{ width:"100%",justifyContent:"center",padding:14,fontSize:15,background:"var(--red)" }} onClick={dismissAlarm}>
+              ✓ Dismiss Alarm
+            </button>
+            <div style={{ textAlign:"center",fontSize:11,color:"var(--text3)",marginTop:12 }}>⚠️ No snooze. Solve to stop.</div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+        <div>
+          <div className="section-title" style={{ margin:0 }}><Icon d={icons.alarm} size={16} stroke="var(--red)"/> Alarm</div>
+          <div style={{ fontSize:12,color:"var(--text3)",marginTop:2 }}>{alarms.filter(a=>a.enabled).length} active alarm{alarms.filter(a=>a.enabled).length!==1?"s":""}</div>
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)}><Icon d={icons.plus} size={14} stroke="#fff"/> Add Alarm</button>
+      </div>
+
+      {!permGranted && (
+        <div className="card fade-up" style={{ background:"#f59e0b15",border:"1px solid #f59e0b30",padding:"14px 18px" }}>
+          <div style={{ fontSize:13,color:"var(--amber)",fontWeight:600 }}>🔔 Enable notifications for background alarm alerts</div>
+          <button className="btn btn-ghost btn-sm" style={{ marginTop:8 }} onClick={() => Notification.requestPermission().then(p => setPermGranted(p==="granted"))}>Grant Permission</button>
+        </div>
+      )}
+
+      {alarms.length === 0 && (
+        <div className="card fade-up" style={{ textAlign:"center",padding:40,color:"var(--text3)" }}>
+          <div style={{ fontSize:40,marginBottom:12 }}>⏰</div>
+          <div style={{ fontFamily:"Syne",fontWeight:700,fontSize:16 }}>No alarms set</div>
+          <div style={{ fontSize:13,marginTop:4 }}>Add your first alarm to get started</div>
+        </div>
+      )}
+
+      {alarms.map((alarm,i) => (
+        <div key={alarm.id} className="card fade-up" style={{ animationDelay:`${i*.04}s`, opacity: alarm.enabled ? 1 : 0.55 }}>
+          <div style={{ display:"flex",alignItems:"center",gap:14 }}>
+            <div style={{ flex:1,minWidth:0 }}>
+              <div style={{ display:"flex",alignItems:"baseline",gap:8,flexWrap:"wrap" }}>
+                <div style={{ fontFamily:"Syne",fontSize:32,fontWeight:800,letterSpacing:-1,color: alarm.enabled?"var(--text)":"var(--text3)" }}>{alarm.time}</div>
+                <div style={{ fontWeight:600,fontSize:14,color:"var(--text2)" }}>{alarm.label}</div>
+              </div>
+              <div style={{ display:"flex",gap:4,marginTop:6,flexWrap:"wrap",alignItems:"center" }}>
+                {DAYS.map((d,idx) => (
+                  <span key={idx} style={{ fontSize:10,padding:"2px 6px",borderRadius:4,fontWeight:700, background: alarm.days.includes(idx)?"var(--accentglow)":"var(--bg4)", color: alarm.days.includes(idx)?"var(--accent2)":"var(--text3)" }}>{d}</span>
+                ))}
+              </div>
+              <div style={{ fontSize:11,color:"var(--text3)",marginTop:4 }}>🔔 {nextRing(alarm)}{alarm.ringtoneName && ` • 🎵 ${alarm.ringtoneName.substring(0,20)}...`}</div>
+            </div>
+            <div style={{ display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end" }}>
+              <button className={`toggle ${alarm.enabled?"on":"off"}`} onClick={() => toggleAlarm(alarm.id)}/>
+              <div style={{ display:"flex",gap:6 }}>
+                <button className="btn btn-ghost btn-sm btn-icon" title="Test ringtone" onClick={() => testRingtone(alarm)} style={{ color: testingAlarm===alarm.id?"var(--green)":"var(--text2)" }}>
+                  <Icon d={testingAlarm===alarm.id ? icons.stop : icons.music} size={14}/>
+                </button>
+                <button className="btn btn-icon btn-danger btn-sm" onClick={() => deleteAlarm(alarm.id)}><Icon d={icons.trash} size={13} stroke="var(--red)"/></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {/* Add Alarm Modal */}
+      {showAdd && (
+        <div className="modal-overlay" onClick={e => e.target===e.currentTarget && setShowAdd(false)}>
+          <div className="modal" style={{ maxWidth:420 }}>
+            <div className="modal-title">⏰ New Alarm</div>
+            <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+              <div><label className="label">Time</label><input className="input" type="time" value={newAlarm.time} onChange={e => setNewAlarm(a=>({...a,time:e.target.value}))}/></div>
+              <div><label className="label">Label</label><input className="input" placeholder="e.g. Wake Up, Study, Meds..." value={newAlarm.label} onChange={e => setNewAlarm(a=>({...a,label:e.target.value}))}/></div>
+              <div>
+                <label className="label">Repeat Days</label>
+                <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
+                  {DAYS.map((d,idx) => (
+                    <button key={idx} onClick={() => toggleDay(idx)} style={{ padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",border:`1px solid ${newAlarm.days.includes(idx)?"var(--accent)":"var(--border)"}`,background:newAlarm.days.includes(idx)?"var(--accentglow)":"var(--bg3)",color:newAlarm.days.includes(idx)?"var(--accent2)":"var(--text3)",transition:"all .2s" }}>{d}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="label">Ringtone (max 3MB)</label>
+                <div style={{ display:"flex",gap:8,alignItems:"center",flexWrap:"wrap" }}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => fileRef.current.click()}>
+                    <Icon d={icons.music} size={13}/> {newAlarm.ringtoneName ? "Change" : "Choose Audio"}
+                  </button>
+                  {newAlarm.ringtoneName && <span style={{ fontSize:12,color:"var(--green)",fontWeight:600 }}>✓ {newAlarm.ringtoneName.substring(0,25)}</span>}
+                  {!newAlarm.ringtoneName && <span style={{ fontSize:12,color:"var(--text3)" }}>Using default beep</span>}
+                </div>
+                <input ref={fileRef} type="file" accept="audio/*" style={{ display:"none" }} onChange={handleRingtoneFile}/>
+                {newAlarm.ringtoneData && (
+                  <button className="btn btn-ghost btn-sm" style={{ marginTop:8 }} onClick={() => {
+                    const audio = new Audio(newAlarm.ringtoneData); audio.play();
+                    setTimeout(() => { try { audio.pause(); } catch(e){} }, 5000);
+                  }}>▶ Test Ringtone (5s)</button>
+                )}
+              </div>
+            </div>
+            <div style={{ display:"flex",gap:10,marginTop:20 }}>
+              <button className="btn btn-ghost" style={{ flex:1,justifyContent:"center" }} onClick={() => setShowAdd(false)}>Cancel</button>
+              <button className="btn btn-primary" style={{ flex:2,justifyContent:"center" }} onClick={addAlarm}>Set Alarm</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── FOCUS MODE PAGE ──────────────────────────────────────────────────────────
+function FocusPage() {
+  const PRESETS = [5,10,15,20,25,30,45,60];
+  const [mode, setMode] = useState("idle"); // idle | countdown | infinite
+  const [selected, setSelected] = useState(25);
+  const [custom, setCustom] = useState("");
+  const [remaining, setRemaining] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [sessionLog, setSessionLog] = useState(() => storage.get("focusLog",[]));
+  const [showCustom, setShowCustom] = useState(false);
+  const [task, setTask] = useState("");
+  const [elapsedInfinite, setElapsedInfinite] = useState(0);
+  const [infiniteStart, setInfiniteStart] = useState(null);
+  const timerRef = useRef(null);
+  const notifRef = useRef(null);
+  const audioCtxRef = useRef(null);
+
+  useEffect(() => { storage.set("focusLog", sessionLog); }, [sessionLog]);
+
+  const playDone = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [523, 659, 784, 1047].forEach((freq, i) => {
+        const osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = freq; osc.type = "sine";
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + i*0.18);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i*0.18 + 0.3);
+        osc.start(ctx.currentTime + i*0.18); osc.stop(ctx.currentTime + i*0.18 + 0.3);
+      });
+      setTimeout(() => ctx.close(), 2000);
+    } catch(e){}
+  };
+
+  // Countdown timer
+  useEffect(() => {
+    if (mode !== "countdown") return;
+    timerRef.current = setInterval(() => {
+      setRemaining(r => {
+        if (r <= 1) {
+          clearInterval(timerRef.current);
+          setMode("done");
+          playDone();
+          if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("🎯 Focus Session Complete!", { body: `Great work! ${Math.round(total/60)} min session done.` });
+          }
+          setSessionLog(prev => [{
+            id: Date.now(), task, duration: total, date: today(), time: new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})
+          }, ...prev].slice(0,20));
+          return 0;
+        }
+        return r - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [mode]);
+
+  // Infinite elapsed
+  useEffect(() => {
+    if (mode !== "infinite") return;
+    timerRef.current = setInterval(() => setElapsedInfinite(e => e + 1), 1000);
+    return () => clearInterval(timerRef.current);
+  }, [mode]);
+
+  const startCountdown = (mins) => {
+    const secs = mins * 60;
+    setTotal(secs); setRemaining(secs);
+    setMode("countdown");
+  };
+
+  const startInfinite = () => {
+    setElapsedInfinite(0); setInfiniteStart(new Date());
+    setMode("infinite");
+  };
+
+  const stopInfinite = () => {
+    clearInterval(timerRef.current);
+    const dur = elapsedInfinite;
+    setSessionLog(prev => [{
+      id: Date.now(), task, duration: dur, date: today(), time: new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})
+    }, ...prev].slice(0,20));
+    setMode("idle");
+    playDone();
+  };
+
+  const abort = () => { clearInterval(timerRef.current); setMode("idle"); setRemaining(0); };
+
+  const fmt = (secs) => `${String(Math.floor(secs/60)).padStart(2,"0")}:${String(secs%60).padStart(2,"0")}`;
+  const pct = total > 0 ? Math.round(((total-remaining)/total)*100) : 0;
+  const r = 100, circ = 2 * Math.PI * r;
+
+  const totalFocusToday = sessionLog.filter(s => s.date === today()).reduce((sum,s) => sum + s.duration, 0);
+  const totalFocusAll = sessionLog.reduce((sum,s) => sum + s.duration, 0);
+
+  return (
+    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
+      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+        <div>
+          <div className="section-title" style={{ margin:0 }}><Icon d={icons.focus} size={16} stroke="var(--accent)"/> Focus Mode</div>
+          <div style={{ fontSize:12,color:"var(--text3)",marginTop:2 }}>Today: {Math.floor(totalFocusToday/60)} min focused</div>
+        </div>
+        <div style={{ display:"flex",gap:8 }}>
+          <span className="badge" style={{ background:"var(--accentglow)",color:"var(--accent2)",border:"1px solid var(--accent)30",padding:"6px 14px" }}>
+            🔥 {Math.floor(totalFocusAll/3600)}h total
+          </span>
+        </div>
+      </div>
+
+      {/* Main timer display */}
+      {(mode === "countdown" || mode === "infinite" || mode === "done") ? (
+        <div className="card fade-up" style={{ textAlign:"center",padding:"32px 20px",background: mode==="done"?"linear-gradient(135deg,var(--green)15,var(--bg2))":"linear-gradient(135deg,var(--accentglow),var(--bg2))",border:`1px solid ${mode==="done"?"var(--green)":"var(--accent)"}30` }}>
+          {mode === "countdown" && (
+            <>
+              <div style={{ position:"relative",display:"inline-flex",alignItems:"center",justifyContent:"center",marginBottom:16 }}>
+                <svg width={240} height={240} style={{ transform:"rotate(-90deg)" }}>
+                  <circle cx={120} cy={120} r={r} fill="none" stroke="var(--bg4)" strokeWidth={8}/>
+                  <circle cx={120} cy={120} r={r} fill="none" stroke="var(--accent)" strokeWidth={8} strokeDasharray={circ} strokeDashoffset={circ*(1-pct/100)} strokeLinecap="round" style={{ transition:"stroke-dashoffset 1s linear" }}/>
+                </svg>
+                <div style={{ position:"absolute",textAlign:"center" }}>
+                  <div style={{ fontFamily:"Syne",fontSize:44,fontWeight:800,lineHeight:1 }}>{fmt(remaining)}</div>
+                  <div style={{ fontSize:12,color:"var(--text3)",marginTop:4 }}>{pct}% done</div>
+                </div>
+              </div>
+              {task && <div style={{ fontSize:14,color:"var(--text2)",marginBottom:16,fontWeight:600 }}>📚 {task}</div>}
+              <button className="btn btn-danger" style={{ justifyContent:"center" }} onClick={abort}><Icon d={icons.x} size={14}/> Cancel Session</button>
+            </>
+          )}
+          {mode === "infinite" && (
+            <>
+              <div style={{ fontFamily:"Syne",fontSize:56,fontWeight:800,lineHeight:1,marginBottom:8,color:"var(--accent)" }}>∞</div>
+              <div style={{ fontFamily:"Syne",fontSize:40,fontWeight:800,marginBottom:4 }}>{fmt(elapsedInfinite)}</div>
+              <div style={{ fontSize:13,color:"var(--text3)",marginBottom:20 }}>Deep Focus Mode — No time limit</div>
+              {task && <div style={{ fontSize:14,color:"var(--text2)",marginBottom:16,fontWeight:600 }}>📚 {task}</div>}
+              <button className="btn btn-success" style={{ justifyContent:"center" }} onClick={stopInfinite}><Icon d={icons.check} size={14} stroke="var(--green)"/> End Session</button>
+            </>
+          )}
+          {mode === "done" && (
+            <>
+              <div style={{ fontSize:56,marginBottom:8 }}>🎯</div>
+              <div style={{ fontFamily:"Syne",fontSize:22,fontWeight:800,color:"var(--green)",marginBottom:4 }}>Session Complete!</div>
+              <div style={{ fontSize:14,color:"var(--text3)",marginBottom:20 }}>{Math.round(total/60)} minutes of pure focus 🔥</div>
+              <button className="btn btn-primary" style={{ justifyContent:"center" }} onClick={() => setMode("idle")}>Start Another</button>
+            </>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Task label */}
+          <div className="card fade-up">
+            <label className="label">What are you focusing on? (optional)</label>
+            <input className="input" placeholder="e.g. Chapter 9 - Cell Division, Numericals..." value={task} onChange={e => setTask(e.target.value)}/>
+          </div>
+
+          {/* Presets */}
+          <div className="card fade-up" style={{ animationDelay:".04s" }}>
+            <div className="section-title">⏱ Choose Duration</div>
+            <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14 }}>
+              {PRESETS.map(m => (
+                <button key={m} onClick={() => { setSelected(m); setShowCustom(false); }} style={{ padding:"12px 8px",borderRadius:12,fontSize:14,fontWeight:700,cursor:"pointer",border:`1.5px solid ${selected===m&&!showCustom?"var(--accent)":"var(--border)"}`,background:selected===m&&!showCustom?"var(--accentglow)":"var(--bg3)",color:selected===m&&!showCustom?"var(--accent2)":"var(--text2)",transition:"all .2s" }}>
+                  {m}m
+                </button>
+              ))}
+            </div>
+            <div style={{ display:"flex",gap:10,alignItems:"center" }}>
+              <button onClick={() => { setShowCustom(c=>!c); }} style={{ padding:"10px 16px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",border:`1.5px solid ${showCustom?"var(--accent)":"var(--border)"}`,background:showCustom?"var(--accentglow)":"var(--bg3)",color:showCustom?"var(--accent2)":"var(--text2)",whiteSpace:"nowrap",transition:"all .2s" }}>
+                Custom
+              </button>
+              {showCustom && (
+                <input className="input" type="number" min="1" max="180" placeholder="1-180 min" value={custom} onChange={e => { setCustom(e.target.value); setSelected(+e.target.value); }} style={{ maxWidth:120 }}/>
+              )}
+            </div>
+          </div>
+
+          {/* Start buttons */}
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12 }}>
+            <button className="btn btn-primary" style={{ justifyContent:"center",padding:14,fontSize:15,flexDirection:"column",height:"auto",gap:4 }}
+              onClick={() => startCountdown(selected)}>
+              <Icon d={icons.focus} size={18} stroke="#fff"/>
+              <span>Start {selected} min</span>
+            </button>
+            <button className="btn btn-ghost" style={{ justifyContent:"center",padding:14,fontSize:15,flexDirection:"column",height:"auto",gap:4,border:"1.5px solid var(--accent)50" }}
+              onClick={startInfinite}>
+              <span style={{ fontSize:20 }}>∞</span>
+              <span>Infinite Focus</span>
+            </button>
+          </div>
+
+          {/* Tips */}
+          <div className="card fade-up" style={{ animationDelay:".12s",background:"linear-gradient(135deg,var(--accentglow),var(--bg2))" }}>
+            <div style={{ fontFamily:"Syne",fontWeight:700,marginBottom:8 }}>💡 Focus Tips</div>
+            <div style={{ display:"flex",flexDirection:"column",gap:6,fontSize:13,color:"var(--text3)" }}>
+              {["📵 Put phone face-down before starting","🎧 Use ambient music or silence","💧 Keep water bottle nearby","📝 Write your goal before starting"].map((t,i) => <div key={i}>{t}</div>)}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Session History */}
+      {sessionLog.length > 0 && mode === "idle" && (
+        <div className="card fade-up">
+          <div className="section-title"><Icon d={icons.timer} size={15} stroke="var(--accent)"/> Recent Sessions</div>
+          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+            {sessionLog.slice(0,8).map(s => (
+              <div key={s.id} style={{ display:"flex",alignItems:"center",gap:12,padding:"10px",borderRadius:10,background:"var(--bg3)",border:"1px solid var(--border)" }}>
+                <div style={{ fontSize:20 }}>🎯</div>
+                <div style={{ flex:1,minWidth:0 }}>
+                  {s.task && <div style={{ fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{s.task}</div>}
+                  <div style={{ fontSize:11,color:"var(--text3)" }}>{s.date} • {s.time}</div>
+                </div>
+                <div style={{ fontFamily:"Syne",fontWeight:800,fontSize:14,color:"var(--accent2)",flexShrink:0 }}>{Math.round(s.duration/60)} min</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── BEAST CHALLENGES PAGE ────────────────────────────────────────────────────
+function ChallengesPage({ profile }) {
+  const DAILY_CHALLENGES = [
+    { id:"c1", emoji:"🧠", title:"Solve 10 MCQs Without Stopping", desc:"No hints. No looking back. Time yourself.", xp:50, category:"academic", color:"#7c6fff" },
+    { id:"c2", emoji:"📖", title:"Read 20 Pages NCERT in One Sitting", desc:"Single subject. No breaks. Full focus.", xp:40, category:"academic", color:"#3b82f6" },
+    { id:"c3", emoji:"💪", title:"100 Pushups Challenge", desc:"Break into sets but complete by end of day.", xp:60, category:"fitness", color:"#ef4444" },
+    { id:"c4", emoji:"📵", title:"Zero Screen Before 9 AM", desc:"No YouTube, Instagram, or Reels after wakeup.", xp:30, category:"discipline", color:"#10b981" },
+    { id:"c5", emoji:"✍️", title:"Write 3 Full Biology Diagrams From Memory", desc:"Cell, Heart, Neuron — no reference.", xp:55, category:"academic", color:"#f59e0b" },
+    { id:"c6", emoji:"🥤", title:"Drink 4 Litres of Water Today", desc:"Track it. No excuses.", xp:20, category:"health", color:"#06b6d4" },
+    { id:"c7", emoji:"⏰", title:"Wake Before 5:30 AM", desc:"Early bird gets the rank.", xp:35, category:"discipline", color:"#8b5cf6" },
+    { id:"c8", emoji:"🔁", title:"Revise Yesterday's Notes — All Subjects", desc:"5 key points per subject. Written, not typed.", xp:45, category:"academic", color:"#ec4899" },
+  ];
+
+  const WEEKLY_STREAK_CHALLENGES = [
+    { id:"ws1", emoji:"🔥", title:"7-Day Workout Streak", desc:"Miss one day, restart from zero.", xp:200, color:"#ef4444" },
+    { id:"ws2", emoji:"📚", title:"No Phone for Study Hours — 7 Days", desc:"6-10 PM phone goes in another room.", xp:180, color:"#7c6fff" },
+    { id:"ws3", emoji:"🌙", title:"Sleep Before 10:30 PM — 5 Days", desc:"Track your sleep, own your mornings.", xp:150, color:"#6366f1" },
+  ];
+
+  const todayKey = today();
+  const [completedToday, setCompletedToday] = useState(() => storage.get(`challenges_${todayKey}`, []));
+  const [weeklyProgress, setWeeklyProgress] = useState(() => storage.get("weeklyChallenge", {}));
+  const [totalXP, setTotalXP] = useState(() => storage.get("challengeXP", 0));
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [lastCompleted, setLastCompleted] = useState(null);
+
+  useEffect(() => { storage.set(`challenges_${todayKey}`, completedToday); }, [completedToday]);
+  useEffect(() => { storage.set("weeklyChallenge", weeklyProgress); }, [weeklyProgress]);
+  useEffect(() => { storage.set("challengeXP", totalXP); }, [totalXP]);
+
+  const completeChallenge = (ch) => {
+    if (completedToday.includes(ch.id)) return;
+    setCompletedToday(prev => [...prev, ch.id]);
+    setTotalXP(x => x + ch.xp);
+    setLastCompleted(ch);
+    setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 2500);
+  };
+
+  const undoChallenge = (ch) => {
+    if (!completedToday.includes(ch.id)) return;
+    setCompletedToday(prev => prev.filter(x => x !== ch.id));
+    setTotalXP(x => Math.max(0, x - ch.xp));
+  };
+
+  const getRank = (xp) => {
+    if (xp >= 2000) return { rank:"LEGEND", color:"#f59e0b", emoji:"👑" };
+    if (xp >= 1000) return { rank:"ELITE", color:"#7c6fff", emoji:"💜" };
+    if (xp >= 500) return { rank:"BEAST", color:"#ef4444", emoji:"🔥" };
+    if (xp >= 200) return { rank:"GRINDER", color:"#10b981", emoji:"💪" };
+    return { rank:"ROOKIE", color:"var(--text2)", emoji:"⚡" };
+  };
+
+  const { rank, color: rankColor, emoji: rankEmoji } = getRank(totalXP);
+  const todayXP = completedToday.reduce((sum, id) => {
+    const ch = DAILY_CHALLENGES.find(c => c.id === id);
+    return sum + (ch?.xp || 0);
+  }, 0);
+
+  const categoryColors = { academic:"#3b82f6", fitness:"#ef4444", discipline:"#10b981", health:"#06b6d4" };
+
+  return (
+    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
+      {/* Confetti flash */}
+      {showConfetti && (
+        <div style={{ position:"fixed",inset:0,pointerEvents:"none",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center" }}>
+          <div style={{ fontSize:64,animation:"pulse .3s ease-in-out 5" }}>
+            {lastCompleted?.emoji}
+          </div>
+          <div style={{ position:"absolute",top:"40%",fontFamily:"Syne",fontSize:24,fontWeight:800,color:"var(--green)",textShadow:"0 0 30px var(--green)" }}>+{lastCompleted?.xp} XP!</div>
+        </div>
+      )}
+
+      {/* XP Banner */}
+      <div className="card fade-up" style={{ background:"linear-gradient(135deg,#7c6fff18,#ef444410,var(--bg2))",border:"1px solid var(--border2)",padding:"20px 24px" }}>
+        <div style={{ display:"flex",alignItems:"center",gap:16 }}>
+          <div style={{ fontSize:40 }}>{rankEmoji}</div>
+          <div style={{ flex:1 }}>
+            <div style={{ fontFamily:"Syne",fontSize:22,fontWeight:800,color:rankColor }}>{rank}</div>
+            <div style={{ fontSize:13,color:"var(--text3)" }}>{profile?.name || "Student"} • {totalXP} XP total</div>
+          </div>
+          <div style={{ textAlign:"right" }}>
+            <div style={{ fontFamily:"Syne",fontSize:28,fontWeight:800,color:"var(--green)" }}>+{todayXP}</div>
+            <div style={{ fontSize:11,color:"var(--text3)" }}>XP today</div>
+          </div>
+        </div>
+        <div style={{ marginTop:12 }}>
+          <div style={{ display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--text3)",marginBottom:4 }}>
+            <span>{completedToday.length}/{DAILY_CHALLENGES.length} today</span>
+            <span>{Math.round(completedToday.length/DAILY_CHALLENGES.length*100)}%</span>
+          </div>
+          <div className="progress-bar"><div className="progress-fill" style={{ width:`${completedToday.length/DAILY_CHALLENGES.length*100}%`,background:"linear-gradient(90deg,#7c6fff,#10b981)" }}/></div>
+        </div>
+      </div>
+
+      {/* Daily Challenges */}
+      <div>
+        <div className="section-title"><Icon d={icons.zap} size={16} stroke="var(--amber)"/> Daily Challenges</div>
+        <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
+          {DAILY_CHALLENGES.map((ch,i) => {
+            const done = completedToday.includes(ch.id);
+            return (
+              <div key={ch.id} className="card fade-up" style={{ animationDelay:`${i*.03}s`, padding:"14px 18px", background: done?"#10b98108":"var(--bg2)", border:`1px solid ${done?"#10b98130":"var(--border)"}`, opacity: done ? 0.8 : 1, transition:"all .3s" }}>
+                <div style={{ display:"flex",alignItems:"center",gap:12 }}>
+                  <div style={{ fontSize:28,flexShrink:0 }}>{ch.emoji}</div>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:8,flexWrap:"wrap" }}>
+                      <div style={{ fontWeight:700,fontSize:14,textDecoration:done?"line-through":"none",color:done?"var(--text3)":"var(--text)" }}>{ch.title}</div>
+                      <span className="badge" style={{ background:categoryColors[ch.category]+"20",color:categoryColors[ch.category],fontSize:10 }}>{ch.category}</span>
+                    </div>
+                    <div style={{ fontSize:12,color:"var(--text3)",marginTop:2 }}>{ch.desc}</div>
+                  </div>
+                  <div style={{ display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6,flexShrink:0 }}>
+                    <div style={{ fontFamily:"Syne",fontWeight:800,fontSize:13,color:done?"var(--green)":ch.color }}>+{ch.xp} XP</div>
+                    {done
+                      ? <button className="btn btn-ghost btn-sm" style={{ fontSize:11,padding:"4px 10px",color:"var(--text3)" }} onClick={() => undoChallenge(ch)}>Undo</button>
+                      : <button className="btn btn-primary btn-sm" style={{ fontSize:11,padding:"6px 12px",background:ch.color }} onClick={() => completeChallenge(ch)}>Done ✓</button>
+                    }
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Weekly Streak Challenges */}
+      <div>
+        <div className="section-title"><Icon d={icons.trophy} size={16} stroke="var(--amber)"/> Weekly Streak Challenges</div>
+        <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
+          {WEEKLY_STREAK_CHALLENGES.map((ch,i) => {
+            const prog = weeklyProgress[ch.id] || 0;
+            const target = ch.id==="ws3" ? 5 : 7;
+            const done = prog >= target;
+            return (
+              <div key={ch.id} className="card fade-up" style={{ animationDelay:`${i*.05}s`,border:`1px solid ${done?"#f59e0b":"var(--border)"}30` }}>
+                <div style={{ display:"flex",alignItems:"flex-start",gap:12,marginBottom:12 }}>
+                  <div style={{ fontSize:28 }}>{ch.emoji}</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:700,fontSize:14 }}>{ch.title}</div>
+                    <div style={{ fontSize:12,color:"var(--text3)",marginTop:2 }}>{ch.desc}</div>
+                  </div>
+                  <div style={{ fontFamily:"Syne",fontWeight:800,color:"#f59e0b",flexShrink:0 }}>+{ch.xp} XP</div>
+                </div>
+                <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+                  <div className="progress-bar" style={{ flex:1 }}>
+                    <div className="progress-fill" style={{ width:`${Math.min(prog/target*100,100)}%`,background:`linear-gradient(90deg,${ch.color},#f59e0b)` }}/>
+                  </div>
+                  <div style={{ fontSize:12,fontWeight:700,color:ch.color,minWidth:40,textAlign:"right" }}>{prog}/{target}d</div>
+                  {!done && (
+                    <button className="btn btn-ghost btn-sm" onClick={() => setWeeklyProgress(p => ({ ...p, [ch.id]:Math.min((p[ch.id]||0)+1,target) }))}>+1</button>
+                  )}
+                  {done && <span style={{ fontSize:18 }}>🏆</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Motivational footer */}
+      <div className="card fade-up" style={{ background:"linear-gradient(135deg,#ef444410,#7c6fff10,var(--bg2))",border:"1px solid var(--border2)",textAlign:"center",padding:24 }}>
+        <div style={{ fontSize:28,marginBottom:8 }}>⚡</div>
+        <div style={{ fontFamily:"Syne",fontWeight:800,fontSize:16,marginBottom:6 }}>
+          {completedToday.length === DAILY_CHALLENGES.length
+            ? "YOU'RE A BEAST TODAY! 🔥"
+            : completedToday.length >= 4
+            ? "More than halfway! Finish strong!"
+            : "Every challenge you complete is one less regret."}
+        </div>
+        <div style={{ fontSize:12,color:"var(--text3)" }}>
+          {DAILY_CHALLENGES.length - completedToday.length} challenges left • {DAILY_CHALLENGES.reduce((s,c)=>s+c.xp,0)-todayXP} XP remaining today
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 function App() {
   const [onboarded, setOnboarded] = useState(() => storage.get("onboarded",false));
@@ -1499,11 +2206,14 @@ function App() {
     { id:"goals", label:"Goals", icon:"goals" },
     { id:"notes", label:"Notes", icon:"notes" },
     { id:"analytics", label:"Analytics", icon:"analytics" },
+    { id:"alarm", label:"Alarm", icon:"alarm" },
+    { id:"focus", label:"Focus Mode", icon:"focus" },
+    { id:"challenges", label:"BeastMode", icon:"zap" },
     { id:"profile", label:"Profile", icon:"profile" },
     { id:"report", label:"Weekly Report", icon:"report" },
     { id:"settings", label:"Settings", icon:"settings" },
   ];
-  const pageTitles = { home:"Dashboard",schedule:"Schedule",habits:"Habits",lectures:"Lectures",workout:"Workout",goals:"Goals",notes:"Notes",analytics:"Analytics",profile:"Profile",report:"Weekly Report",settings:"Settings" };
+  const pageTitles = { home:"Dashboard",schedule:"Schedule",habits:"Habits",lectures:"Lectures",workout:"Workout",goals:"Goals",notes:"Notes",analytics:"Analytics",alarm:"Alarm",focus:"Focus Mode",challenges:"BeastMode Challenges",profile:"Profile",report:"Weekly Report",settings:"Settings" };
 
   const navigateTo = (id) => { setPage(id); setSidebarOpen(false); };
 
@@ -1586,6 +2296,9 @@ function App() {
             {page==="goals" && <GoalsPage goals={goals} setGoals={setGoals}/>}
             {page==="notes" && <NotesPage notes={notes} setNotes={setNotes} lectures={lectures}/>}
             {page==="analytics" && <AnalyticsPage habitLogs={habitLogs} habits={habits} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures}/>}
+            {page==="alarm" && <AlarmPage/>}
+            {page==="focus" && <FocusPage/>}
+            {page==="challenges" && <ChallengesPage profile={profile}/>}
             {page==="profile" && <ProfilePage profile={profile} setProfile={setProfile} habitLogs={habitLogs} habits={habits} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} goals={goals}/>}
             {page==="report" && <WeeklyReportPage profile={profile} habits={habits} habitLogs={habitLogs} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} goals={goals}/>}
             {page==="settings" && <SettingsPage profile={profile} setProfile={setProfile} onLogout={handleLogout} theme={theme} setTheme={handleThemeChange} allData={allData} onImport={handleImport}/>}
