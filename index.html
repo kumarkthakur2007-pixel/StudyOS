@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>StudyOS — Student Tracker</title>
+  <title>StudyOS v3 — Command Center</title>
 
   <!-- PWA Meta Tags -->
   <meta name="description" content="Your personal high-performance tracker for Class 12 PCB. Built to beat distractions." />
@@ -21,9 +21,18 @@
   <!-- Apple Touch Icons (inline SVG converted via data URI) -->
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230a0a0f'/%3E%3Ccircle cx='256' cy='256' r='220' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c6fff'/%3E%3Cstop offset='1' stop-color='%23ec4899'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='256' y='330' font-size='240' text-anchor='middle' fill='white' font-family='sans-serif'%3E🧠%3C/text%3E%3C/svg%3E" />
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <style>
+    #boot-screen{position:fixed;inset:0;background:#0a0a0f;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:18px;font-family:sans-serif}
+    #boot-logo{width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,#7c6fff,#ec4899);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 8px 32px #7c6fff40}
+    #boot-title{color:#f0f0f5;font-size:22px;font-weight:800;letter-spacing:.5px}
+    #boot-sub{color:#5a5a72;font-size:13px}
+    #boot-spinner{width:36px;height:36px;border:3px solid #ffffff15;border-top:3px solid #7c6fff;border-radius:50%;animation:bspin .7s linear infinite}
+    @keyframes bspin{to{transform:rotate(360deg)}}
+    #boot-err{display:none;color:#ef4444;font-size:13px;text-align:center;max-width:280px;line-height:1.6}
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" onerror="document.getElementById('boot-err').style.display='block';document.getElementById('boot-err').textContent='React failed to load. Check internet connection and reload.'"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js" onerror="document.getElementById('boot-err').style.display='block';document.getElementById('boot-err').textContent='Babel failed to load. Check internet and reload.'"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <!-- Register Service Worker -->
@@ -38,8 +47,18 @@
   </script>
 </head>
 <body>
+  <div id="boot-screen">
+    <div id="boot-logo">🧠</div>
+    <div id="boot-title">StudyOS</div>
+    <div id="boot-spinner"></div>
+    <div id="boot-sub">Loading your command center...</div>
+    <div id="boot-err"></div>
+  </div>
   <div id="root"></div>
   <script type="text/babel">
+
+
+
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
 // ─── ICONS ────────────────────────────────────────────────────────────────────
@@ -93,17 +112,6 @@ const icons = {
   star: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
   whatsapp: "M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l5.07-1.35A9.96 9.96 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z",
   copy: "M8 8H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2 M8 8V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2",
-  alarm: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 6v6l4 2 M5 3l-2 2 M21 5l-2-2",
-  focus: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z M12 6v6l4 2 M8 12H6 M18 12h-2 M12 6V4 M12 18v2",
-  shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
-  zap: "M13 2L3 14h9l-1 8 10-12h-9l1-8z",
-  trophy: "M8 21h8 M12 17v4 M7 4h10l1 7a5 5 0 0 1-5 5 5 5 0 0 1-5-5L7 4z M5 4h2 M17 4h2 M5 8H3a2 2 0 0 0 0 4h2 M19 8h2a2 2 0 0 1 0 4h-2",
-  lock: "M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z M7 11V7a5 5 0 0 1 10 0v4",
-  music: "M9 18V5l12-2v13 M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0z M21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z",
-  refresh: "M23 4v6h-6 M1 20v-6h6 M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15",
-  stop: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 0 2 2z",
-  coffee: "M18 8h1a4 4 0 0 1 0 8h-1 M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z M6 1v3 M10 1v3 M14 1v3",
-  infinity: "M12 12c-2-2.5-4-4-6-4a4 4 0 0 0 0 8c2 0 4-1.5 6-4z M12 12c2 2.5 4 4 6 4a4 4 0 0 0 0-8c-2 0-4 1.5-6 4z",
 };
 
 // ─── THEMES ──────────────────────────────────────────────────────────────────
@@ -156,6 +164,48 @@ const THEMES = {
     "--accent":"#e11d48","--accent2":"#f43f5e","--accentglow":"#e11d4825",
     "--sidebar-bg":"#ffffff","--topbar-bg":"#ffffff",
   },
+};
+const RANKS = [
+  { level:1, name:"Novice",        minXP:0,     emoji:"🌱", color:"#6b7280" },
+  { level:2, name:"Grinder",       minXP:200,   emoji:"⚙️", color:"#78716c" },
+  { level:3, name:"Focused",       minXP:500,   emoji:"🎯", color:"#3b82f6" },
+  { level:4, name:"Scholar",       minXP:1000,  emoji:"📚", color:"#8b5cf6" },
+  { level:5, name:"Grind Master",  minXP:2000,  emoji:"🔥", color:"#f97316" },
+  { level:6, name:"Apex Aspirant", minXP:3500,  emoji:"⚡", color:"#eab308" },
+  { level:7, name:"NEET Warrior",  minXP:5000,  emoji:"⚔️", color:"#ef4444" },
+  { level:8, name:"Bio God",       minXP:7500,  emoji:"🧬", color:"#10b981" },
+  { level:9, name:"Top Ranker",    minXP:10000, emoji:"👑", color:"#f59e0b" },
+  { level:10,name:"AIIMS Material",minXP:15000, emoji:"🏆", color:"#a78bfa" },
+];
+const XP_VALS = { habit:10, lecture:50, workout:30 };
+const CYBERPUNK_THEMES = ["cyberpunk","nordic"];
+// Add cyberpunk+nordic themes
+THEMES.cyberpunk = { name:"Cyberpunk",emoji:"⚡","--bg":"#08000f","--bg2":"#0d0018","--bg3":"#130022","--bg4":"#1a002e","--border":"#ff00ff18","--border2":"#ff00ff30","--text":"#f0f0ff","--text2":"#cc88ff","--text3":"#8844aa","--accent":"#ff00ff","--accent2":"#00ffff","--accentglow":"#ff00ff50","--sidebar-bg":"#0d0018","--topbar-bg":"#0d0018" };
+THEMES.nordic = { name:"Nordic Frost",emoji:"❄️","--bg":"#1a1f2e","--bg2":"#222838","--bg3":"#2a3348","--bg4":"#333f58","--border":"#3d4f6a","--border2":"#4a6080","--text":"#eceff4","--text2":"#aab4c8","--text3":"#6a7d99","--accent":"#88c0d0","--accent2":"#81a1c1","--accentglow":"#88c0d040","--sidebar-bg":"#222838","--topbar-bg":"#222838" };
+const getRank=(xp)=>{ let r=RANKS[0]; for(const rk of RANKS){if(xp>=rk.minXP)r=rk;else break;} return r; };
+const getNextRank=(xp)=>{ for(const r of RANKS){if(xp<r.minXP)return r;} return null; };
+const computeXP=(habitLogs,habits,workoutLogs,lectureProgress,lectures)=>{
+  let xp=0;
+  Object.values(habitLogs).forEach(dl=>{ habits.forEach(h=>{ if(dl[h.id])xp+=XP_VALS.habit; }); });
+  Object.values(workoutLogs).forEach(l=>{ if(l?.done)xp+=XP_VALS.workout; });
+  lectures.forEach(l=>{ Object.values(lectureProgress[l.id]||{}).forEach(d=>{ if(d?.done)xp+=XP_VALS.lecture; }); });
+  return xp;
+};
+const spawnConfetti=()=>{
+  const colors=["#7c6fff","#ec4899","#f59e0b","#10b981","#3b82f6","#ff00ff","#00ffff","#ef4444"];
+  for(let i=0;i<28;i++){
+    const el=document.createElement("div");
+    el.style.cssText=`position:fixed;top:-10px;left:${Math.random()*100}vw;width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;border-radius:${Math.random()>0.5?"50%":"3px"};background:${colors[Math.floor(Math.random()*colors.length)]};animation:confettiFall ${1+Math.random()*0.8}s ease-in ${Math.random()*0.4}s forwards;pointer-events:none;z-index:9999;transform:rotate(${Math.random()*360}deg)`;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),2500);
+  }
+};
+const spawnXP=(amount,x,y)=>{
+  const el=document.createElement("div");
+  el.textContent=`+${amount} XP`;
+  el.style.cssText=`position:fixed;left:${x}px;top:${y}px;font-family:Syne,sans-serif;font-weight:800;font-size:18px;color:#a78bfa;text-shadow:0 0 10px #7c6fff80;animation:xpFloat 1.1s ease-out forwards;pointer-events:none;z-index:9999`;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),1200);
 };
 
 // ─── STORAGE ─────────────────────────────────────────────────────────────────
@@ -220,6 +270,7 @@ const getStreak = (logs) => {
   return streak;
 };
 const getWeekDays = () => Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - 6 + i); return d.toISOString().split("T")[0]; });
+const getLast90 = () => Array.from({ length: 90 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - 89 + i); return d.toISOString().split("T")[0]; });
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const getCSS = (theme) => {
@@ -241,6 +292,12 @@ const getCSS = (theme) => {
   ::-webkit-scrollbar-track{background:transparent}
   ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
   @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes confettiFall{0%{transform:translateY(-10px) rotate(0deg);opacity:1}100%{transform:translateY(300px) rotate(720deg);opacity:0}}
+  @keyframes xpFloat{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-60px) scale(1.3);opacity:0}}
+  @keyframes pageEnter{from{opacity:0;transform:translateY(12px) scale(.988)}to{opacity:1;transform:translateY(0) scale(1)}}
+  @keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
+  @keyframes pomoPulse{0%,100%{box-shadow:0 0 0 0 var(--accentglow)}50%{box-shadow:0 0 0 20px transparent}}
+  @keyframes rankGlow{0%,100%{box-shadow:0 4px 14px var(--accentglow)}50%{box-shadow:0 6px 28px var(--accentglow),0 0 40px var(--accentglow)}}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   @keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
   @keyframes slideRight{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
@@ -293,7 +350,7 @@ const getCSS = (theme) => {
   .profile-sub{font-size:11px;color:var(--text3);white-space:nowrap}
   /* ── MAIN ── */
   .main{flex:1;overflow:hidden;display:flex;flex-direction:column;min-width:0}
-  .topbar{padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--topbar-bg);flex-shrink:0}
+  .topbar{padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--topbar-bg);flex-shrink:0;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
   .topbar-left{display:flex;align-items:center;gap:12px}
   .page-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700}
   .topbar-date{font-size:12px;color:var(--text3);background:var(--bg3);padding:4px 10px;border-radius:99px;border:1px solid var(--border)}
@@ -303,7 +360,7 @@ const getCSS = (theme) => {
   .content{flex:1;overflow-y:auto;padding:24px}
   @media(max-width:768px){.content{padding:16px}.topbar{padding:12px 16px}}
   /* ── CARDS ── */
-  .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:border-color .2s}
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:all .2s;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
   .card:hover{border-color:var(--border2)}
   .card-sm{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px}
   .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
@@ -388,6 +445,26 @@ const getCSS = (theme) => {
   .report-card{background:var(--bg2);border-radius:20px;padding:28px;border:1px solid var(--border);width:100%;max-width:500px;margin:0 auto}
   /* Workout exercise */
   .workout-exercise{display:flex;align-items:center;gap:12px;padding:10px;border-radius:var(--radius-sm);background:var(--bg3);border:1px solid var(--border);transition:all .2s}
+  .xp-bar-wrap{height:8px;background:var(--bg4);border-radius:99px;overflow:hidden;position:relative}
+  .xp-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--pink));background-size:200%;animation:shimmer 2.5s linear infinite;transition:width 1.2s cubic-bezier(.16,1,.3,1)}
+  .rank-badge{display:inline-flex;align-items:center;gap:7px;padding:7px 16px;border-radius:99px;font-size:12px;font-weight:800;font-family:'Syne',sans-serif;animation:rankGlow 3s ease-in-out infinite}
+  .pomo-ring{position:relative;display:inline-flex;align-items:center;justify-content:center}
+  .pomo-ring svg{transform:rotate(-90deg)}
+  .pomo-center{position:absolute;text-align:center;pointer-events:none}
+  .pomo-time{font-family:'Syne',sans-serif;font-weight:800;font-size:44px;line-height:1;letter-spacing:-2px}
+  .pomo-label{font-size:11px;color:var(--text3);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+  .flashcard-item{display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg2);backdrop-filter:blur(8px);transition:all .2s}
+  .flashcard-item:hover{border-color:var(--border2);transform:translateX(2px)}
+  .conf-btn{flex:1;padding:8px 4px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;transition:all .15s;font-family:inherit}
+  .heatmap-cell{border-radius:3px;cursor:default;transition:transform .15s}
+  .heatmap-cell:hover{transform:scale(1.4);position:relative;z-index:2}
+  /* Mobile bottom nav */
+  .bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;height:64px;background:var(--topbar-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--border);z-index:50;padding-bottom:env(safe-area-inset-bottom,0)}
+  .bn-inner{display:flex;align-items:center;height:100%;padding:0 4px}
+  .bn-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;flex:1;cursor:pointer;color:var(--text3);transition:color .2s;min-width:0}
+  .bn-item.active{color:var(--accent)}
+  .bn-label{font-size:9px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  @media(max-width:768px){.content{padding-bottom:80px!important}.bottom-nav{display:flex}}
   .workout-exercise:hover{border-color:var(--border2)}
   .exercise-complete{background:#10b98112;border-color:#10b98130}
   /* Ring Chart */
@@ -404,15 +481,6 @@ const getCSS = (theme) => {
   ::-webkit-scrollbar{width:4px;height:4px}
   ::-webkit-scrollbar-track{background:transparent}
   ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
-  /* Toggle */
-  .toggle{width:46px;height:26px;border-radius:99px;border:none;cursor:pointer;position:relative;transition:background .25s;flex-shrink:0;outline:none}
-  .toggle.on{background:var(--accent)}
-  .toggle.off{background:var(--bg4);border:1px solid var(--border2)}
-  .toggle::after{content:'';position:absolute;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .25s cubic-bezier(.16,1,.3,1),transform .25s}
-  .toggle.on::after{left:23px}
-  .toggle.off::after{left:3px}
-  /* Focus ring pulse */
-  @keyframes focusPulse{0%,100%{box-shadow:0 0 0 0 var(--accentglow)}50%{box-shadow:0 0 0 12px transparent}}
   `;
 };
 
@@ -430,6 +498,30 @@ function RingChart({ percent, color, size = 80, label, sub }) {
       <div className="ring-chart-label">
         <div style={{ fontFamily: "Syne", fontWeight: 800, fontSize: size/4, lineHeight: 1 }}>{percent}%</div>
         {sub && <div style={{ fontSize: 9, color: "var(--text3)", marginTop: 2 }}>{sub}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ─── XP BADGE COMPONENT ──────────────────────────────────────────────────────
+function XPBadge({xp}){
+  const rank=getRank(xp), next=getNextRank(xp);
+  const pct=next?Math.round((xp-rank.minXP)/(next.minXP-rank.minXP)*100):100;
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+        <div className="rank-badge" style={{background:`linear-gradient(135deg,${rank.color},var(--accent2))`}}>
+          <span style={{fontSize:18}}>{rank.emoji}</span>
+          <span>Lv.{rank.level} {rank.name}</span>
+        </div>
+        <div style={{fontSize:13,color:"var(--text3)",fontWeight:600}}>{xp.toLocaleString()} XP total</div>
+      </div>
+      <div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--text3)",marginBottom:5}}>
+          <span>{rank.name}</span>
+          {next && <span>→ {next.name} at {next.minXP.toLocaleString()} XP</span>}
+        </div>
+        <div className="xp-bar-wrap"><div className="xp-bar-fill" style={{width:`${pct}%`}}/></div>
       </div>
     </div>
   );
@@ -509,7 +601,7 @@ function Onboarding({ onComplete }) {
 }
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
-function HomePage({ profile, habits, habitLogs, setHabitLogs, lectures, lectureProgress, workoutLogs, goals }) {
+function HomePage({ profile, habits, habitLogs, setHabitLogs, lectures, lectureProgress, workoutLogs, goals, xp, onNavigate }) {
   const todayKey = today();
   const todayLog = habitLogs[todayKey] || {};
   const habitsDone = habits.filter(h => todayLog[h.id]).length;
@@ -517,7 +609,11 @@ function HomePage({ profile, habits, habitLogs, setHabitLogs, lectures, lectureP
   const lecturesDone = lectures.filter(l => lectureProgress[l.id]?.[todayKey]?.done).length;
   const goalsAvg = goals.length ? Math.round(goals.reduce((s,g) => s+g.progress,0)/goals.length) : 0;
   const streak = getStreak(workoutLogs);
-  const toggleHabit = (id) => setHabitLogs(prev => ({ ...prev, [todayKey]: { ...(prev[todayKey]||{}), [id]: !prev[todayKey]?.[id] } }));
+  const toggleHabit = (id, e) => {
+    const wasOn = habitLogs[todayKey]?.[id];
+    setHabitLogs(prev => ({ ...prev, [todayKey]: { ...(prev[todayKey]||{}), [id]: !prev[todayKey]?.[id] } }));
+    if (!wasOn && e) { spawnConfetti(); spawnXP(XP_VALS.habit, e.clientX, e.clientY); }
+  };
   const now = new Date(); const currentTotal = now.getHours()*60 + now.getMinutes();
   const currentSchedule = SCHEDULE.find((item,i) => {
     const [h,m] = item.time.split(":").map(Number); const t = h*60+(m||0);
@@ -537,11 +633,22 @@ function HomePage({ profile, habits, habitLogs, setHabitLogs, lectures, lectureP
             <div style={{ color:"var(--text3)",fontSize:13,marginTop:2 }}>{todayLabel()} • {profile.target}</div>
           </div>
         </div>
+        {xp !== undefined && (
+          <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)"}}>
+            <XPBadge xp={xp}/>
+          </div>
+        )}
         {currentSchedule && (
           <div style={{ marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",alignItems:"center",gap:10 }}>
             <span style={{ fontSize:11,color:"var(--text3)",textTransform:"uppercase",letterSpacing:".6px",fontWeight:600 }}>NOW:</span>
             <span style={{ fontSize:14,fontWeight:600,color:"var(--accent2)" }}>{currentSchedule.label}</span>
             <span style={{ fontSize:10,background:"var(--accentglow)",color:"var(--accent2)",padding:"2px 8px",borderRadius:99,fontWeight:700 }}>{currentSchedule.time}</span>
+          </div>
+        )}
+        {onNavigate && (
+          <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",gap:10}}>
+            <button className="btn btn-primary btn-sm" style={{flex:1,justifyContent:"center"}} onClick={()=>onNavigate("focus")}>⏱ Focus Mode</button>
+            <button className="btn btn-ghost btn-sm" style={{flex:1,justifyContent:"center"}} onClick={()=>onNavigate("revision")}>🧠 Revision Lab</button>
           </div>
         )}
       </div>
@@ -566,7 +673,7 @@ function HomePage({ profile, habits, habitLogs, setHabitLogs, lectures, lectureP
           <div className="section-title"><Icon d={icons.habits} size={15} stroke="var(--green)" /> Today's Habits</div>
           <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
             {habits.slice(0,5).map(h => (
-              <div key={h.id} className={`habit-item ${todayLog[h.id]?"done":""}`} onClick={() => toggleHabit(h.id)}>
+              <div key={h.id} className={`habit-item ${todayLog[h.id]?"done":""}`} onClick={(e) => toggleHabit(h.id, e)}>
                 <div className="habit-check">{todayLog[h.id] && <Icon d={icons.check} size={13} stroke="#fff" strokeWidth={2.5}/>}</div>
                 <span style={{ fontSize:16 }}>{h.emoji}</span>
                 <span style={{ fontSize:13,fontWeight:500,flex:1,textDecoration:todayLog[h.id]?"line-through":"none",color:todayLog[h.id]?"var(--text3)":"var(--text)" }}>{h.name}</span>
@@ -650,7 +757,7 @@ function HabitsPage({ habits, setHabits, habitLogs, setHabitLogs }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newHabit, setNewHabit] = useState({ name:"", emoji:"✅", category:"morning" });
   const todayKey = today(); const todayLog = habitLogs[todayKey] || {};
-  const toggleHabit = (id) => setHabitLogs(prev => ({ ...prev, [todayKey]: { ...(prev[todayKey]||{}), [id]: !prev[todayKey]?.[id] } }));
+  const toggleHabit = (id, e) => { setHabitLogs(prev => ({ ...prev, [todayKey]: { ...(prev[todayKey]||{}), [id]: !prev[todayKey]?.[id] } })); if(!habitLogs[todayKey]?.[id] && e){ spawnConfetti(); spawnXP(XP_VALS.habit, e.clientX, e.clientY); } };
   const addHabit = () => { if (!newHabit.name) return; setHabits(prev => [...prev, { ...newHabit, id:Date.now(), target:1 }]); setNewHabit({ name:"", emoji:"✅", category:"morning" }); setShowAdd(false); };
   const deleteHabit = (id) => setHabits(prev => prev.filter(h => h.id !== id));
   const categories = [...new Set(habits.map(h => h.category))];
@@ -683,7 +790,7 @@ function HabitsPage({ habits, setHabits, habitLogs, setHabitLogs }) {
           <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
             {habits.filter(h => h.category===cat).map(h => (
               <div key={h.id} className={`habit-item ${todayLog[h.id]?"done":""}`}>
-                <div onClick={() => toggleHabit(h.id)} style={{ display:"flex",alignItems:"center",gap:12,flex:1,cursor:"pointer" }}>
+                <div onClick={(e) => toggleHabit(h.id, e)} style={{ display:"flex",alignItems:"center",gap:12,flex:1,cursor:"pointer" }}>
                   <div className="habit-check">{todayLog[h.id] && <Icon d={icons.check} size={14} stroke="#fff" strokeWidth={2.5}/>}</div>
                   <span style={{ fontSize:18 }}>{h.emoji}</span>
                   <span style={{ fontSize:13.5,fontWeight:500,textDecoration:todayLog[h.id]?"line-through":"none",color:todayLog[h.id]?"var(--text3)":"var(--text)" }}>{h.name}</span>
@@ -1001,7 +1108,7 @@ function NotesPage({ notes, setNotes, lectures }) {
 }
 
 // ─── ANALYTICS PAGE ───────────────────────────────────────────────────────────
-function AnalyticsPage({ habitLogs, habits, workoutLogs, lectureProgress, lectures }) {
+function AnalyticsPage({ habitLogs, habits, workoutLogs, lectureProgress, lectures, focusLogs, xp }) {
   const weekDays = getWeekDays(); const maxBarH = 100;
   const habitData = weekDays.map(date => {
     const log = habitLogs[date]||{}; const done = habits.filter(h => log[h.id]).length;
@@ -1013,9 +1120,32 @@ function AnalyticsPage({ habitLogs, habits, workoutLogs, lectureProgress, lectur
     const done = lectures.filter(l => lectureProgress[l.id]?.[date]?.done).length;
     return { date, done, total:lectures.length };
   });
+  const last90 = getLast90();
+  const totalSessions = Object.values(focusLogs||{}).reduce((s,d)=>s+(d.sessions||0),0);
+  const totalDistractions = Object.values(focusLogs||{}).reduce((s,d)=>s+(d.distractions||0),0);
+  const focusScore = totalSessions>0?Math.max(0,Math.round(100-(totalDistractions/totalSessions)*20)):0;
+  const getHeat=(date)=>{
+    const log=habitLogs[date]||{};const done=habits.filter(h=>log[h.id]).length;
+    if(!habits.length||done===0)return 0;
+    const p=done/habits.length;return p<.25?1:p<.5?2:p<.75?3:4;
+  };
+  const heatColors=["var(--bg4)","#10b98140","#10b98180","#10b981bb","#10b981"];
   return (
     <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
-      <div className="section-title"><Icon d={icons.analytics} size={16} stroke="var(--text2)"/> Weekly Analytics</div>
+      <div className="section-title"><Icon d={icons.analytics} size={16} stroke="var(--text2)"/> Analytics</div>
+      <div className="grid-4 fade-up">
+        {[
+          {label:"Total XP",value:(xp||0).toLocaleString(),color:"var(--accent2)",icon:icons.star},
+          {label:"Focus Score",value:`${focusScore}/100`,color:focusScore>=70?"var(--green)":focusScore>=40?"var(--amber)":"var(--red)",icon:icons.timer},
+          {label:"Sessions",value:totalSessions,color:"var(--blue)",icon:icons.timer},
+          {label:"Distractions",value:totalDistractions,color:"var(--red)",icon:icons.streak},
+        ].map((s,i)=>(
+          <div key={i} className="stat-card" style={{animationDelay:`${i*.04}s`}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}><Icon d={s.icon} size={14} stroke={s.color}/><span style={{fontSize:9,color:"var(--text3)",textTransform:"uppercase",letterSpacing:".6px",fontWeight:600}}>{s.label}</span></div>
+            <div className="stat-value" style={{color:s.color,fontSize:18}}>{s.value}</div>
+          </div>
+        ))}
+      </div>
       <div className="grid-3 fade-up">
         <div className="card" style={{ textAlign:"center" }}>
           <RingChart percent={habitData[6]?.pct||0} color="var(--green)" size={90}/>
@@ -1070,12 +1200,43 @@ function AnalyticsPage({ habitLogs, habits, workoutLogs, lectureProgress, lectur
           ))}
         </div>
       </div>
+      <div className="card fade-up" style={{animationDelay:".12s"}}>
+        <div className="section-title">🔥 Study Heatmap — Last 90 Days</div>
+        <div style={{overflowX:"auto",paddingBottom:8}}>
+          <div style={{display:"flex",flexDirection:"column",gap:3,width:"max-content"}}>
+            <div style={{display:"flex",gap:3}}>
+              {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=><div key={d} style={{width:14,fontSize:8,color:"var(--text3)",textAlign:"center"}}>{d[0]}</div>)}
+            </div>
+            {(()=>{
+              const weeks=[];
+              const startDay=new Date(last90[0]+"T00:00").getDay();
+              const padded=[...Array(startDay).fill(null),...last90];
+              for(let w=0;w<Math.ceil(padded.length/7);w++){
+                weeks.push(padded.slice(w*7,(w+1)*7));
+              }
+              return weeks.map((week,wi)=>(
+                <div key={wi} style={{display:"flex",gap:3}}>
+                  {Array.from({length:7}).map((_,di)=>{
+                    const d=week[di];
+                    return <div key={di} className="heatmap-cell" title={d?`${d}: ${getHeat(d)*25}% habit completion`:""} style={{width:14,height:14,background:d?heatColors[getHeat(d)]:"transparent"}}/>;
+                  })}
+                </div>
+              ));
+            })()}
+          </div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:6,marginTop:10,fontSize:11,color:"var(--text3)"}}>
+          <span>Less</span>
+          {heatColors.map((c,i)=><div key={i} style={{width:12,height:12,borderRadius:2,background:c}}/>)}
+          <span>More</span>
+        </div>
+      </div>
     </div>
   );
 }
 
 // ─── PROFILE PAGE ─────────────────────────────────────────────────────────────
-function ProfilePage({ profile, setProfile, habitLogs, habits, workoutLogs, lectureProgress, lectures, goals }) {
+function ProfilePage({ profile, setProfile, habitLogs, habits, workoutLogs, lectureProgress, lectures, goals, xp }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(profile);
   const fileRef = useRef();
@@ -1452,689 +1613,255 @@ function SettingsPage({ profile, setProfile, onLogout, theme, setTheme, allData,
   );
 }
 
-// ─── ALARM PAGE ──────────────────────────────────────────────────────────────
-function AlarmPage() {
-  const [alarms, setAlarms] = useState(() => storage.get("alarms", []));
-  const [showAdd, setShowAdd] = useState(false);
-  const [newAlarm, setNewAlarm] = useState({ label: "Wake Up", time: "05:15", days: [1,2,3,4,5,6], enabled: true, ringtoneName: "", ringtoneData: null });
-  const [testingAlarm, setTestingAlarm] = useState(null);
-  const [firingAlarm, setFiringAlarm] = useState(null);
-  const [captchaAnswer, setCaptchaAnswer] = useState("");
-  const [captchaQ, setCaptchaQ] = useState(null);
-  const [captchaError, setCaptchaError] = useState(false);
-  const [activeAudio, setActiveAudio] = useState(null);
-  const [permGranted, setPermGranted] = useState(false);
-  const fileRef = useRef();
-  const audioRef = useRef(null);
-  const alarmIntervalRef = useRef(null);
-  const ringLoopRef = useRef(null);
+// ─── FOCUS MODE (POMODORO + DISTRACTION COUNTER) ────────────────────────────
+function FocusPage({focusLogs,setFocusLogs}){
+  const MODES=[{label:"25/5 Classic",work:25,rest:5},{label:"50/10 Deep Work",work:50,rest:10}];
+  const [mi,setMi]=useState(0);
+  const mode=MODES[mi];
+  const [phase,setPhase]=useState("work");
+  const [secs,setSecs]=useState(25*60);
+  const [running,setRunning]=useState(false);
+  const [sessions,setSessions]=useState(0);
+  const [distractions,setDistractions]=useState(0);
+  const tiRef=useRef(null);
+  const todayKey=today();
+  const total=phase==="work"?mode.work*60:mode.rest*60;
+  const pct=(secs/total)*100;
+  const R=110, circ=2*Math.PI*R;
+  const offset=circ*((100-pct)/100);
 
-  const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  useEffect(()=>{
+    setSecs((phase==="work"?mode.work:mode.rest)*60);
+    setRunning(false); clearInterval(tiRef.current);
+  },[mi,phase]);
 
-  // Request notification permission
-  useEffect(() => {
-    if ("Notification" in window) {
-      Notification.requestPermission().then(p => setPermGranted(p === "granted"));
-    }
-  }, []);
+  useEffect(()=>{
+    if(running){
+      tiRef.current=setInterval(()=>{
+        setSecs(s=>{
+          if(s<=1){ clearInterval(tiRef.current);
+            if(phase==="work"){setSessions(n=>n+1);spawnConfetti();setPhase("rest");}
+            else setPhase("work");
+            return 0;
+          }
+          return s-1;
+        });
+      },1000);
+    } else clearInterval(tiRef.current);
+    return ()=>clearInterval(tiRef.current);
+  },[running,phase]);
 
-  // Save alarms whenever they change
-  useEffect(() => { storage.set("alarms", alarms); }, [alarms]);
+  const mins=String(Math.floor(secs/60)).padStart(2,"0");
+  const sec2=String(secs%60).padStart(2,"0");
+  const focusScore=sessions>0?Math.max(0,Math.round(100-(distractions/sessions)*20)):100;
+  const logToday=focusLogs[todayKey]||{sessions:0,distractions:0};
 
-  // Alarm checker - runs every 30 seconds
-  useEffect(() => {
-    const check = () => {
-      const now = new Date();
-      const timeStr = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
-      const dayIdx = now.getDay();
-      alarms.forEach(alarm => {
-        if (!alarm.enabled) return;
-        if (alarm.time !== timeStr) return;
-        if (!alarm.days.includes(dayIdx)) return;
-        const key = `fired_${alarm.id}_${today()}_${timeStr}`;
-        if (sessionStorage.getItem(key)) return;
-        sessionStorage.setItem(key, "1");
-        triggerAlarm(alarm);
-      });
-    };
-    check();
-    alarmIntervalRef.current = setInterval(check, 30000);
-    return () => clearInterval(alarmIntervalRef.current);
-  }, [alarms]);
-
-  const generateCaptcha = () => {
-    const ops = ["+","-","×"];
-    const op = ops[Math.floor(Math.random()*3)];
-    let a = Math.floor(Math.random()*10)+2;
-    let b = Math.floor(Math.random()*10)+2;
-    if (op==="-") { if (a<b) [a,b]=[b,a]; }
-    const answer = op==="+"? a+b : op==="-"? a-b : a*b;
-    return { q:`${a} ${op} ${b} = ?`, answer: String(answer) };
+  const saveSession=()=>{
+    setFocusLogs(prev=>({...prev,[todayKey]:{sessions:(prev[todayKey]?.sessions||0)+sessions,distractions:(prev[todayKey]?.distractions||0)+distractions}}));
+    setSessions(0);setDistractions(0);setPhase("work");setRunning(false);setSecs(mode.work*60);
   };
 
-  const triggerAlarm = (alarm) => {
-    const cq = generateCaptcha();
-    setCaptchaQ(cq);
-    setCaptchaAnswer("");
-    setCaptchaError(false);
-    setFiringAlarm(alarm);
-    // Play ringtone in loop
-    startRingtone(alarm);
-    // Send browser notification
-    if (permGranted && document.visibilityState === "hidden") {
-      new Notification(`⏰ ${alarm.label}`, { body: "Alarm! Solve CAPTCHA to dismiss.", icon: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E⏰%3C/text%3E%3C/svg%3E" });
-    }
-  };
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:20,maxWidth:480,margin:"0 auto",width:"100%"}}>
+      <div style={{display:"flex",gap:8}}>
+        {MODES.map((m,i)=>(
+          <button key={i} className={`btn ${mi===i?"btn-primary":"btn-ghost"}`} style={{flex:1,justifyContent:"center",borderRadius:12}} onClick={()=>{setMi(i);setPhase("work");}}>
+            {m.label}
+          </button>
+        ))}
+      </div>
+      <div className="card" style={{textAlign:"center",padding:"36px 24px",background:phase==="work"?"linear-gradient(135deg,var(--accentglow),var(--bg2))":"linear-gradient(135deg,#10b98118,var(--bg2))"}}>
+        <div style={{marginBottom:14,fontSize:12,fontWeight:700,color:phase==="work"?"var(--accent2)":"var(--green)",textTransform:"uppercase",letterSpacing:".8px"}}>
+          {phase==="work"?"🎯 DEEP FOCUS":"☕ REST"}
+        </div>
+        <div className="pomo-ring" style={{margin:"0 auto 24px"}}>
+          <svg width={256} height={256}>
+            <circle cx={128} cy={128} r={R} fill="none" stroke="var(--bg4)" strokeWidth="10"/>
+            <circle cx={128} cy={128} r={R} fill="none" stroke={phase==="work"?"var(--accent)":"var(--green)"} strokeWidth="10"
+              strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+              style={{transition:"stroke-dashoffset .95s linear",filter:`drop-shadow(0 0 10px ${phase==="work"?"var(--accent)":"var(--green)"})`}}/>
+          </svg>
+          <div className="pomo-center">
+            <div className="pomo-time">{mins}:{sec2}</div>
+            <div className="pomo-label">{phase==="work"?"Focus":"Rest"}</div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:12,justifyContent:"center",marginBottom:20}}>
+          <button className="btn btn-primary" style={{borderRadius:99,padding:"12px 28px"}} onClick={()=>setRunning(r=>!r)}>
+            {running?"⏸ Pause":"▶ Start"}
+          </button>
+          <button className="btn btn-ghost" style={{borderRadius:99}} onClick={()=>{setRunning(false);setSecs((phase==="work"?mode.work:mode.rest)*60);}}>↺</button>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-around",paddingTop:16,borderTop:"1px solid var(--border)"}}>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontFamily:"Syne",fontSize:24,fontWeight:800,color:"var(--accent2)"}}>{sessions}</div>
+            <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>Sessions</div>
+          </div>
+          <div style={{textAlign:"center"}}>
+            <button onClick={()=>setDistractions(d=>d+1)} style={{background:"none",border:"none",cursor:"pointer"}}>
+              <div style={{fontFamily:"Syne",fontSize:24,fontWeight:800,color:"var(--red)"}}>{distractions}</div>
+              <div style={{fontSize:11,color:"var(--red)",marginTop:2,fontWeight:600}}>⚠️ I got distracted</div>
+            </button>
+          </div>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontFamily:"Syne",fontSize:24,fontWeight:800,color:focusScore>=80?"var(--green)":focusScore>=50?"var(--amber)":"var(--red)"}}>{focusScore}</div>
+            <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>Focus Score</div>
+          </div>
+        </div>
+        {sessions>0&&<button className="btn btn-ghost" style={{marginTop:16,width:"100%",justifyContent:"center"}} onClick={saveSession}>💾 Save & Reset Session</button>}
+      </div>
+      <div className="card fade-up" style={{animationDelay:".08s"}}>
+        <div className="section-title">📊 Today's Stats</div>
+        <div className="grid-3">
+          {[
+            {label:"Sessions Done",value:logToday.sessions,color:"var(--accent2)"},
+            {label:"Distractions",value:logToday.distractions,color:"var(--red)"},
+            {label:"Focus Score",value:logToday.sessions>0?Math.max(0,Math.round(100-(logToday.distractions/logToday.sessions)*20)):"-",color:"var(--green)"},
+          ].map((s,i)=>(
+            <div key={i} style={{textAlign:"center",padding:"14px 8px",borderRadius:10,background:"var(--bg3)"}}>
+              <div style={{fontFamily:"Syne",fontSize:20,fontWeight:800,color:s.color}}>{s.value}</div>
+              <div style={{fontSize:10,color:"var(--text3)",marginTop:2}}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{marginTop:14,padding:"12px 14px",borderRadius:10,background:"var(--accentglow)",fontSize:12.5,color:"var(--text2)",lineHeight:1.65}}>
+          💡 <strong>How it works:</strong> Every time you feel like checking your phone or drifting mentally, tap "I got distracted". This gives you an honest Focus Score. The goal is to bring distractions to zero over time.
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  const startRingtone = (alarm) => {
-    stopRingtone();
-    if (alarm.ringtoneData) {
-      const play = () => {
-        const audio = new Audio(alarm.ringtoneData);
-        audio.volume = 1.0;
-        audioRef.current = audio;
-        audio.play().catch(()=>{});
-        audio.onended = () => { if (ringLoopRef.current) play(); };
-        ringLoopRef.current = true;
-      };
-      play();
-    } else {
-      // Built-in beep using Web Audio API
-      const playBeep = () => {
-        if (!ringLoopRef.current) return;
-        try {
-          const ctx = new (window.AudioContext || window.webkitAudioContext)();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain); gain.connect(ctx.destination);
-          osc.frequency.value = 880;
-          osc.type = "sine";
-          gain.gain.setValueAtTime(0.4, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-          osc.start(); osc.stop(ctx.currentTime + 0.6);
-          osc.onended = () => { ctx.close(); if (ringLoopRef.current) setTimeout(playBeep, 400); };
-        } catch(e) {}
-      };
-      ringLoopRef.current = true;
-      playBeep();
-    }
-  };
+// ─── REVISION LAB (SPACED REPETITION) ────────────────────────────────────────
+function RevisionPage({flashcards,setFlashcards}){
+  const [showAdd,setShowAdd]=useState(false);
+  const [card,setCard]=useState({topic:"",subject:"Biology",confidence:3,notes:""});
+  const [filter,setFilter]=useState("all");
+  const todayKey=today();
+  const CONF_COLORS=["","#ef4444","#f97316","#f59e0b","#10b981","#3b82f6"];
+  const CONF_LABELS=["","Critical","Weak","Okay","Good","Mastered"];
+  const CONF_FREQ=["","daily","daily","every 3 days","weekly","weekly"];
 
-  const stopRingtone = () => {
-    ringLoopRef.current = false;
-    if (audioRef.current) { try { audioRef.current.pause(); audioRef.current = null; } catch(e){} }
+  const isDue=(c)=>{
+    if(!c.lastReviewed)return true;
+    const days=Math.floor((Date.now()-new Date(c.lastReviewed))/(864e5));
+    if(c.confidence<=2)return days>=1;
+    if(c.confidence===3)return days>=3;
+    return days>=7;
   };
-
-  const dismissAlarm = () => {
-    const correct = captchaAnswer.trim() === captchaQ?.answer;
-    if (!correct) { setCaptchaError(true); setCaptchaAnswer(""); return; }
-    stopRingtone();
-    setFiringAlarm(null);
-    setCaptchaQ(null);
-    setCaptchaAnswer("");
-    setCaptchaError(false);
-  };
-
-  const testRingtone = (alarm) => {
-    if (testingAlarm === alarm.id) { stopRingtone(); setTestingAlarm(null); return; }
-    setTestingAlarm(alarm.id);
-    startRingtone(alarm);
-    setTimeout(() => { stopRingtone(); setTestingAlarm(null); }, 5000);
-  };
-
-  const handleRingtoneFile = (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    if (file.size > 3 * 1024 * 1024) { alert("File too large! Maximum 3MB allowed."); return; }
-    if (!file.type.startsWith("audio/")) { alert("Please select an audio file."); return; }
-    const reader = new FileReader();
-    reader.onload = (ev) => setNewAlarm(a => ({ ...a, ringtoneData: ev.target.result, ringtoneName: file.name }));
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
-
-  const addAlarm = () => {
-    if (!newAlarm.time) return;
-    setAlarms(prev => [...prev, { ...newAlarm, id: Date.now() }]);
-    setNewAlarm({ label:"Wake Up", time:"05:15", days:[1,2,3,4,5,6], enabled:true, ringtoneName:"", ringtoneData:null });
+  const review=(id,conf)=>setFlashcards(prev=>prev.map(c=>c.id===id?{...c,confidence:conf,lastReviewed:todayKey}:c));
+  const addCard=()=>{
+    if(!card.topic)return;
+    setFlashcards(prev=>[...prev,{...card,id:Date.now(),createdAt:todayKey,lastReviewed:null}]);
+    setCard({topic:"",subject:"Biology",confidence:3,notes:""});
     setShowAdd(false);
   };
 
-  const toggleAlarm = (id) => setAlarms(prev => prev.map(a => a.id===id ? {...a, enabled:!a.enabled} : a));
-  const deleteAlarm = (id) => setAlarms(prev => prev.filter(a => a.id!==id));
-  const toggleDay = (d) => setNewAlarm(a => ({ ...a, days: a.days.includes(d) ? a.days.filter(x=>x!==d) : [...a.days, d].sort() }));
-
-  const nextRing = (alarm) => {
-    if (!alarm.enabled) return "Disabled";
-    const now = new Date();
-    const [h,m] = alarm.time.split(":").map(Number);
-    for (let i=0;i<8;i++) {
-      const d = new Date(now); d.setDate(d.getDate()+i);
-      d.setHours(h,m,0,0);
-      if (d <= now) continue;
-      if (alarm.days.includes(d.getDay())) {
-        if (i===0) return `Today at ${alarm.time}`;
-        if (i===1) return `Tomorrow at ${alarm.time}`;
-        return `${DAYS[d.getDay()]} at ${alarm.time}`;
-      }
-    }
-    return "–";
-  };
+  const dueCards=flashcards.filter(isDue);
+  const shown=filter==="due"?dueCards:flashcards;
 
   return (
-    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
-      {/* CAPTCHA MODAL - Full Screen Overlay */}
-      {firingAlarm && (
-        <div style={{ position:"fixed",inset:0,zIndex:9999,background:"#000000ee",display:"flex",alignItems:"center",justifyContent:"center",padding:20,backdropFilter:"blur(8px)" }}>
-          <div style={{ background:"var(--bg2)",borderRadius:24,padding:32,width:"100%",maxWidth:380,border:"2px solid var(--red)",boxShadow:"0 0 60px #ef444430",animation:"pulse 1s ease-in-out infinite" }}>
-            <div style={{ textAlign:"center",marginBottom:20 }}>
-              <div style={{ fontSize:56,marginBottom:8,animation:"pulse .5s ease-in-out infinite" }}>⏰</div>
-              <div style={{ fontFamily:"Syne",fontSize:22,fontWeight:800,color:"var(--red)" }}>{firingAlarm.label}</div>
-              <div style={{ fontSize:13,color:"var(--text3)",marginTop:4 }}>Solve the CAPTCHA to dismiss alarm</div>
-            </div>
-            <div style={{ background:"var(--bg4)",borderRadius:16,padding:24,textAlign:"center",marginBottom:20,border:"1px solid var(--border2)" }}>
-              <div style={{ fontFamily:"Syne",fontSize:32,fontWeight:800,letterSpacing:4 }}>{captchaQ?.q}</div>
-            </div>
-            <input className="input" type="number" placeholder="Your answer..." value={captchaAnswer} onChange={e => { setCaptchaAnswer(e.target.value); setCaptchaError(false); }}
-              onKeyDown={e => e.key==="Enter" && dismissAlarm()}
-              style={{ textAlign:"center",fontSize:20,fontWeight:700,marginBottom:10,border: captchaError?"2px solid var(--red)":"1px solid var(--border)" }} autoFocus/>
-            {captchaError && <div style={{ color:"var(--red)",fontSize:12,textAlign:"center",marginBottom:10,fontWeight:600 }}>❌ Wrong answer! Try again.</div>}
-            <button className="btn btn-primary" style={{ width:"100%",justifyContent:"center",padding:14,fontSize:15,background:"var(--red)" }} onClick={dismissAlarm}>
-              ✓ Dismiss Alarm
-            </button>
-            <div style={{ textAlign:"center",fontSize:11,color:"var(--text3)",marginTop:12 }}>⚠️ No snooze. Solve to stop.</div>
+    <div style={{display:"flex",flexDirection:"column",gap:20}}>
+      <div className="grid-3 fade-up">
+        {[
+          {label:"Total Topics",value:flashcards.length,color:"var(--accent2)"},
+          {label:"Due Today",value:dueCards.length,color:"var(--red)"},
+          {label:"Mastered (4-5)",value:flashcards.filter(c=>c.confidence>=4).length,color:"var(--green)"},
+        ].map((s,i)=>(
+          <div key={i} className="stat-card" style={{animationDelay:`${i*.04}s`}}>
+            <div style={{fontFamily:"Syne",fontSize:26,fontWeight:800,color:s.color}}>{s.value}</div>
+            <div style={{fontSize:11,color:"var(--text3)",marginTop:3}}>{s.label}</div>
           </div>
-        </div>
-      )}
-
-      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-        <div>
-          <div className="section-title" style={{ margin:0 }}><Icon d={icons.alarm} size={16} stroke="var(--red)"/> Alarm</div>
-          <div style={{ fontSize:12,color:"var(--text3)",marginTop:2 }}>{alarms.filter(a=>a.enabled).length} active alarm{alarms.filter(a=>a.enabled).length!==1?"s":""}</div>
-        </div>
-        <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)}><Icon d={icons.plus} size={14} stroke="#fff"/> Add Alarm</button>
+        ))}
       </div>
-
-      {!permGranted && (
-        <div className="card fade-up" style={{ background:"#f59e0b15",border:"1px solid #f59e0b30",padding:"14px 18px" }}>
-          <div style={{ fontSize:13,color:"var(--amber)",fontWeight:600 }}>🔔 Enable notifications for background alarm alerts</div>
-          <button className="btn btn-ghost btn-sm" style={{ marginTop:8 }} onClick={() => Notification.requestPermission().then(p => setPermGranted(p==="granted"))}>Grant Permission</button>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+        <div style={{display:"flex",gap:8}}>
+          {["all","due"].map(f=>(
+            <button key={f} className={`btn ${filter===f?"btn-primary":"btn-ghost"} btn-sm`} onClick={()=>setFilter(f)}>
+              {f==="all"?"All Topics":`Due Today (${dueCards.length})`}
+            </button>
+          ))}
         </div>
-      )}
-
-      {alarms.length === 0 && (
-        <div className="card fade-up" style={{ textAlign:"center",padding:40,color:"var(--text3)" }}>
-          <div style={{ fontSize:40,marginBottom:12 }}>⏰</div>
-          <div style={{ fontFamily:"Syne",fontWeight:700,fontSize:16 }}>No alarms set</div>
-          <div style={{ fontSize:13,marginTop:4 }}>Add your first alarm to get started</div>
+        <button className="btn btn-primary btn-sm" onClick={()=>setShowAdd(true)}>+ Add Topic</button>
+      </div>
+      <div className="card fade-up" style={{padding:"14px 18px",animationDelay:".04s"}}>
+        <div style={{fontSize:11,color:"var(--text3)",fontWeight:600,marginBottom:8}}>SPACED REPETITION SCHEDULE</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {[1,2,3,4,5].map(n=>(
+            <div key={n} style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:99,background:CONF_COLORS[n]+"18",border:`1px solid ${CONF_COLORS[n]}40`,fontSize:11,fontWeight:600,color:CONF_COLORS[n]}}>
+              <div style={{width:8,height:8,borderRadius:"50%",background:CONF_COLORS[n]}}/>
+              {n}—{CONF_LABELS[n]} <span style={{color:"var(--text3)",fontWeight:400}}>({CONF_FREQ[n]})</span>
+            </div>
+          ))}
         </div>
-      )}
-
-      {alarms.map((alarm,i) => (
-        <div key={alarm.id} className="card fade-up" style={{ animationDelay:`${i*.04}s`, opacity: alarm.enabled ? 1 : 0.55 }}>
-          <div style={{ display:"flex",alignItems:"center",gap:14 }}>
-            <div style={{ flex:1,minWidth:0 }}>
-              <div style={{ display:"flex",alignItems:"baseline",gap:8,flexWrap:"wrap" }}>
-                <div style={{ fontFamily:"Syne",fontSize:32,fontWeight:800,letterSpacing:-1,color: alarm.enabled?"var(--text)":"var(--text3)" }}>{alarm.time}</div>
-                <div style={{ fontWeight:600,fontSize:14,color:"var(--text2)" }}>{alarm.label}</div>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {shown.length===0&&(
+          <div className="card" style={{textAlign:"center",padding:"40px",color:"var(--text3)"}}>
+            <div style={{fontSize:48,marginBottom:12}}>🧠</div>
+            <div style={{fontFamily:"Syne",fontSize:16,fontWeight:700,marginBottom:6}}>No topics yet</div>
+            <div style={{fontSize:13}}>Add topics you've studied to start spaced repetition review</div>
+          </div>
+        )}
+        {shown.map((c,i)=>(
+          <div key={c.id} className="flashcard-item fade-up" style={{animationDelay:`${i*.03}s`}}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:600,fontSize:14,marginBottom:4}}>{c.topic}</div>
+                <div style={{fontSize:11,color:"var(--text3)",display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+                  <span style={{padding:"1px 8px",borderRadius:99,background:c.subject==="Biology"?"#10b98120":c.subject==="Chemistry"?"#f59e0b20":"#3b82f620",color:c.subject==="Biology"?"#10b981":c.subject==="Chemistry"?"#f59e0b":"#3b82f6",fontWeight:600}}>{c.subject}</span>
+                  {c.lastReviewed&&<span>Last: {c.lastReviewed}</span>}
+                  {isDue(c)&&<span style={{color:"var(--red)",fontWeight:700}}>DUE NOW</span>}
+                  {c.notes&&<span style={{color:"var(--text3)"}}>📝 {c.notes.slice(0,40)}...</span>}
+                </div>
               </div>
-              <div style={{ display:"flex",gap:4,marginTop:6,flexWrap:"wrap",alignItems:"center" }}>
-                {DAYS.map((d,idx) => (
-                  <span key={idx} style={{ fontSize:10,padding:"2px 6px",borderRadius:4,fontWeight:700, background: alarm.days.includes(idx)?"var(--accentglow)":"var(--bg4)", color: alarm.days.includes(idx)?"var(--accent2)":"var(--text3)" }}>{d}</span>
+              <button className="btn btn-icon btn-danger btn-sm" onClick={()=>setFlashcards(prev=>prev.filter(x=>x.id!==c.id))}><Icon d={icons.trash} size={12} stroke="var(--red)"/></button>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:"var(--text3)",marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:".5px"}}>Rate your confidence:</div>
+              <div style={{display:"flex",gap:6}}>
+                {[1,2,3,4,5].map(n=>(
+                  <button key={n} className="conf-btn" onClick={()=>review(c.id,n)} style={{border:`1.5px solid ${c.confidence===n?CONF_COLORS[n]:"var(--border)"}`,background:c.confidence===n?CONF_COLORS[n]+"22":"var(--bg3)"}}>
+                    <div style={{width:10,height:10,borderRadius:"50%",background:CONF_COLORS[n]}}/>
+                    <div style={{fontSize:10,color:c.confidence===n?CONF_COLORS[n]:"var(--text3)",fontWeight:600}}>{n}</div>
+                  </button>
                 ))}
               </div>
-              <div style={{ fontSize:11,color:"var(--text3)",marginTop:4 }}>🔔 {nextRing(alarm)}{alarm.ringtoneName && ` • 🎵 ${alarm.ringtoneName.substring(0,20)}...`}</div>
-            </div>
-            <div style={{ display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end" }}>
-              <button className={`toggle ${alarm.enabled?"on":"off"}`} onClick={() => toggleAlarm(alarm.id)}/>
-              <div style={{ display:"flex",gap:6 }}>
-                <button className="btn btn-ghost btn-sm btn-icon" title="Test ringtone" onClick={() => testRingtone(alarm)} style={{ color: testingAlarm===alarm.id?"var(--green)":"var(--text2)" }}>
-                  <Icon d={testingAlarm===alarm.id ? icons.stop : icons.music} size={14}/>
-                </button>
-                <button className="btn btn-icon btn-danger btn-sm" onClick={() => deleteAlarm(alarm.id)}><Icon d={icons.trash} size={13} stroke="var(--red)"/></button>
-              </div>
             </div>
           </div>
-        </div>
-      ))}
-
-      {/* Add Alarm Modal */}
-      {showAdd && (
-        <div className="modal-overlay" onClick={e => e.target===e.currentTarget && setShowAdd(false)}>
-          <div className="modal" style={{ maxWidth:420 }}>
-            <div className="modal-title">⏰ New Alarm</div>
-            <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
-              <div><label className="label">Time</label><input className="input" type="time" value={newAlarm.time} onChange={e => setNewAlarm(a=>({...a,time:e.target.value}))}/></div>
-              <div><label className="label">Label</label><input className="input" placeholder="e.g. Wake Up, Study, Meds..." value={newAlarm.label} onChange={e => setNewAlarm(a=>({...a,label:e.target.value}))}/></div>
+        ))}
+      </div>
+      {showAdd&&(
+        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowAdd(false)}>
+          <div className="modal">
+            <div className="modal-title">📚 Add Topic to Revision Lab</div>
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              <div><label className="label">Topic / Concept</label><input className="input" placeholder="e.g. Krebs Cycle, Photorespiration" value={card.topic} onChange={e=>setCard(p=>({...p,topic:e.target.value}))}/></div>
+              <div><label className="label">Subject</label>
+                <select className="input" value={card.subject} onChange={e=>setCard(p=>({...p,subject:e.target.value}))}>
+                  <option>Biology</option><option>Chemistry</option><option>Physics</option><option>Organic Chemistry</option><option>Inorganic Chemistry</option>
+                </select>
+              </div>
               <div>
-                <label className="label">Repeat Days</label>
-                <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
-                  {DAYS.map((d,idx) => (
-                    <button key={idx} onClick={() => toggleDay(idx)} style={{ padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",border:`1px solid ${newAlarm.days.includes(idx)?"var(--accent)":"var(--border)"}`,background:newAlarm.days.includes(idx)?"var(--accentglow)":"var(--bg3)",color:newAlarm.days.includes(idx)?"var(--accent2)":"var(--text3)",transition:"all .2s" }}>{d}</button>
+                <label className="label">Initial Confidence</label>
+                <div style={{display:"flex",gap:8,marginTop:6}}>
+                  {[1,2,3,4,5].map(n=>(
+                    <button key={n} onClick={()=>setCard(p=>({...p,confidence:n}))} style={{flex:1,padding:"12px 4px",borderRadius:10,border:`2px solid ${card.confidence===n?CONF_COLORS[n]:"var(--border)"}`,background:card.confidence===n?CONF_COLORS[n]+"22":"var(--bg3)",cursor:"pointer",fontFamily:"Syne",fontWeight:700,fontSize:15,color:card.confidence===n?CONF_COLORS[n]:"var(--text3)"}}>
+                      {n}
+                    </button>
                   ))}
                 </div>
+                <div style={{textAlign:"center",fontSize:12,color:CONF_COLORS[card.confidence],fontWeight:600,marginTop:6}}>{CONF_LABELS[card.confidence]} — reviewed {CONF_FREQ[card.confidence]}</div>
               </div>
-              <div>
-                <label className="label">Ringtone (max 3MB)</label>
-                <div style={{ display:"flex",gap:8,alignItems:"center",flexWrap:"wrap" }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => fileRef.current.click()}>
-                    <Icon d={icons.music} size={13}/> {newAlarm.ringtoneName ? "Change" : "Choose Audio"}
-                  </button>
-                  {newAlarm.ringtoneName && <span style={{ fontSize:12,color:"var(--green)",fontWeight:600 }}>✓ {newAlarm.ringtoneName.substring(0,25)}</span>}
-                  {!newAlarm.ringtoneName && <span style={{ fontSize:12,color:"var(--text3)" }}>Using default beep</span>}
-                </div>
-                <input ref={fileRef} type="file" accept="audio/*" style={{ display:"none" }} onChange={handleRingtoneFile}/>
-                {newAlarm.ringtoneData && (
-                  <button className="btn btn-ghost btn-sm" style={{ marginTop:8 }} onClick={() => {
-                    const audio = new Audio(newAlarm.ringtoneData); audio.play();
-                    setTimeout(() => { try { audio.pause(); } catch(e){} }, 5000);
-                  }}>▶ Test Ringtone (5s)</button>
-                )}
-              </div>
+              <div><label className="label">Quick Notes (optional)</label><textarea className="notes-area" style={{minHeight:60}} placeholder="Key formula, mnemonic, etc." value={card.notes} onChange={e=>setCard(p=>({...p,notes:e.target.value}))}/></div>
             </div>
-            <div style={{ display:"flex",gap:10,marginTop:20 }}>
-              <button className="btn btn-ghost" style={{ flex:1,justifyContent:"center" }} onClick={() => setShowAdd(false)}>Cancel</button>
-              <button className="btn btn-primary" style={{ flex:2,justifyContent:"center" }} onClick={addAlarm}>Set Alarm</button>
+            <div style={{display:"flex",gap:10,marginTop:20}}>
+              <button className="btn btn-ghost" style={{flex:1,justifyContent:"center"}} onClick={()=>setShowAdd(false)}>Cancel</button>
+              <button className="btn btn-primary" style={{flex:2,justifyContent:"center"}} onClick={addCard}>Add to Lab</button>
             </div>
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ─── FOCUS MODE PAGE ──────────────────────────────────────────────────────────
-function FocusPage() {
-  const PRESETS = [5,10,15,20,25,30,45,60];
-  const [mode, setMode] = useState("idle"); // idle | countdown | infinite
-  const [selected, setSelected] = useState(25);
-  const [custom, setCustom] = useState("");
-  const [remaining, setRemaining] = useState(0);
-  const [total, setTotal] = useState(0);
-  const [sessionLog, setSessionLog] = useState(() => storage.get("focusLog",[]));
-  const [showCustom, setShowCustom] = useState(false);
-  const [task, setTask] = useState("");
-  const [elapsedInfinite, setElapsedInfinite] = useState(0);
-  const [infiniteStart, setInfiniteStart] = useState(null);
-  const timerRef = useRef(null);
-  const notifRef = useRef(null);
-  const audioCtxRef = useRef(null);
-
-  useEffect(() => { storage.set("focusLog", sessionLog); }, [sessionLog]);
-
-  const playDone = () => {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [523, 659, 784, 1047].forEach((freq, i) => {
-        const osc = ctx.createOscillator(), gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.frequency.value = freq; osc.type = "sine";
-        gain.gain.setValueAtTime(0.3, ctx.currentTime + i*0.18);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i*0.18 + 0.3);
-        osc.start(ctx.currentTime + i*0.18); osc.stop(ctx.currentTime + i*0.18 + 0.3);
-      });
-      setTimeout(() => ctx.close(), 2000);
-    } catch(e){}
-  };
-
-  // Countdown timer
-  useEffect(() => {
-    if (mode !== "countdown") return;
-    timerRef.current = setInterval(() => {
-      setRemaining(r => {
-        if (r <= 1) {
-          clearInterval(timerRef.current);
-          setMode("done");
-          playDone();
-          if ("Notification" in window && Notification.permission === "granted") {
-            new Notification("🎯 Focus Session Complete!", { body: `Great work! ${Math.round(total/60)} min session done.` });
-          }
-          setSessionLog(prev => [{
-            id: Date.now(), task, duration: total, date: today(), time: new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})
-          }, ...prev].slice(0,20));
-          return 0;
-        }
-        return r - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timerRef.current);
-  }, [mode]);
-
-  // Infinite elapsed
-  useEffect(() => {
-    if (mode !== "infinite") return;
-    timerRef.current = setInterval(() => setElapsedInfinite(e => e + 1), 1000);
-    return () => clearInterval(timerRef.current);
-  }, [mode]);
-
-  const startCountdown = (mins) => {
-    const secs = mins * 60;
-    setTotal(secs); setRemaining(secs);
-    setMode("countdown");
-  };
-
-  const startInfinite = () => {
-    setElapsedInfinite(0); setInfiniteStart(new Date());
-    setMode("infinite");
-  };
-
-  const stopInfinite = () => {
-    clearInterval(timerRef.current);
-    const dur = elapsedInfinite;
-    setSessionLog(prev => [{
-      id: Date.now(), task, duration: dur, date: today(), time: new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})
-    }, ...prev].slice(0,20));
-    setMode("idle");
-    playDone();
-  };
-
-  const abort = () => { clearInterval(timerRef.current); setMode("idle"); setRemaining(0); };
-
-  const fmt = (secs) => `${String(Math.floor(secs/60)).padStart(2,"0")}:${String(secs%60).padStart(2,"0")}`;
-  const pct = total > 0 ? Math.round(((total-remaining)/total)*100) : 0;
-  const r = 100, circ = 2 * Math.PI * r;
-
-  const totalFocusToday = sessionLog.filter(s => s.date === today()).reduce((sum,s) => sum + s.duration, 0);
-  const totalFocusAll = sessionLog.reduce((sum,s) => sum + s.duration, 0);
-
-  return (
-    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
-      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-        <div>
-          <div className="section-title" style={{ margin:0 }}><Icon d={icons.focus} size={16} stroke="var(--accent)"/> Focus Mode</div>
-          <div style={{ fontSize:12,color:"var(--text3)",marginTop:2 }}>Today: {Math.floor(totalFocusToday/60)} min focused</div>
-        </div>
-        <div style={{ display:"flex",gap:8 }}>
-          <span className="badge" style={{ background:"var(--accentglow)",color:"var(--accent2)",border:"1px solid var(--accent)30",padding:"6px 14px" }}>
-            🔥 {Math.floor(totalFocusAll/3600)}h total
-          </span>
-        </div>
-      </div>
-
-      {/* Main timer display */}
-      {(mode === "countdown" || mode === "infinite" || mode === "done") ? (
-        <div className="card fade-up" style={{ textAlign:"center",padding:"32px 20px",background: mode==="done"?"linear-gradient(135deg,var(--green)15,var(--bg2))":"linear-gradient(135deg,var(--accentglow),var(--bg2))",border:`1px solid ${mode==="done"?"var(--green)":"var(--accent)"}30` }}>
-          {mode === "countdown" && (
-            <>
-              <div style={{ position:"relative",display:"inline-flex",alignItems:"center",justifyContent:"center",marginBottom:16 }}>
-                <svg width={240} height={240} style={{ transform:"rotate(-90deg)" }}>
-                  <circle cx={120} cy={120} r={r} fill="none" stroke="var(--bg4)" strokeWidth={8}/>
-                  <circle cx={120} cy={120} r={r} fill="none" stroke="var(--accent)" strokeWidth={8} strokeDasharray={circ} strokeDashoffset={circ*(1-pct/100)} strokeLinecap="round" style={{ transition:"stroke-dashoffset 1s linear" }}/>
-                </svg>
-                <div style={{ position:"absolute",textAlign:"center" }}>
-                  <div style={{ fontFamily:"Syne",fontSize:44,fontWeight:800,lineHeight:1 }}>{fmt(remaining)}</div>
-                  <div style={{ fontSize:12,color:"var(--text3)",marginTop:4 }}>{pct}% done</div>
-                </div>
-              </div>
-              {task && <div style={{ fontSize:14,color:"var(--text2)",marginBottom:16,fontWeight:600 }}>📚 {task}</div>}
-              <button className="btn btn-danger" style={{ justifyContent:"center" }} onClick={abort}><Icon d={icons.x} size={14}/> Cancel Session</button>
-            </>
-          )}
-          {mode === "infinite" && (
-            <>
-              <div style={{ fontFamily:"Syne",fontSize:56,fontWeight:800,lineHeight:1,marginBottom:8,color:"var(--accent)" }}>∞</div>
-              <div style={{ fontFamily:"Syne",fontSize:40,fontWeight:800,marginBottom:4 }}>{fmt(elapsedInfinite)}</div>
-              <div style={{ fontSize:13,color:"var(--text3)",marginBottom:20 }}>Deep Focus Mode — No time limit</div>
-              {task && <div style={{ fontSize:14,color:"var(--text2)",marginBottom:16,fontWeight:600 }}>📚 {task}</div>}
-              <button className="btn btn-success" style={{ justifyContent:"center" }} onClick={stopInfinite}><Icon d={icons.check} size={14} stroke="var(--green)"/> End Session</button>
-            </>
-          )}
-          {mode === "done" && (
-            <>
-              <div style={{ fontSize:56,marginBottom:8 }}>🎯</div>
-              <div style={{ fontFamily:"Syne",fontSize:22,fontWeight:800,color:"var(--green)",marginBottom:4 }}>Session Complete!</div>
-              <div style={{ fontSize:14,color:"var(--text3)",marginBottom:20 }}>{Math.round(total/60)} minutes of pure focus 🔥</div>
-              <button className="btn btn-primary" style={{ justifyContent:"center" }} onClick={() => setMode("idle")}>Start Another</button>
-            </>
-          )}
-        </div>
-      ) : (
-        <>
-          {/* Task label */}
-          <div className="card fade-up">
-            <label className="label">What are you focusing on? (optional)</label>
-            <input className="input" placeholder="e.g. Chapter 9 - Cell Division, Numericals..." value={task} onChange={e => setTask(e.target.value)}/>
-          </div>
-
-          {/* Presets */}
-          <div className="card fade-up" style={{ animationDelay:".04s" }}>
-            <div className="section-title">⏱ Choose Duration</div>
-            <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14 }}>
-              {PRESETS.map(m => (
-                <button key={m} onClick={() => { setSelected(m); setShowCustom(false); }} style={{ padding:"12px 8px",borderRadius:12,fontSize:14,fontWeight:700,cursor:"pointer",border:`1.5px solid ${selected===m&&!showCustom?"var(--accent)":"var(--border)"}`,background:selected===m&&!showCustom?"var(--accentglow)":"var(--bg3)",color:selected===m&&!showCustom?"var(--accent2)":"var(--text2)",transition:"all .2s" }}>
-                  {m}m
-                </button>
-              ))}
-            </div>
-            <div style={{ display:"flex",gap:10,alignItems:"center" }}>
-              <button onClick={() => { setShowCustom(c=>!c); }} style={{ padding:"10px 16px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",border:`1.5px solid ${showCustom?"var(--accent)":"var(--border)"}`,background:showCustom?"var(--accentglow)":"var(--bg3)",color:showCustom?"var(--accent2)":"var(--text2)",whiteSpace:"nowrap",transition:"all .2s" }}>
-                Custom
-              </button>
-              {showCustom && (
-                <input className="input" type="number" min="1" max="180" placeholder="1-180 min" value={custom} onChange={e => { setCustom(e.target.value); setSelected(+e.target.value); }} style={{ maxWidth:120 }}/>
-              )}
-            </div>
-          </div>
-
-          {/* Start buttons */}
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12 }}>
-            <button className="btn btn-primary" style={{ justifyContent:"center",padding:14,fontSize:15,flexDirection:"column",height:"auto",gap:4 }}
-              onClick={() => startCountdown(selected)}>
-              <Icon d={icons.focus} size={18} stroke="#fff"/>
-              <span>Start {selected} min</span>
-            </button>
-            <button className="btn btn-ghost" style={{ justifyContent:"center",padding:14,fontSize:15,flexDirection:"column",height:"auto",gap:4,border:"1.5px solid var(--accent)50" }}
-              onClick={startInfinite}>
-              <span style={{ fontSize:20 }}>∞</span>
-              <span>Infinite Focus</span>
-            </button>
-          </div>
-
-          {/* Tips */}
-          <div className="card fade-up" style={{ animationDelay:".12s",background:"linear-gradient(135deg,var(--accentglow),var(--bg2))" }}>
-            <div style={{ fontFamily:"Syne",fontWeight:700,marginBottom:8 }}>💡 Focus Tips</div>
-            <div style={{ display:"flex",flexDirection:"column",gap:6,fontSize:13,color:"var(--text3)" }}>
-              {["📵 Put phone face-down before starting","🎧 Use ambient music or silence","💧 Keep water bottle nearby","📝 Write your goal before starting"].map((t,i) => <div key={i}>{t}</div>)}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Session History */}
-      {sessionLog.length > 0 && mode === "idle" && (
-        <div className="card fade-up">
-          <div className="section-title"><Icon d={icons.timer} size={15} stroke="var(--accent)"/> Recent Sessions</div>
-          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
-            {sessionLog.slice(0,8).map(s => (
-              <div key={s.id} style={{ display:"flex",alignItems:"center",gap:12,padding:"10px",borderRadius:10,background:"var(--bg3)",border:"1px solid var(--border)" }}>
-                <div style={{ fontSize:20 }}>🎯</div>
-                <div style={{ flex:1,minWidth:0 }}>
-                  {s.task && <div style={{ fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{s.task}</div>}
-                  <div style={{ fontSize:11,color:"var(--text3)" }}>{s.date} • {s.time}</div>
-                </div>
-                <div style={{ fontFamily:"Syne",fontWeight:800,fontSize:14,color:"var(--accent2)",flexShrink:0 }}>{Math.round(s.duration/60)} min</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── BEAST CHALLENGES PAGE ────────────────────────────────────────────────────
-function ChallengesPage({ profile }) {
-  const DAILY_CHALLENGES = [
-    { id:"c1", emoji:"🧠", title:"Solve 10 MCQs Without Stopping", desc:"No hints. No looking back. Time yourself.", xp:50, category:"academic", color:"#7c6fff" },
-    { id:"c2", emoji:"📖", title:"Read 20 Pages NCERT in One Sitting", desc:"Single subject. No breaks. Full focus.", xp:40, category:"academic", color:"#3b82f6" },
-    { id:"c3", emoji:"💪", title:"100 Pushups Challenge", desc:"Break into sets but complete by end of day.", xp:60, category:"fitness", color:"#ef4444" },
-    { id:"c4", emoji:"📵", title:"Zero Screen Before 9 AM", desc:"No YouTube, Instagram, or Reels after wakeup.", xp:30, category:"discipline", color:"#10b981" },
-    { id:"c5", emoji:"✍️", title:"Write 3 Full Biology Diagrams From Memory", desc:"Cell, Heart, Neuron — no reference.", xp:55, category:"academic", color:"#f59e0b" },
-    { id:"c6", emoji:"🥤", title:"Drink 4 Litres of Water Today", desc:"Track it. No excuses.", xp:20, category:"health", color:"#06b6d4" },
-    { id:"c7", emoji:"⏰", title:"Wake Before 5:30 AM", desc:"Early bird gets the rank.", xp:35, category:"discipline", color:"#8b5cf6" },
-    { id:"c8", emoji:"🔁", title:"Revise Yesterday's Notes — All Subjects", desc:"5 key points per subject. Written, not typed.", xp:45, category:"academic", color:"#ec4899" },
-  ];
-
-  const WEEKLY_STREAK_CHALLENGES = [
-    { id:"ws1", emoji:"🔥", title:"7-Day Workout Streak", desc:"Miss one day, restart from zero.", xp:200, color:"#ef4444" },
-    { id:"ws2", emoji:"📚", title:"No Phone for Study Hours — 7 Days", desc:"6-10 PM phone goes in another room.", xp:180, color:"#7c6fff" },
-    { id:"ws3", emoji:"🌙", title:"Sleep Before 10:30 PM — 5 Days", desc:"Track your sleep, own your mornings.", xp:150, color:"#6366f1" },
-  ];
-
-  const todayKey = today();
-  const [completedToday, setCompletedToday] = useState(() => storage.get(`challenges_${todayKey}`, []));
-  const [weeklyProgress, setWeeklyProgress] = useState(() => storage.get("weeklyChallenge", {}));
-  const [totalXP, setTotalXP] = useState(() => storage.get("challengeXP", 0));
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [lastCompleted, setLastCompleted] = useState(null);
-
-  useEffect(() => { storage.set(`challenges_${todayKey}`, completedToday); }, [completedToday]);
-  useEffect(() => { storage.set("weeklyChallenge", weeklyProgress); }, [weeklyProgress]);
-  useEffect(() => { storage.set("challengeXP", totalXP); }, [totalXP]);
-
-  const completeChallenge = (ch) => {
-    if (completedToday.includes(ch.id)) return;
-    setCompletedToday(prev => [...prev, ch.id]);
-    setTotalXP(x => x + ch.xp);
-    setLastCompleted(ch);
-    setShowConfetti(true);
-    setTimeout(() => setShowConfetti(false), 2500);
-  };
-
-  const undoChallenge = (ch) => {
-    if (!completedToday.includes(ch.id)) return;
-    setCompletedToday(prev => prev.filter(x => x !== ch.id));
-    setTotalXP(x => Math.max(0, x - ch.xp));
-  };
-
-  const getRank = (xp) => {
-    if (xp >= 2000) return { rank:"LEGEND", color:"#f59e0b", emoji:"👑" };
-    if (xp >= 1000) return { rank:"ELITE", color:"#7c6fff", emoji:"💜" };
-    if (xp >= 500) return { rank:"BEAST", color:"#ef4444", emoji:"🔥" };
-    if (xp >= 200) return { rank:"GRINDER", color:"#10b981", emoji:"💪" };
-    return { rank:"ROOKIE", color:"var(--text2)", emoji:"⚡" };
-  };
-
-  const { rank, color: rankColor, emoji: rankEmoji } = getRank(totalXP);
-  const todayXP = completedToday.reduce((sum, id) => {
-    const ch = DAILY_CHALLENGES.find(c => c.id === id);
-    return sum + (ch?.xp || 0);
-  }, 0);
-
-  const categoryColors = { academic:"#3b82f6", fitness:"#ef4444", discipline:"#10b981", health:"#06b6d4" };
-
-  return (
-    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
-      {/* Confetti flash */}
-      {showConfetti && (
-        <div style={{ position:"fixed",inset:0,pointerEvents:"none",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center" }}>
-          <div style={{ fontSize:64,animation:"pulse .3s ease-in-out 5" }}>
-            {lastCompleted?.emoji}
-          </div>
-          <div style={{ position:"absolute",top:"40%",fontFamily:"Syne",fontSize:24,fontWeight:800,color:"var(--green)",textShadow:"0 0 30px var(--green)" }}>+{lastCompleted?.xp} XP!</div>
-        </div>
-      )}
-
-      {/* XP Banner */}
-      <div className="card fade-up" style={{ background:"linear-gradient(135deg,#7c6fff18,#ef444410,var(--bg2))",border:"1px solid var(--border2)",padding:"20px 24px" }}>
-        <div style={{ display:"flex",alignItems:"center",gap:16 }}>
-          <div style={{ fontSize:40 }}>{rankEmoji}</div>
-          <div style={{ flex:1 }}>
-            <div style={{ fontFamily:"Syne",fontSize:22,fontWeight:800,color:rankColor }}>{rank}</div>
-            <div style={{ fontSize:13,color:"var(--text3)" }}>{profile?.name || "Student"} • {totalXP} XP total</div>
-          </div>
-          <div style={{ textAlign:"right" }}>
-            <div style={{ fontFamily:"Syne",fontSize:28,fontWeight:800,color:"var(--green)" }}>+{todayXP}</div>
-            <div style={{ fontSize:11,color:"var(--text3)" }}>XP today</div>
-          </div>
-        </div>
-        <div style={{ marginTop:12 }}>
-          <div style={{ display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--text3)",marginBottom:4 }}>
-            <span>{completedToday.length}/{DAILY_CHALLENGES.length} today</span>
-            <span>{Math.round(completedToday.length/DAILY_CHALLENGES.length*100)}%</span>
-          </div>
-          <div className="progress-bar"><div className="progress-fill" style={{ width:`${completedToday.length/DAILY_CHALLENGES.length*100}%`,background:"linear-gradient(90deg,#7c6fff,#10b981)" }}/></div>
-        </div>
-      </div>
-
-      {/* Daily Challenges */}
-      <div>
-        <div className="section-title"><Icon d={icons.zap} size={16} stroke="var(--amber)"/> Daily Challenges</div>
-        <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
-          {DAILY_CHALLENGES.map((ch,i) => {
-            const done = completedToday.includes(ch.id);
-            return (
-              <div key={ch.id} className="card fade-up" style={{ animationDelay:`${i*.03}s`, padding:"14px 18px", background: done?"#10b98108":"var(--bg2)", border:`1px solid ${done?"#10b98130":"var(--border)"}`, opacity: done ? 0.8 : 1, transition:"all .3s" }}>
-                <div style={{ display:"flex",alignItems:"center",gap:12 }}>
-                  <div style={{ fontSize:28,flexShrink:0 }}>{ch.emoji}</div>
-                  <div style={{ flex:1,minWidth:0 }}>
-                    <div style={{ display:"flex",alignItems:"center",gap:8,flexWrap:"wrap" }}>
-                      <div style={{ fontWeight:700,fontSize:14,textDecoration:done?"line-through":"none",color:done?"var(--text3)":"var(--text)" }}>{ch.title}</div>
-                      <span className="badge" style={{ background:categoryColors[ch.category]+"20",color:categoryColors[ch.category],fontSize:10 }}>{ch.category}</span>
-                    </div>
-                    <div style={{ fontSize:12,color:"var(--text3)",marginTop:2 }}>{ch.desc}</div>
-                  </div>
-                  <div style={{ display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6,flexShrink:0 }}>
-                    <div style={{ fontFamily:"Syne",fontWeight:800,fontSize:13,color:done?"var(--green)":ch.color }}>+{ch.xp} XP</div>
-                    {done
-                      ? <button className="btn btn-ghost btn-sm" style={{ fontSize:11,padding:"4px 10px",color:"var(--text3)" }} onClick={() => undoChallenge(ch)}>Undo</button>
-                      : <button className="btn btn-primary btn-sm" style={{ fontSize:11,padding:"6px 12px",background:ch.color }} onClick={() => completeChallenge(ch)}>Done ✓</button>
-                    }
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Weekly Streak Challenges */}
-      <div>
-        <div className="section-title"><Icon d={icons.trophy} size={16} stroke="var(--amber)"/> Weekly Streak Challenges</div>
-        <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
-          {WEEKLY_STREAK_CHALLENGES.map((ch,i) => {
-            const prog = weeklyProgress[ch.id] || 0;
-            const target = ch.id==="ws3" ? 5 : 7;
-            const done = prog >= target;
-            return (
-              <div key={ch.id} className="card fade-up" style={{ animationDelay:`${i*.05}s`,border:`1px solid ${done?"#f59e0b":"var(--border)"}30` }}>
-                <div style={{ display:"flex",alignItems:"flex-start",gap:12,marginBottom:12 }}>
-                  <div style={{ fontSize:28 }}>{ch.emoji}</div>
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontWeight:700,fontSize:14 }}>{ch.title}</div>
-                    <div style={{ fontSize:12,color:"var(--text3)",marginTop:2 }}>{ch.desc}</div>
-                  </div>
-                  <div style={{ fontFamily:"Syne",fontWeight:800,color:"#f59e0b",flexShrink:0 }}>+{ch.xp} XP</div>
-                </div>
-                <div style={{ display:"flex",alignItems:"center",gap:10 }}>
-                  <div className="progress-bar" style={{ flex:1 }}>
-                    <div className="progress-fill" style={{ width:`${Math.min(prog/target*100,100)}%`,background:`linear-gradient(90deg,${ch.color},#f59e0b)` }}/>
-                  </div>
-                  <div style={{ fontSize:12,fontWeight:700,color:ch.color,minWidth:40,textAlign:"right" }}>{prog}/{target}d</div>
-                  {!done && (
-                    <button className="btn btn-ghost btn-sm" onClick={() => setWeeklyProgress(p => ({ ...p, [ch.id]:Math.min((p[ch.id]||0)+1,target) }))}>+1</button>
-                  )}
-                  {done && <span style={{ fontSize:18 }}>🏆</span>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Motivational footer */}
-      <div className="card fade-up" style={{ background:"linear-gradient(135deg,#ef444410,#7c6fff10,var(--bg2))",border:"1px solid var(--border2)",textAlign:"center",padding:24 }}>
-        <div style={{ fontSize:28,marginBottom:8 }}>⚡</div>
-        <div style={{ fontFamily:"Syne",fontWeight:800,fontSize:16,marginBottom:6 }}>
-          {completedToday.length === DAILY_CHALLENGES.length
-            ? "YOU'RE A BEAST TODAY! 🔥"
-            : completedToday.length >= 4
-            ? "More than halfway! Finish strong!"
-            : "Every challenge you complete is one less regret."}
-        </div>
-        <div style={{ fontSize:12,color:"var(--text3)" }}>
-          {DAILY_CHALLENGES.length - completedToday.length} challenges left • {DAILY_CHALLENGES.reduce((s,c)=>s+c.xp,0)-todayXP} XP remaining today
-        </div>
-      </div>
     </div>
   );
 }
@@ -2155,6 +1882,8 @@ function App() {
   const [exercises, setExercises] = useState(() => storage.get("exercises",INITIAL_WORKOUTS));
   const [workoutLogs, setWorkoutLogs] = useState(() => storage.get("workoutLogs",{}));
   const [goals, setGoals] = useState(() => storage.get("goals",INITIAL_GOALS));
+  const [flashcards, setFlashcards] = useState(() => storage.get("flashcards",[]));
+  const [focusLogs, setFocusLogs] = useState(() => storage.get("focusLogs",{}));
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   useEffect(() => {
@@ -2170,6 +1899,8 @@ function App() {
   useEffect(() => { storage.set("exercises",exercises); },[exercises]);
   useEffect(() => { storage.set("workoutLogs",workoutLogs); },[workoutLogs]);
   useEffect(() => { storage.set("goals",goals); },[goals]);
+  useEffect(() => { storage.set("flashcards",flashcards); },[flashcards]);
+  useEffect(() => { storage.set("focusLogs",focusLogs); },[focusLogs]);
   useEffect(() => { storage.set("profile",profile); },[profile]);
   useEffect(() => { storage.set("theme",theme); },[theme]);
   useEffect(() => { storage.set("sidebarCollapsed",sidebarCollapsed); },[sidebarCollapsed]);
@@ -2181,10 +1912,11 @@ function App() {
     localStorage.clear(); setOnboarded(false); setProfile({});
     setHabits(INITIAL_HABITS); setHabitLogs({}); setLectures(INITIAL_LECTURES);
     setLectureProgress({}); setNotes({}); setExercises(INITIAL_WORKOUTS);
-    setWorkoutLogs({}); setGoals(INITIAL_GOALS); setTheme("dark_purple");
+    setWorkoutLogs({}); setGoals(INITIAL_GOALS); setFlashcards([]); setFocusLogs({}); setTheme("dark_purple");
   };
 
-  const allData = { profile,habits,habitLogs,lectures,lectureProgress,notes,exercises,workoutLogs,goals };
+  const allData = { profile,habits,habitLogs,lectures,lectureProgress,notes,exercises,workoutLogs,goals,flashcards,focusLogs };
+  const xp = useMemo(()=>computeXP(habitLogs,habits,workoutLogs,lectureProgress,lectures),[habitLogs,habits,workoutLogs,lectureProgress,lectures]);
   const handleImport = (data) => {
     if (data.profile) { setProfile(data.profile); storage.set("profile",data.profile); }
     if (data.habits) { setHabits(data.habits); storage.set("habits",data.habits); }
@@ -2195,6 +1927,8 @@ function App() {
     if (data.exercises) { setExercises(data.exercises); storage.set("exercises",data.exercises); }
     if (data.workoutLogs) { setWorkoutLogs(data.workoutLogs); storage.set("workoutLogs",data.workoutLogs); }
     if (data.goals) { setGoals(data.goals); storage.set("goals",data.goals); }
+    if (data.flashcards) { setFlashcards(data.flashcards); storage.set("flashcards",data.flashcards); }
+    if (data.focusLogs) { setFocusLogs(data.focusLogs); storage.set("focusLogs",data.focusLogs); }
   };
 
   const navItems = [
@@ -2206,18 +1940,24 @@ function App() {
     { id:"goals", label:"Goals", icon:"goals" },
     { id:"notes", label:"Notes", icon:"notes" },
     { id:"analytics", label:"Analytics", icon:"analytics" },
-    { id:"alarm", label:"Alarm", icon:"alarm" },
-    { id:"focus", label:"Focus Mode", icon:"focus" },
-    { id:"challenges", label:"BeastMode", icon:"zap" },
     { id:"profile", label:"Profile", icon:"profile" },
+    { id:"focus", label:"Focus Mode", icon:"timer" },
+    { id:"revision", label:"Revision Lab", icon:"star" },
     { id:"report", label:"Weekly Report", icon:"report" },
     { id:"settings", label:"Settings", icon:"settings" },
   ];
-  const pageTitles = { home:"Dashboard",schedule:"Schedule",habits:"Habits",lectures:"Lectures",workout:"Workout",goals:"Goals",notes:"Notes",analytics:"Analytics",alarm:"Alarm",focus:"Focus Mode",challenges:"BeastMode Challenges",profile:"Profile",report:"Weekly Report",settings:"Settings" };
+  const pageTitles = { home:"Dashboard",schedule:"Schedule",habits:"Habits",lectures:"Lectures",workout:"Workout",goals:"Goals",notes:"Notes",analytics:"Analytics",profile:"Profile",focus:"Focus Mode",revision:"Revision Lab",report:"Weekly Report",settings:"Settings" };
 
   const navigateTo = (id) => { setPage(id); setSidebarOpen(false); };
 
   if (!onboarded) return <><style>{getCSS(theme)}</style><Onboarding onComplete={handleOnboardComplete}/></>;
+  const mobileNav = [
+    {id:"home",label:"Home",icon:"home"},
+    {id:"habits",label:"Habits",icon:"habits"},
+    {id:"focus",label:"Focus",icon:"timer"},
+    {id:"revision",label:"Revision",icon:"star"},
+    {id:"analytics",label:"Stats",icon:"analytics"},
+  ];
 
   return (
     <>
@@ -2288,28 +2028,42 @@ function App() {
             </div>
           </div>
           <div className="content" key={page}>
-            {page==="home" && <HomePage profile={profile} habits={habits} habitLogs={habitLogs} setHabitLogs={setHabitLogs} lectures={lectures} lectureProgress={lectureProgress} workoutLogs={workoutLogs} goals={goals}/>}
+            {page==="home" && <HomePage profile={profile} habits={habits} habitLogs={habitLogs} setHabitLogs={setHabitLogs} lectures={lectures} lectureProgress={lectureProgress} workoutLogs={workoutLogs} goals={goals} xp={xp} onNavigate={id=>setPage(id)}/>}
             {page==="schedule" && <SchedulePage/>}
             {page==="habits" && <HabitsPage habits={habits} setHabits={setHabits} habitLogs={habitLogs} setHabitLogs={setHabitLogs}/>}
             {page==="lectures" && <LecturesPage lectures={lectures} setLectures={setLectures} lectureProgress={lectureProgress} setLectureProgress={setLectureProgress} notes={notes} setNotes={setNotes}/>}
             {page==="workout" && <WorkoutPage exercises={exercises} setExercises={setExercises} workoutLogs={workoutLogs} setWorkoutLogs={setWorkoutLogs}/>}
             {page==="goals" && <GoalsPage goals={goals} setGoals={setGoals}/>}
             {page==="notes" && <NotesPage notes={notes} setNotes={setNotes} lectures={lectures}/>}
-            {page==="analytics" && <AnalyticsPage habitLogs={habitLogs} habits={habits} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures}/>}
-            {page==="alarm" && <AlarmPage/>}
-            {page==="focus" && <FocusPage/>}
-            {page==="challenges" && <ChallengesPage profile={profile}/>}
-            {page==="profile" && <ProfilePage profile={profile} setProfile={setProfile} habitLogs={habitLogs} habits={habits} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} goals={goals}/>}
+            {page==="analytics" && <AnalyticsPage habitLogs={habitLogs} habits={habits} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} focusLogs={focusLogs} xp={xp}/>}
+            {page==="focus" && <FocusPage focusLogs={focusLogs} setFocusLogs={setFocusLogs}/>}
+            {page==="revision" && <RevisionPage flashcards={flashcards} setFlashcards={setFlashcards}/>}
+            {page==="profile" && <ProfilePage profile={profile} setProfile={setProfile} habitLogs={habitLogs} habits={habits} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} goals={goals} xp={xp}/>}
             {page==="report" && <WeeklyReportPage profile={profile} habits={habits} habitLogs={habitLogs} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} goals={goals}/>}
             {page==="settings" && <SettingsPage profile={profile} setProfile={setProfile} onLogout={handleLogout} theme={theme} setTheme={handleThemeChange} allData={allData} onImport={handleImport}/>}
           </div>
+        </div>
+      </div>
+      {/* Mobile Bottom Nav */}
+      <div className="bottom-nav">
+        <div className="bn-inner">
+          {mobileNav.map(item=>(
+            <div key={item.id} className={`bn-item ${page===item.id?"active":""}`} onClick={()=>{setPage(item.id);setSidebarOpen(false);}}>
+              <Icon d={icons[item.icon]} size={20} stroke="currentColor"/>
+              <div className="bn-label">{item.label}</div>
+            </div>
+          ))}
         </div>
       </div>
     </>
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-  </script>
+const bootEl = document.getElementById("boot-screen");
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App/>);
+if(bootEl) setTimeout(()=>{ bootEl.style.transition="opacity .4s"; bootEl.style.opacity="0"; setTimeout(()=>bootEl.remove(),400); },300);
+  
+</script>
 </body>
 </html>
