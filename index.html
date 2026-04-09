@@ -2,2068 +2,1176 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>StudyOS v3 — Command Center</title>
-
-  <!-- PWA Meta Tags -->
-  <meta name="description" content="Your personal high-performance tracker for Class 12 PCB. Built to beat distractions." />
-  <meta name="theme-color" content="#0a0a0f" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="StudyOS" />
-  <meta name="application-name" content="StudyOS" />
-  <meta name="msapplication-TileColor" content="#0a0a0f" />
-
-  <!-- PWA Manifest -->
-  <link rel="manifest" href="manifest.json" />
-
-  <!-- Apple Touch Icons (inline SVG converted via data URI) -->
-  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230a0a0f'/%3E%3Ccircle cx='256' cy='256' r='220' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c6fff'/%3E%3Cstop offset='1' stop-color='%23ec4899'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='256' y='330' font-size='240' text-anchor='middle' fill='white' font-family='sans-serif'%3E🧠%3C/text%3E%3C/svg%3E" />
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StudyOS — Onboarding</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
   <style>
-    #boot-screen{position:fixed;inset:0;background:#0a0a0f;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:18px;font-family:sans-serif}
-    #boot-logo{width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,#7c6fff,#ec4899);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 8px 32px #7c6fff40}
-    #boot-title{color:#f0f0f5;font-size:22px;font-weight:800;letter-spacing:.5px}
-    #boot-sub{color:#5a5a72;font-size:13px}
-    #boot-spinner{width:36px;height:36px;border:3px solid #ffffff15;border-top:3px solid #7c6fff;border-radius:50%;animation:bspin .7s linear infinite}
-    @keyframes bspin{to{transform:rotate(360deg)}}
-    #boot-err{display:none;color:#ef4444;font-size:13px;text-align:center;max-width:280px;line-height:1.6}
-  </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" onerror="document.getElementById('boot-err').style.display='block';document.getElementById('boot-err').textContent='React failed to load. Check internet connection and reload.'"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js" onerror="document.getElementById('boot-err').style.display='block';document.getElementById('boot-err').textContent='Babel failed to load. Check internet and reload.'"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  <!-- Register Service Worker -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-          .then(reg => console.log('StudyOS SW registered:', reg.scope))
-          .catch(err => console.log('SW registration failed:', err));
-      });
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface2: #1a1a26;
+      --border: #2a2a3d;
+      --purple: #7c6fff;
+      --pink: #ec4899;
+      --teal: #00e5c4;
+      --text: #e8e8f0;
+      --muted: #6b6b8a;
+      --font-display: 'Syne', sans-serif;
+      --font-mono: 'Space Mono', monospace;
     }
-  </script>
+
+    .sos-root {
+      min-height: 100vh;
+      background: var(--bg);
+      font-family: var(--font-display);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 24px 16px 48px;
+      position: relative;
+      overflow-x: hidden;
+    }
+    .sos-root::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.25;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .sos-inner {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 480px;
+    }
+    .sos-logo {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: 0.18em;
+      color: var(--purple);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .sos-tagline {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      margin-bottom: 32px;
+    }
+    .sos-steps {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 28px;
+    }
+    .sos-step-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+      flex-shrink: 0;
+    }
+    .sos-step-dot.active {
+      background: var(--purple);
+      box-shadow: 0 0 12px var(--purple);
+      transform: scale(1.5);
+    }
+    .sos-step-dot.done { background: var(--teal); }
+    .sos-step-line {
+      flex: 1; height: 1px;
+      background: var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    .sos-step-line-fill {
+      position: absolute;
+      top: 0; bottom: 0; left: 0;
+      background: var(--teal);
+      transition: width 0.6s ease;
+    }
+    .sos-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .sos-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--purple), var(--pink));
+    }
+    .sos-section-title {
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+      margin-bottom: 20px;
+    }
+    .sos-field { margin-bottom: 18px; }
+    .sos-label {
+      display: block;
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      margin-bottom: 6px;
+      letter-spacing: 0.08em;
+    }
+    .sos-input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .sos-input:focus {
+      border-color: var(--purple);
+      box-shadow: 0 0 0 3px rgba(124,111,255,0.15);
+    }
+    textarea.sos-input { resize: vertical; min-height: 100px; }
+    .sos-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .sos-pill {
+      padding: 7px 16px;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .sos-pill:hover { border-color: var(--purple); color: var(--text); }
+    .sos-pill.selected {
+      border-color: var(--purple);
+      background: rgba(124,111,255,0.18);
+      color: var(--purple);
+      box-shadow: 0 0 10px rgba(124,111,255,0.25);
+    }
+    .sos-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(135deg, var(--purple), var(--pink));
+      color: #fff;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      margin-top: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.15s, box-shadow 0.2s;
+    }
+    .sos-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(124,111,255,0.35); }
+    .sos-btn:active { transform: scale(0.98); }
+    .sos-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    /* ── MACHINE ── */
+    .sos-machine {
+      margin: 24px 0 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      min-height: 120px;
+      position: relative;
+      overflow: hidden;
+    }
+    .sos-machine-label {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    /* ── PULLEY ── */
+    .pulley-scene {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      height: 80px;
+      justify-content: center;
+    }
+    .pulley-wheel-wrap { display: flex; flex-direction: column; align-items: center; }
+    .pulley-wheel {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 3px solid var(--purple);
+      background: var(--surface2);
+      position: relative;
+      transition: transform 0.1s linear;
+    }
+    .pulley-spoke {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 14px; height: 2px;
+      background: var(--purple);
+      transform-origin: left center;
+      opacity: 0.6;
+    }
+    .pulley-rope { width: 2px; background: var(--muted); }
+    .pulley-weight {
+      width: 28px; height: 20px;
+      background: linear-gradient(135deg, var(--purple), #5a4fff);
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(124,111,255,0.4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.55rem; color: rgba(255,255,255,0.7);
+      font-family: var(--font-mono);
+      transition: transform 0.15s ease-out;
+    }
+    .pulley-rope-left, .pulley-rope-right {
+      display: flex; flex-direction: column; align-items: center;
+    }
+
+    /* ── GEARS ── */
+    .gears-scene {
+      display: flex; align-items: center;
+      justify-content: center;
+      gap: 2px; height: 80px;
+    }
+
+    /* ── PHOTO DROPPER ── */
+    .photo-scene {
+      height: 80px; position: relative;
+      display: flex; justify-content: center;
+    }
+    .ball {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--pink), #ff6b9d);
+      position: absolute; top: 0;
+      box-shadow: 0 0 10px rgba(236,72,153,0.5);
+      transition: top 0.45s cubic-bezier(0.55,-0.1,0.45,1.4);
+    }
+    .ball.dropped { top: 52px; }
+    .shutter {
+      position: absolute; bottom: 8px; left: 50%;
+      transform: translateX(-50%);
+      width: 60px; height: 14px;
+      display: flex; gap: 3px;
+    }
+    .shutter-blade {
+      flex: 1; background: var(--purple);
+      border-radius: 2px;
+      transform-origin: bottom center;
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .shutter-blade.open { transform: scaleY(0.2); }
+
+    /* ── LIQUID FILL ── */
+    .liquid-scene {
+      height: 80px; display: flex;
+      align-items: flex-end; justify-content: center; gap: 8px;
+    }
+    .flask {
+      width: 44px; height: 68px;
+      border: 2px solid var(--teal);
+      border-radius: 4px 4px 10px 10px;
+      position: relative; overflow: hidden;
+      background: var(--surface2);
+    }
+    .flask-fill {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: linear-gradient(to top, rgba(0,229,196,0.7), rgba(124,111,255,0.4));
+      transition: height 0.6s cubic-bezier(0.4,0,0.2,1);
+    }
+    .flask-fill.pink-fill {
+      background: linear-gradient(to top, rgba(236,72,153,0.6), rgba(124,111,255,0.3));
+    }
+    .flask-bubble {
+      position: absolute; bottom: 4px; left: 6px;
+      width: 5px; height: 5px; border-radius: 50%;
+      background: rgba(255,255,255,0.35);
+      animation: bubble 2s ease-in-out infinite;
+    }
+    .flask-bubble:nth-child(2) { left: 16px; animation-delay: 0.7s; width: 4px; height: 4px; }
+    .flask-bubble:nth-child(3) { left: 26px; animation-delay: 1.3s; }
+    @keyframes bubble {
+      0%,100% { transform: translateY(0); opacity: 0.35; }
+      50% { transform: translateY(-12px); opacity: 0.1; }
+    }
+    .flask-label {
+      width: 44px; text-align: center;
+      font-family: var(--font-mono); font-size: 0.58rem;
+      color: var(--teal); margin-top: 4px;
+    }
+
+    /* ── LEVER ── */
+    .lever-scene {
+      height: 80px; display: flex;
+      align-items: center; justify-content: center; gap: 16px;
+    }
+    .lever-base {
+      width: 80px; height: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      position: relative; display: flex; align-items: center;
+    }
+    .lever-pivot {
+      position: absolute; left: 50%; top: 50%;
+      transform: translate(-50%,-50%);
+      width: 10px; height: 10px;
+      border-radius: 50%; background: var(--purple); z-index: 2;
+    }
+    .lever-arm {
+      position: absolute; left: 50%; bottom: 5px;
+      width: 4px; height: 44px;
+      background: linear-gradient(to top, var(--purple), var(--pink));
+      border-radius: 4px;
+      transform-origin: bottom center;
+      transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .lever-arm.swung { transform: rotate(-55deg); }
+    .lever-ball {
+      position: absolute; top: -8px; left: 50%;
+      transform: translateX(-50%);
+      width: 12px; height: 12px;
+      border-radius: 50%; background: var(--pink);
+      box-shadow: 0 0 8px var(--pink);
+    }
+
+    /* ── Photo upload ── */
+    .photo-upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px; padding: 24px;
+      text-align: center; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .photo-upload-zone:hover, .photo-upload-zone.has-photo {
+      border-color: var(--pink);
+      background: rgba(236,72,153,0.05);
+    }
+    .photo-preview {
+      width: 72px; height: 72px;
+      border-radius: 50%; object-fit: cover;
+      margin: 0 auto 8px; display: block;
+      border: 2px solid var(--pink);
+    }
+    .photo-upload-icon { font-size: 2rem; margin-bottom: 6px; }
+    .photo-upload-text {
+      font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted);
+    }
+    input[type=file] { display: none; }
+
+    /* ── Done screen ── */
+    .sos-done {
+      text-align: center; padding: 32px 0;
+      animation: fadeUp 0.6s ease forwards;
+    }
+    .sos-done-icon {
+      font-size: 3.5rem; margin-bottom: 16px;
+      animation: pop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.2s both;
+    }
+    .sos-done-title {
+      font-size: 1.5rem; font-weight: 800;
+      background: linear-gradient(90deg, var(--purple), var(--pink));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 8px;
+    }
+    .sos-done-sub {
+      font-family: var(--font-mono); font-size: 0.78rem;
+      color: var(--muted); line-height: 1.6;
+    }
+    .sos-done-card {
+      margin-top: 32px; padding: 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; font-family: var(--font-mono);
+      font-size: 0.72rem; color: var(--muted);
+      line-height: 1.8; text-align: left;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pop {
+      from { transform: scale(0); }
+      to { transform: scale(1); }
+    }
+
+    .step-footer {
+      margin-top: 16px; text-align: center;
+      font-family: var(--font-mono);
+      font-size: 0.62rem; color: var(--muted);
+    }
+
+    @media (max-width: 360px) { .sos-card { padding: 20px 16px; } }
+
+    /* ── Crop Modal ── */
+    .crop-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 16px;
+      backdrop-filter: blur(6px);
+    }
+    .crop-modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 100%; max-width: 420px;
+      overflow: hidden;
+      position: relative;
+    }
+    .crop-modal::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--purple), var(--pink));
+    }
+    .crop-header {
+      padding: 16px 20px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+    .crop-ratio-bar {
+      display: flex; gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+      overflow-x: auto;
+    }
+    .crop-ratio-btn {
+      flex-shrink: 0;
+      padding: 6px 14px;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      cursor: pointer;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 4px;
+      transition: all 0.2s;
+    }
+    .crop-ratio-btn:hover { border-color: var(--purple); color: var(--text); }
+    .crop-ratio-btn.active {
+      border-color: var(--purple);
+      background: rgba(124,111,255,0.18);
+      color: var(--purple);
+      box-shadow: 0 0 10px rgba(124,111,255,0.2);
+    }
+    .crop-ratio-icon {
+      background: var(--border);
+      border-radius: 2px;
+    }
+    .crop-ratio-btn.active .crop-ratio-icon {
+      background: var(--purple);
+    }
+    .crop-canvas-wrap {
+      position: relative;
+      width: 100%;
+      height: 280px;
+      background: #000;
+      overflow: hidden;
+      cursor: grab;
+      touch-action: none;
+    }
+    .crop-canvas-wrap:active { cursor: grabbing; }
+    #crop-img {
+      position: absolute;
+      transform-origin: 0 0;
+      user-select: none;
+      pointer-events: none;
+    }
+    .crop-box {
+      position: absolute;
+      border: 2px solid var(--purple);
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.55);
+      pointer-events: none;
+    }
+    .crop-box-corner {
+      position: absolute;
+      width: 12px; height: 12px;
+      border-color: var(--purple);
+      border-style: solid;
+    }
+    .crop-box-corner.tl { top: -1px; left: -1px; border-width: 3px 0 0 3px; }
+    .crop-box-corner.tr { top: -1px; right: -1px; border-width: 3px 3px 0 0; }
+    .crop-box-corner.bl { bottom: -1px; left: -1px; border-width: 0 0 3px 3px; }
+    .crop-box-corner.br { bottom: -1px; right: -1px; border-width: 0 3px 3px 0; }
+    .crop-hint {
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--muted);
+      padding: 8px;
+      background: var(--surface2);
+    }
+    .crop-actions {
+      display: flex; gap: 10px;
+      padding: 14px 16px;
+    }
+    .crop-btn-cancel {
+      flex: 1; padding: 11px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .crop-btn-cancel:hover { border-color: var(--pink); color: var(--pink); }
+    .crop-btn-apply {
+      flex: 2; padding: 11px;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(135deg, var(--purple), var(--pink));
+      color: #fff;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .crop-btn-apply:hover { transform: translateY(-1px); }
+    .zoom-bar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 16px 10px;
+      background: var(--surface2);
+    }
+    .zoom-label {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    input[type=range].zoom-slider {
+      flex: 1; display: block;
+      -webkit-appearance: none;
+      height: 3px;
+      border-radius: 99px;
+      background: var(--border);
+      outline: none;
+    }
+    input[type=range].zoom-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: var(--purple);
+      box-shadow: 0 0 8px rgba(124,111,255,0.5);
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-  <div id="boot-screen">
-    <div id="boot-logo">🧠</div>
-    <div id="boot-title">StudyOS</div>
-    <div id="boot-spinner"></div>
-    <div id="boot-sub">Loading your command center...</div>
-    <div id="boot-err"></div>
+
+<div class="sos-root">
+  <div class="sos-inner">
+    <div class="sos-logo">StudyOS</div>
+    <div id="app"></div>
   </div>
-  <div id="root"></div>
-  <script type="text/babel">
+</div>
 
+<!-- Crop Modal -->
+<div class="crop-overlay" id="crop-overlay" style="display:none">
+  <div class="crop-modal">
+    <div class="crop-header">⚙ crop // select region</div>
+    <div class="crop-ratio-bar">
+      <button class="crop-ratio-btn active" onclick="setRatio('1:1')">
+        <div class="crop-ratio-icon" style="width:20px;height:20px;"></div>
+        1:1
+      </button>
+      <button class="crop-ratio-btn" onclick="setRatio('1:4')">
+        <div class="crop-ratio-icon" style="width:10px;height:20px;"></div>
+        1:4
+      </button>
+      <button class="crop-ratio-btn" onclick="setRatio('19:6')">
+        <div class="crop-ratio-icon" style="width:22px;height:7px;"></div>
+        19:6
+      </button>
+      <button class="crop-ratio-btn" onclick="setRatio('free')">
+        <div class="crop-ratio-icon" style="width:18px;height:14px;border-radius:3px;"></div>
+        Free
+      </button>
+    </div>
+    <div class="crop-canvas-wrap" id="crop-wrap">
+      <img id="crop-img" src="" alt="" draggable="false" />
+      <div class="crop-box" id="crop-box">
+        <div class="crop-box-corner tl"></div>
+        <div class="crop-box-corner tr"></div>
+        <div class="crop-box-corner bl"></div>
+        <div class="crop-box-corner br"></div>
+      </div>
+    </div>
+    <div class="zoom-bar">
+      <span class="zoom-label">zoom</span>
+      <input type="range" class="zoom-slider" id="zoom-slider" min="100" max="400" value="100" oninput="onZoom(this.value)" />
+      <span class="zoom-label" id="zoom-val">1×</span>
+    </div>
+    <div class="crop-hint">drag to pan · slider to zoom</div>
+    <div class="crop-actions">
+      <button class="crop-btn-cancel" onclick="closeCrop()">Cancel</button>
+      <button class="crop-btn-apply" onclick="applyCrop()">✓ Apply Crop</button>
+    </div>
+  </div>
+</div>
 
-
-const { useState, useEffect, useRef, useCallback, useMemo } = React;
-
-// ─── ICONS ────────────────────────────────────────────────────────────────────
-const Icon = ({ d, size = 20, stroke = "currentColor", fill = "none", strokeWidth = 1.8 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
-    {Array.isArray(d) ? d.map((path, i) => <path key={i} d={path} />) : <path d={d} />}
-  </svg>
-);
-const icons = {
-  home: "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
-  schedule: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
-  habits: "M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11",
-  workout: "M18 8h1a4 4 0 0 1 0 8h-1 M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z M6 1v3 M10 1v3 M14 1v3",
-  lectures: "M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 1-4 4v14a3 3 0 0 0 3-3h7z",
-  notes: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8",
-  goals: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
-  analytics: "M18 20V10 M12 20V4 M6 20v-6",
-  settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z",
-  profile: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
-  report: "M9 17H7A5 5 0 0 1 7 7h2 M15 7h2a5 5 0 1 1 0 10h-2 M8 12h8",
-  plus: "M12 5v14 M5 12h14",
-  check: "M20 6L9 17l-5-5",
-  x: "M18 6L6 18 M6 6l12 12",
-  menu: "M3 12h18 M3 6h18 M3 18h18",
-  close: "M18 6L6 18 M6 6l12 12",
-  camera: "M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
-  fire: "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z",
-  brain: "M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2z M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2z",
-  dumbbell: "M6.5 6.5h.01 M17.5 6.5h.01 M6.5 17.5h.01 M17.5 17.5h.01 M3 12h18 M6.5 6.5v11 M17.5 6.5v11",
-  book: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z",
-  target: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
-  trash: "M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2",
-  edit: "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z",
-  chevronRight: "M9 18l6-6-6-6",
-  chevronLeft: "M15 18l-6-6 6-6",
-  sun: "M12 1v2 M12 21v2 M4.22 4.22l1.42 1.42 M18.36 18.36l1.42 1.42 M1 12h2 M21 12h2 M4.22 19.78l1.42-1.42 M18.36 5.64l1.42-1.42 M12 5a7 7 0 0 0 0 14A7 7 0 0 0 12 5z",
-  moon: "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z",
-  bell: "M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9 M13.73 21a2 2 0 0 1-3.46 0",
-  user: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
-  upload: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M17 8l-5-5-5 5 M12 3v12",
-  download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3",
-  share: "M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8 M16 6l-4-4-4 4 M12 2v13",
-  atom: "M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0 M12 12m-6.3 0a6.3 6.3 0 1 0 12.6 0a6.3 6.3 0 1 0-12.6 0",
-  flask: "M9 3h6 M10 3v5l-3 7a2 2 0 0 0 2 3h6a2 2 0 0 0 2-3l-3-7V3",
-  microscope: "M6 18h8 M3 22h18 M14 22a7 7 0 1 0 0-14h-1 M9 14h.01",
-  timer: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 6v6l4 2",
-  streak: "M13 2L3 14h9l-1 8 10-12h-9l1-8z",
-  palette: "M12 2a10 10 0 0 0 0 20 2 2 0 0 0 2-2v-.5a2 2 0 0 1 2-2h1a2 2 0 0 0 2-2 10 10 0 0 0-7-9.5 M8.5 8.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z M14.5 8.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z M9 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z",
-  image: "M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 0 2 2v14z M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z M21 15l-5-5L5 21",
-  award: "M12 15a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M8.21 13.89L7 23l5-3 5 3-1.21-9.12",
-  star: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
-  whatsapp: "M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l5.07-1.35A9.96 9.96 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z",
-  copy: "M8 8H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2 M8 8V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2",
-};
-
-// ─── THEMES ──────────────────────────────────────────────────────────────────
-const THEMES = {
-  dark_purple: {
-    name: "Dark Purple", emoji: "🌙",
-    "--bg":"#0a0a0f","--bg2":"#111118","--bg3":"#16161f","--bg4":"#1c1c28",
-    "--border":"#ffffff0f","--border2":"#ffffff18",
-    "--text":"#f0f0f5","--text2":"#9191a8","--text3":"#5a5a72",
-    "--accent":"#7c6fff","--accent2":"#a78bfa","--accentglow":"#7c6fff40",
-    "--sidebar-bg":"#111118","--topbar-bg":"#111118",
-  },
-  light: {
-    name: "Light", emoji: "☀️",
-    "--bg":"#f4f4f8","--bg2":"#ffffff","--bg3":"#f0f0f5","--bg4":"#e4e4ec",
-    "--border":"#e0e0e8","--border2":"#ccccda",
-    "--text":"#1a1a2e","--text2":"#44445a","--text3":"#8888a0",
-    "--accent":"#7c6fff","--accent2":"#5b48f0","--accentglow":"#7c6fff25",
-    "--sidebar-bg":"#ffffff","--topbar-bg":"#ffffff",
-  },
-  ocean: {
-    name: "Ocean Blue", emoji: "🌊",
-    "--bg":"#050d1a","--bg2":"#0a1628","--bg3":"#0f1e36","--bg4":"#152640",
-    "--border":"#1e3a5f","--border2":"#254d7a",
-    "--text":"#e0f0ff","--text2":"#7ab0d4","--text3":"#4a7299",
-    "--accent":"#38bdf8","--accent2":"#7dd3fc","--accentglow":"#38bdf840",
-    "--sidebar-bg":"#0a1628","--topbar-bg":"#0a1628",
-  },
-  forest: {
-    name: "Forest", emoji: "🌿",
-    "--bg":"#050f0a","--bg2":"#091a10","--bg3":"#0d2318","--bg4":"#122d1f",
-    "--border":"#1a4028","--border2":"#235535",
-    "--text":"#e0f5ea","--text2":"#6dba8a","--text3":"#3d7a55",
-    "--accent":"#22c55e","--accent2":"#4ade80","--accentglow":"#22c55e40",
-    "--sidebar-bg":"#091a10","--topbar-bg":"#091a10",
-  },
-  sunset: {
-    name: "Sunset", emoji: "🌅",
-    "--bg":"#0f0a05","--bg2":"#1a1008","--bg3":"#24180c","--bg4":"#2e2010",
-    "--border":"#3d2a10","--border2":"#523815",
-    "--text":"#fff0e0","--text2":"#c4924a","--text3":"#8a6030",
-    "--accent":"#f97316","--accent2":"#fb923c","--accentglow":"#f9731640",
-    "--sidebar-bg":"#1a1008","--topbar-bg":"#1a1008",
-  },
-  rose: {
-    name: "Rose Pink", emoji: "🌸",
-    "--bg":"#fdf2f4","--bg2":"#ffffff","--bg3":"#fce7eb","--bg4":"#f9d5db",
-    "--border":"#f0c0c8","--border2":"#e8a8b2",
-    "--text":"#2d1020","--text2":"#6d3048","--text3":"#b06080",
-    "--accent":"#e11d48","--accent2":"#f43f5e","--accentglow":"#e11d4825",
-    "--sidebar-bg":"#ffffff","--topbar-bg":"#ffffff",
-  },
-};
-const RANKS = [
-  { level:1, name:"Novice",        minXP:0,     emoji:"🌱", color:"#6b7280" },
-  { level:2, name:"Grinder",       minXP:200,   emoji:"⚙️", color:"#78716c" },
-  { level:3, name:"Focused",       minXP:500,   emoji:"🎯", color:"#3b82f6" },
-  { level:4, name:"Scholar",       minXP:1000,  emoji:"📚", color:"#8b5cf6" },
-  { level:5, name:"Grind Master",  minXP:2000,  emoji:"🔥", color:"#f97316" },
-  { level:6, name:"Apex Aspirant", minXP:3500,  emoji:"⚡", color:"#eab308" },
-  { level:7, name:"NEET Warrior",  minXP:5000,  emoji:"⚔️", color:"#ef4444" },
-  { level:8, name:"Bio God",       minXP:7500,  emoji:"🧬", color:"#10b981" },
-  { level:9, name:"Top Ranker",    minXP:10000, emoji:"👑", color:"#f59e0b" },
-  { level:10,name:"AIIMS Material",minXP:15000, emoji:"🏆", color:"#a78bfa" },
-];
-const XP_VALS = { habit:10, lecture:50, workout:30 };
-const CYBERPUNK_THEMES = ["cyberpunk","nordic"];
-// Add cyberpunk+nordic themes
-THEMES.cyberpunk = { name:"Cyberpunk",emoji:"⚡","--bg":"#08000f","--bg2":"#0d0018","--bg3":"#130022","--bg4":"#1a002e","--border":"#ff00ff18","--border2":"#ff00ff30","--text":"#f0f0ff","--text2":"#cc88ff","--text3":"#8844aa","--accent":"#ff00ff","--accent2":"#00ffff","--accentglow":"#ff00ff50","--sidebar-bg":"#0d0018","--topbar-bg":"#0d0018" };
-THEMES.nordic = { name:"Nordic Frost",emoji:"❄️","--bg":"#1a1f2e","--bg2":"#222838","--bg3":"#2a3348","--bg4":"#333f58","--border":"#3d4f6a","--border2":"#4a6080","--text":"#eceff4","--text2":"#aab4c8","--text3":"#6a7d99","--accent":"#88c0d0","--accent2":"#81a1c1","--accentglow":"#88c0d040","--sidebar-bg":"#222838","--topbar-bg":"#222838" };
-const getRank=(xp)=>{ let r=RANKS[0]; for(const rk of RANKS){if(xp>=rk.minXP)r=rk;else break;} return r; };
-const getNextRank=(xp)=>{ for(const r of RANKS){if(xp<r.minXP)return r;} return null; };
-const computeXP=(habitLogs,habits,workoutLogs,lectureProgress,lectures)=>{
-  let xp=0;
-  Object.values(habitLogs).forEach(dl=>{ habits.forEach(h=>{ if(dl[h.id])xp+=XP_VALS.habit; }); });
-  Object.values(workoutLogs).forEach(l=>{ if(l?.done)xp+=XP_VALS.workout; });
-  lectures.forEach(l=>{ Object.values(lectureProgress[l.id]||{}).forEach(d=>{ if(d?.done)xp+=XP_VALS.lecture; }); });
-  return xp;
-};
-const spawnConfetti=()=>{
-  const colors=["#7c6fff","#ec4899","#f59e0b","#10b981","#3b82f6","#ff00ff","#00ffff","#ef4444"];
-  for(let i=0;i<28;i++){
-    const el=document.createElement("div");
-    el.style.cssText=`position:fixed;top:-10px;left:${Math.random()*100}vw;width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;border-radius:${Math.random()>0.5?"50%":"3px"};background:${colors[Math.floor(Math.random()*colors.length)]};animation:confettiFall ${1+Math.random()*0.8}s ease-in ${Math.random()*0.4}s forwards;pointer-events:none;z-index:9999;transform:rotate(${Math.random()*360}deg)`;
-    document.body.appendChild(el);
-    setTimeout(()=>el.remove(),2500);
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+const state = {
+  step: 0,   // 0,1,2 = steps; 3 = done
+  leverSwung: false,
+  dropped: false,
+  data: {
+    name: '', class: '', stream: '', school: '',
+    photo: '', exam: '', bio: ''
   }
 };
-const spawnXP=(amount,x,y)=>{
-  const el=document.createElement("div");
-  el.textContent=`+${amount} XP`;
-  el.style.cssText=`position:fixed;left:${x}px;top:${y}px;font-family:Syne,sans-serif;font-weight:800;font-size:18px;color:#a78bfa;text-shadow:0 0 10px #7c6fff80;animation:xpFloat 1.1s ease-out forwards;pointer-events:none;z-index:9999`;
-  document.body.appendChild(el);
-  setTimeout(()=>el.remove(),1200);
-};
 
-// ─── STORAGE ─────────────────────────────────────────────────────────────────
-const storage = {
-  get: (k, def) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } },
-  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
-};
+// ─── SVG Gear ─────────────────────────────────────────────────────────────────
+function gearSVG(size, teeth, color, angle) {
+  const r = size / 2;
+  const toothLen = size * 0.18;
+  let rects = '';
+  for (let i = 0; i < teeth; i++) {
+    const a = (i / teeth) * 360;
+    const aRad = (a * Math.PI) / 180;
+    const px = 50 + (r + toothLen) * Math.cos(aRad);
+    const py = 50 + (r + toothLen) * Math.sin(aRad);
+    rects += `<rect x="${px-4}" y="${py-5}" width="8" height="10" rx="2" fill="var(${color})" transform="rotate(${a},${px},${py})"/>`;
+  }
+  return `<svg width="${size+20}" height="${size+20}" viewBox="0 0 100 100"
+    style="transform:rotate(${angle}deg);transition:transform 0.05s linear;overflow:visible;display:block;">
+    ${rects}
+    <circle cx="50" cy="50" r="${r}" fill="var(--surface2)" stroke="var(${color})" stroke-width="3"/>
+    <circle cx="50" cy="50" r="${r*0.35}" fill="var(--surface)" stroke="var(${color})" stroke-width="2"/>
+  </svg>`;
+}
 
-// ─── INITIAL DATA ─────────────────────────────────────────────────────────────
-const INITIAL_HABITS = [
-  { id: 1, name: "Morning Cold Water + 10 Pushups", emoji: "💧", category: "morning", target: 1 },
-  { id: 2, name: "30 min Book Reading", emoji: "📖", category: "morning", target: 1 },
-  { id: 3, name: "Workout", emoji: "💪", category: "fitness", target: 1 },
-  { id: 4, name: "No Phone Before 8 AM", emoji: "📵", category: "discipline", target: 1 },
-  { id: 5, name: "Drink 3L Water", emoji: "🥤", category: "health", target: 3 },
-  { id: 6, name: "10 PM Phone Curfew", emoji: "🌙", category: "discipline", target: 1 },
-];
-const INITIAL_LECTURES = [
-  { id: 1, subject: "Biology", topic: "", teacher: "", time: "12:30", duration: 120, color: "#10b981" },
-  { id: 2, subject: "Chemistry", topic: "", teacher: "", time: "14:45", duration: 120, color: "#f59e0b" },
-  { id: 3, subject: "Physics", topic: "", teacher: "", time: "17:00", duration: 120, color: "#3b82f6" },
-  { id: 4, subject: "Biology/Revision", topic: "", teacher: "", time: "19:15", duration: 120, color: "#8b5cf6" },
-];
-const INITIAL_WORKOUTS = [
-  { id: 1, name: "Pushups", sets: 3, reps: 15, unit: "reps", category: "chest" },
-  { id: 2, name: "Squats", sets: 3, reps: 20, unit: "reps", category: "legs" },
-  { id: 3, name: "Plank", sets: 3, reps: 60, unit: "seconds", category: "core" },
-  { id: 4, name: "Pull-ups", sets: 3, reps: 8, unit: "reps", category: "back" },
-  { id: 5, name: "Running", sets: 1, reps: 20, unit: "minutes", category: "cardio" },
-];
-const INITIAL_GOALS = [
-  { id: 1, title: "Clear NEET 2025", emoji: "🎯", deadline: "2025-05-04", progress: 0, category: "academic" },
-  { id: 2, title: "Complete NCERT Biology", emoji: "🧬", deadline: "2025-02-28", progress: 35, category: "academic" },
-  { id: 3, title: "21-Day No Social Media", emoji: "📵", deadline: "2025-01-31", progress: 5, category: "discipline" },
-  { id: 4, title: "30-Day Workout Streak", emoji: "💪", deadline: "2025-02-15", progress: 10, category: "fitness" },
-];
-const SCHEDULE = [
-  { time: "05:15", label: "Wake Up + Activation", icon: "sun", color: "#f59e0b" },
-  { time: "05:30", label: "Reading (30 min)", icon: "book", color: "#10b981" },
-  { time: "06:00", label: "Workout + Podcast", icon: "dumbbell", color: "#ef4444" },
-  { time: "06:45", label: "Breakfast", icon: "fire", color: "#f97316" },
-  { time: "07:00", label: "School", icon: "brain", color: "#3b82f6" },
-  { time: "12:01", label: "Lunch + Decompress", icon: "sun", color: "#10b981" },
-  { time: "12:30", label: "Online Class 1 (Bio/Chem)", icon: "flask", color: "#10b981" },
-  { time: "14:30", label: "Break", icon: "timer", color: "#6b7280" },
-  { time: "14:45", label: "Online Class 2 (Phy/Chem)", icon: "atom", color: "#f59e0b" },
-  { time: "16:45", label: "Break + Snack", icon: "timer", color: "#6b7280" },
-  { time: "17:00", label: "Online Class 3 (Bio)", icon: "microscope", color: "#8b5cf6" },
-  { time: "19:00", label: "Dinner (Phone-free)", icon: "fire", color: "#f97316" },
-  { time: "19:15", label: "Online Class 4 (Test Prep)", icon: "target", color: "#ef4444" },
-  { time: "21:15", label: "Consolidation (5 Key Points)", icon: "notes", color: "#06b6d4" },
-  { time: "21:45", label: "Shutdown Ritual", icon: "moon", color: "#6366f1" },
-  { time: "22:15", label: "Sleep", icon: "moon", color: "#1e293b" },
-];
-
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
-const today = () => new Date().toISOString().split("T")[0];
-const todayLabel = () => new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" });
-const getStreak = (logs) => {
-  let streak = 0; const d = new Date();
-  while (true) { const key = d.toISOString().split("T")[0]; if (logs[key]) { streak++; d.setDate(d.getDate() - 1); } else break; }
-  return streak;
-};
-const getWeekDays = () => Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - 6 + i); return d.toISOString().split("T")[0]; });
-const getLast90 = () => Array.from({ length: 90 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - 89 + i); return d.toISOString().split("T")[0]; });
-
-// ─── CSS ──────────────────────────────────────────────────────────────────────
-const getCSS = (theme) => {
-  const t = THEMES[theme] || THEMES.dark_purple;
-  const vars = Object.entries(t).filter(([k]) => k.startsWith('--')).map(([k,v]) => `${k}:${v}`).join(';');
+// ─── Render helpers ───────────────────────────────────────────────────────────
+function pulleyScene(progress) {
+  const ropeLen = 24 + progress * 18;
+  const weightOffset = progress * 18;
+  const wheelAngle = progress * 720;
+  const spokes = [0,60,120,180,240,300].map(a =>
+    `<div class="pulley-spoke" style="transform:translate(-50%,-50%) rotate(${a}deg);top:50%;left:50%;position:absolute;"></div>`
+  ).join('');
   return `
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  :root{${vars};
-    --green:#10b981;--amber:#f59e0b;--red:#ef4444;--blue:#3b82f6;--pink:#ec4899;
-    --radius:16px;--radius-sm:10px;--radius-lg:24px;
-    --shadow:0 8px 32px #00000060;
-    --sidebar:260px;
-    font-family:'DM Sans',sans-serif;
+  <div class="pulley-scene">
+    <div class="pulley-rope-left">
+      <div style="height:8px"></div>
+      <div class="pulley-rope" style="height:${ropeLen}px"></div>
+      <div class="pulley-weight" style="transform:translateY(${weightOffset}px)">W</div>
+    </div>
+    <div class="pulley-wheel-wrap">
+      <div class="pulley-wheel" style="transform:rotate(${wheelAngle}deg)">${spokes}</div>
+    </div>
+    <div class="pulley-rope-right">
+      <div style="height:8px"></div>
+      <div class="pulley-rope" style="height:${Math.max(6, 42-weightOffset)}px"></div>
+      <div class="pulley-weight" style="transform:translateY(${-weightOffset}px);background:linear-gradient(135deg,var(--pink),#d63880)">W</div>
+    </div>
+  </div>`;
+}
+
+function gearsScene(angle) {
+  return `<div class="gears-scene">
+    ${gearSVG(42,10,'--purple', angle)}
+    ${gearSVG(28,7,'--pink', -angle*1.5)}
+    ${gearSVG(20,5,'--teal', angle*2.1)}
+  </div>`;
+}
+
+function photoScene(dropped) {
+  const blades = [1,2,3,4].map(() =>
+    `<div class="shutter-blade ${dropped ? 'open' : ''}"></div>`
+  ).join('');
+  return `<div class="photo-scene">
+    <div class="ball ${dropped ? 'dropped' : ''}"></div>
+    <div class="shutter">${blades}</div>
+  </div>`;
+}
+
+function liquidScene(fillPct) {
+  const pinkPct = Math.min(100, fillPct * 0.7);
+  return `<div class="liquid-scene">
+    <div>
+      <div class="flask">
+        <div class="flask-fill" style="height:${fillPct}%"></div>
+        <div class="flask-bubble"></div>
+        <div class="flask-bubble"></div>
+        <div class="flask-bubble"></div>
+      </div>
+      <div class="flask-label">${Math.round(fillPct)}%</div>
+    </div>
+    <div>
+      <div class="flask">
+        <div class="flask-fill pink-fill" style="height:${pinkPct}%"></div>
+        <div class="flask-bubble"></div>
+      </div>
+      <div class="flask-label" style="color:var(--pink)">${Math.round(pinkPct)}%</div>
+    </div>
+  </div>`;
+}
+
+function leverScene(swung) {
+  return `<div class="lever-scene">
+    <div class="lever-base">
+      <div class="lever-pivot"></div>
+      <div class="lever-arm ${swung ? 'swung' : ''}">
+        <div class="lever-ball"></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─── Pills helper ─────────────────────────────────────────────────────────────
+function pills(options, field, selectedVal) {
+  return options.map(opt =>
+    `<div class="sos-pill ${selectedVal === opt ? 'selected' : ''}"
+      onclick="selectPill('${field}','${opt}')">${opt}</div>`
+  ).join('');
+}
+
+// ─── Step renderers ───────────────────────────────────────────────────────────
+function renderStep1() {
+  const d = state.data;
+  const nameProgress = Math.min(1, (d.name.length || 0) / 15);
+  const gearAngle = ((d.class ? 120 : 0) + (d.stream ? 80 : 0) + (d.school.length || 0) * 3) % 360;
+
+  return `
+    <div class="sos-machine">
+      <div class="sos-machine-label">⚙ mechanism // name input → pulley</div>
+      ${pulleyScene(nameProgress)}
+    </div>
+    <div class="sos-field" style="margin-top:18px">
+      <label class="sos-label">// your name</label>
+      <input class="sos-input" id="inp-name" placeholder="e.g. Aarav Shah" value="${escHtml(d.name)}"
+        oninput="updateField('name',this.value)" />
+    </div>
+    <div class="sos-machine" style="margin-top:4px">
+      <div class="sos-machine-label">⚙ mechanism // selection → gears</div>
+      ${gearsScene(gearAngle)}
+    </div>
+    <div class="sos-field" style="margin-top:18px">
+      <label class="sos-label">// class</label>
+      <div class="sos-pills">${pills(['11','12'],'class',d.class)}</div>
+    </div>
+    <div class="sos-field">
+      <label class="sos-label">// stream</label>
+      <div class="sos-pills">${pills(['PCB','PCM','Commerce','Arts'],'stream',d.stream)}</div>
+    </div>
+    <div class="sos-field">
+      <label class="sos-label">// school name</label>
+      <input class="sos-input" id="inp-school" placeholder="e.g. DPS RK Puram" value="${escHtml(d.school)}"
+        oninput="updateField('school',this.value)" />
+    </div>`;
+}
+
+function renderStep2() {
+  const d = state.data;
+  return `
+    <div class="sos-machine">
+      <div class="sos-machine-label">⚙ mechanism // photo upload → shutter drop</div>
+      ${photoScene(state.dropped)}
+    </div>
+    <div class="sos-field" style="margin-top:18px">
+      <label class="sos-label">// profile photo <span style="color:var(--teal);font-size:0.6rem">· tap to upload &amp; crop</span></label>
+      <div class="photo-upload-zone ${d.photo ? 'has-photo' : ''}" onclick="document.getElementById('file-inp').click()">
+        <input type="file" id="file-inp" accept="image/*" onchange="handlePhoto(this)" />
+        ${d.photo
+          ? `<img src="${d.photo}" alt="preview" class="photo-preview"/><div class="photo-upload-text">tap to change</div>`
+          : `<div class="photo-upload-icon">📸</div><div class="photo-upload-text">tap to upload profile photo</div>`
+        }
+      </div>
+    </div>`;
+}
+
+function renderStep3() {
+  const d = state.data;
+  const bioLen = d.bio.length;
+  const fillPct = Math.min(100, (bioLen / 200) * 100);
+  const exams = ['NEET 2025','NEET 2026','AIIMS','JIPMER','JEE Main','JEE Advanced','CUET'];
+  return `
+    <div class="sos-field">
+      <label class="sos-label">// target exam</label>
+      <div class="sos-pills">${pills(exams,'exam',d.exam)}</div>
+    </div>
+    <div class="sos-machine" style="margin-top:4px">
+      <div class="sos-machine-label">⚙ mechanism // bio length → flask fill</div>
+      ${liquidScene(fillPct)}
+    </div>
+    <div class="sos-field" style="margin-top:18px">
+      <label class="sos-label">// motivation / bio <span style="color:var(--teal)">${bioLen}/200</span></label>
+      <textarea class="sos-input" placeholder="What drives you to study? What's your dream?"
+        oninput="updateBio(this.value)">${escHtml(d.bio)}</textarea>
+    </div>`;
+}
+
+function renderDone() {
+  const d = state.data;
+  const photoHtml = d.photo
+    ? `<img src="${d.photo}" alt="" style="width:48px;height:48px;border-radius:50%;float:right;margin-left:8px;border:2px solid var(--pink)">`
+    : '';
+  return `
+    <div class="sos-done">
+      <div class="sos-done-icon">🚀</div>
+      <div class="sos-done-title">System Initialized</div>
+      <div class="sos-done-sub">
+        Welcome, ${escHtml(d.name || 'Scholar')}.<br>
+        Target locked: <span style="color:var(--pink)">${escHtml(d.exam || 'your exam')}</span><br>
+        The machine is ready. Let's build something great.
+      </div>
+      <div class="sos-done-card">
+        ${photoHtml}
+        <span style="color:var(--purple)">name:</span> ${escHtml(d.name)}<br>
+        <span style="color:var(--purple)">class:</span> ${escHtml(d.class)} · <span style="color:var(--purple)">stream:</span> ${escHtml(d.stream)}<br>
+        <span style="color:var(--purple)">school:</span> ${escHtml(d.school)}<br>
+        <span style="color:var(--purple)">exam:</span> ${escHtml(d.exam)}<br>
+        ${d.bio ? `<span style="color:var(--purple)">bio:</span> ${escHtml(d.bio)}` : ''}
+      </div>
+    </div>`;
+}
+
+// ─── Main render ──────────────────────────────────────────────────────────────
+function render() {
+  const app = document.getElementById('app');
+  const stepLabels = ['Identity','Photo','Mission'];
+  const s = state.step;
+
+  if (s === 3) {
+    app.innerHTML = renderDone();
+    return;
   }
-  html,body,#root{height:100%;background:var(--bg);color:var(--text);overflow:hidden}
-  h1,h2,h3,h4,.font-syne{font-family:'Syne',sans-serif}
-  ::-webkit-scrollbar{width:4px;height:4px}
-  ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
-  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes confettiFall{0%{transform:translateY(-10px) rotate(0deg);opacity:1}100%{transform:translateY(300px) rotate(720deg);opacity:0}}
-  @keyframes xpFloat{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-60px) scale(1.3);opacity:0}}
-  @keyframes pageEnter{from{opacity:0;transform:translateY(12px) scale(.988)}to{opacity:1;transform:translateY(0) scale(1)}}
-  @keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
-  @keyframes pomoPulse{0%,100%{box-shadow:0 0 0 0 var(--accentglow)}50%{box-shadow:0 0 0 20px transparent}}
-  @keyframes rankGlow{0%,100%{box-shadow:0 4px 14px var(--accentglow)}50%{box-shadow:0 6px 28px var(--accentglow),0 0 40px var(--accentglow)}}
-  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-  @keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
-  @keyframes slideRight{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
-  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
-  @keyframes glow{0%,100%{box-shadow:0 0 20px var(--accentglow)}50%{box-shadow:0 0 40px var(--accentglow),0 0 60px var(--accentglow)}}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .fade-up{animation:fadeUp .4s cubic-bezier(.16,1,.3,1) both}
-  .fade-in{animation:fadeIn .3s ease both}
-  .slide-in{animation:slideIn .35s cubic-bezier(.16,1,.3,1) both}
-  /* ── LAYOUT ── */
-  .app{display:flex;height:100vh;overflow:hidden;position:relative}
-  /* ── OVERLAY (mobile) ── */
-  .sidebar-overlay{display:none;position:fixed;inset:0;background:#00000060;z-index:40;backdrop-filter:blur(2px);animation:fadeIn .2s ease}
-  .sidebar-overlay.visible{display:block}
-  /* ── SIDEBAR ── */
-  .sidebar{width:var(--sidebar);min-width:var(--sidebar);background:var(--sidebar-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;overflow:hidden;transition:width .3s cubic-bezier(.16,1,.3,1),min-width .3s cubic-bezier(.16,1,.3,1),transform .3s cubic-bezier(.16,1,.3,1);position:relative;z-index:50;flex-shrink:0}
-  .sidebar.collapsed{width:72px;min-width:72px}
-  /* Mobile: sidebar slides off-screen */
-  @media(max-width:768px){
-    .sidebar{position:fixed;left:0;top:0;height:100vh;z-index:50;transform:translateX(-100%)}
-    .sidebar.mobile-open{transform:translateX(0)}
-    .sidebar.collapsed{width:var(--sidebar);min-width:var(--sidebar)}
-    .sidebar.collapsed .sidebar-title{opacity:1}
-    .sidebar.collapsed .nav-label{opacity:1}
-    .sidebar.collapsed .profile-info{opacity:1}
+
+  // Step dots
+  let dotsHtml = '';
+  stepLabels.forEach((label, i) => {
+    let cls = '';
+    if (i === s) cls = 'active';
+    else if (i < s) cls = 'done';
+    dotsHtml += `<div class="sos-step-dot ${cls}" title="${label}"></div>`;
+    if (i < stepLabels.length - 1) {
+      const fillW = s > i ? '100%' : '0%';
+      dotsHtml += `<div class="sos-step-line"><div class="sos-step-line-fill" style="width:${fillW}"></div></div>`;
+    }
+  });
+
+  let stepContent = '';
+  if (s === 0) stepContent = renderStep1();
+  if (s === 1) stepContent = renderStep2();
+  if (s === 2) stepContent = renderStep3();
+
+  const leverHtml = s === 2 ? `
+    <div class="sos-machine" style="margin-top:20px">
+      <div class="sos-machine-label">⚙ mechanism // submit → lever swing</div>
+      ${leverScene(state.leverSwung)}
+    </div>` : '';
+
+  const btnLabel = s < 2 ? `Next → ${stepLabels[s+1]}` : '⚡ Let\'s Go';
+  const canNext = checkCanNext();
+
+  app.innerHTML = `
+    <div class="sos-tagline">// onboarding_sequence.init</div>
+    <div class="sos-steps">${dotsHtml}</div>
+    <div class="sos-card">
+      <div class="sos-section-title">step_${s+1} // ${stepLabels[s].toLowerCase()}</div>
+      ${stepContent}
+      ${leverHtml}
+      <button class="sos-btn" onclick="handleNext()" ${canNext ? '' : 'disabled'}>${btnLabel}</button>
+    </div>
+    <div class="step-footer">step ${s+1} of 3 · studyos v0.1</div>`;
+}
+
+// ─── Logic ────────────────────────────────────────────────────────────────────
+function checkCanNext() {
+  const d = state.data;
+  if (state.step === 0) return d.name && d.class && d.stream && d.school;
+  if (state.step === 1) return true;
+  if (state.step === 2) return !!d.exam;
+  return false;
+}
+
+function handleNext() {
+  if (state.step < 2) {
+    state.step++;
+    render();
+  } else {
+    state.leverSwung = true;
+    render(); // show swung lever
+    setTimeout(() => { state.step = 3; render(); }, 700);
   }
-  .sidebar-header{padding:20px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);flex-shrink:0}
-  .sidebar-logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--pink));display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 16px var(--accentglow)}
-  .sidebar-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;letter-spacing:.5px;white-space:nowrap;overflow:hidden;transition:opacity .2s;flex:1}
-  .sidebar.collapsed .sidebar-title{opacity:0;pointer-events:none;width:0}
-  .sidebar-close-btn{display:none;cursor:pointer;color:var(--text3);padding:4px;border-radius:6px;transition:color .2s;flex-shrink:0}
-  .sidebar-close-btn:hover{color:var(--text)}
-  @media(max-width:768px){.sidebar-close-btn{display:flex}}
-  .sidebar-nav{flex:1;overflow-y:auto;padding:12px 8px;display:flex;flex-direction:column;gap:2px}
-  .nav-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:all .2s;color:var(--text3);font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;position:relative;}
-  .nav-item:hover{background:var(--bg3);color:var(--text2)}
-  .nav-item.active{background:var(--accentglow);color:var(--accent2)}
-  .nav-item.active::before{content:'';position:absolute;left:0;top:25%;height:50%;width:3px;background:var(--accent);border-radius:0 4px 4px 0}
-  .nav-icon{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:20px}
-  .nav-label{transition:opacity .2s;overflow:hidden}
-  .sidebar.collapsed .nav-label{opacity:0;pointer-events:none}
-  .sidebar-footer{padding:12px 8px;border-top:1px solid var(--border);flex-shrink:0}
-  .profile-mini{display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--radius-sm);cursor:pointer;transition:background .2s}
-  .profile-mini:hover{background:var(--bg3)}
-  .profile-avatar{width:36px;height:36px;border-radius:10px;overflow:hidden;flex-shrink:0;background:var(--bg4);display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border2)}
-  .profile-avatar img{width:100%;height:100%;object-fit:cover}
-  .profile-info{overflow:hidden;transition:opacity .2s;flex:1;min-width:0}
-  .sidebar.collapsed .profile-info{opacity:0;pointer-events:none}
-  .profile-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .profile-sub{font-size:11px;color:var(--text3);white-space:nowrap}
-  /* ── MAIN ── */
-  .main{flex:1;overflow:hidden;display:flex;flex-direction:column;min-width:0}
-  .topbar{padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--topbar-bg);flex-shrink:0;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
-  .topbar-left{display:flex;align-items:center;gap:12px}
-  .page-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700}
-  .topbar-date{font-size:12px;color:var(--text3);background:var(--bg3);padding:4px 10px;border-radius:99px;border:1px solid var(--border)}
-  .topbar-right{display:flex;align-items:center;gap:8px}
-  .icon-btn{width:36px;height:36px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;color:var(--text2);flex-shrink:0}
-  .icon-btn:hover{border-color:var(--border2);background:var(--bg4);color:var(--text)}
-  .content{flex:1;overflow-y:auto;padding:24px}
-  @media(max-width:768px){.content{padding:16px}.topbar{padding:12px 16px}}
-  /* ── CARDS ── */
-  .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:all .2s;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
-  .card:hover{border-color:var(--border2)}
-  .card-sm{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px}
-  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-  @media(max-width:640px){
-    .grid-4{grid-template-columns:1fr 1fr}
-    .grid-3{grid-template-columns:1fr 1fr}
-    .grid-2{grid-template-columns:1fr}
-  }
-  @media(max-width:400px){
-    .grid-3{grid-template-columns:1fr}
-  }
-  .stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:8px;transition:transform .2s,border-color .2s;cursor:default}
-  .stat-card:hover{transform:translateY(-2px);border-color:var(--border2)}
-  .stat-value{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;line-height:1}
-  .stat-label{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:500}
-  .progress-bar{height:6px;background:var(--bg4);border-radius:99px;overflow:hidden}
-  .progress-fill{height:100%;border-radius:99px;transition:width .8s cubic-bezier(.16,1,.3,1)}
-  .habit-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg3);transition:all .2s;cursor:pointer}
-  .habit-item:hover{border-color:var(--border2)}
-  .habit-item.done{background:var(--green)12;border-color:var(--green)30}
-  .habit-check{width:28px;height:28px;border-radius:8px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .25s;background:var(--bg4)}
-  .habit-item.done .habit-check{background:var(--green);border-color:var(--green)}
-  .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;letter-spacing:.4px}
-  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;cursor:pointer;transition:all .2s;border:none;font-family:'DM Sans',sans-serif}
-  .btn-primary{background:var(--accent);color:#fff}
-  .btn-primary:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 4px 20px var(--accentglow)}
-  .btn-ghost{background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
-  .btn-ghost:hover{background:var(--bg4);color:var(--text)}
-  .btn-danger{background:#ef444420;color:var(--red);border:1px solid #ef444430}
-  .btn-danger:hover{background:#ef444430}
-  .btn-success{background:#10b98120;color:var(--green);border:1px solid #10b98130}
-  .btn-success:hover{background:#10b98130}
-  .btn-sm{padding:6px 12px;font-size:12px}
-  .btn-icon{padding:8px;border-radius:8px}
-  .input{width:100%;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13.5px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s}
-  .input:focus{border-color:var(--accent)}
-  .input::placeholder{color:var(--text3)}
-  select.input option{background:var(--bg2);color:var(--text)}
-  .label{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;display:block}
-  .section-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .divider{height:1px;background:var(--border);margin:16px 0}
-  .timeline-item{display:flex;gap:14px;position:relative;padding-bottom:12px}
-  .timeline-item::before{content:'';position:absolute;left:57px;top:32px;bottom:0;width:1px;background:var(--border)}
-  .timeline-item:last-child::before{display:none}
-  .timeline-dot{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .2s}
-  .timeline-item:hover .timeline-dot{transform:scale(1.1)}
-  .timeline-time{font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.5px;white-space:nowrap;width:44px;flex-shrink:0;padding-top:10px}
-  .timeline-label{font-size:13.5px;font-weight:500;padding-top:9px}
-  .timeline-item.current .timeline-label{color:var(--accent2)}
-  .timeline-item.current .timeline-dot{box-shadow:0 0 0 3px var(--accentglow);animation:glow 2s infinite}
-  .modal-overlay{position:fixed;inset:0;background:#00000080;backdrop-filter:blur(8px);z-index:100;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease;padding:16px}
-  .modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;width:440px;max-width:100%;max-height:88vh;overflow-y:auto;animation:fadeUp .3s cubic-bezier(.16,1,.3,1)}
-  .modal-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:20px}
-  .streak-badge{display:flex;align-items:center;gap:6px;background:#ef444420;border:1px solid #ef444430;border-radius:99px;padding:6px 14px;font-size:13px;font-weight:700;color:var(--red)}
-  .onboard{height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:24px}
-  .onboard-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:40px;width:480px;max-width:100%;animation:fadeUp .5s cubic-bezier(.16,1,.3,1)}
-  .onboard-step{display:none}.onboard-step.active{display:block}
-  .step-dots{display:flex;gap:6px;justify-content:center;margin-bottom:28px}
-  .step-dot{width:6px;height:6px;border-radius:99px;background:var(--border2);transition:all .3s}
-  .step-dot.active{width:20px;background:var(--accent)}
-  .avatar-upload{width:120px;height:120px;border-radius:20px;border:2px dashed var(--border2);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;margin:0 auto 20px;overflow:hidden;background:var(--bg3)}
-  .avatar-upload:hover{border-color:var(--accent);background:var(--accentglow)}
-  .avatar-upload img{width:100%;height:100%;object-fit:cover}
-  .empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
-  .chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:99px;font-size:12px;font-weight:600;background:var(--bg3);border:1px solid var(--border);color:var(--text2);cursor:pointer;transition:all .2s}
-  .chip.active{background:var(--accentglow);border-color:var(--accent);color:var(--accent2)}
-  .notes-area{width:100%;min-height:120px;padding:12px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13.5px;font-family:'DM Sans',sans-serif;resize:vertical;outline:none;transition:border-color .2s;line-height:1.6}
-  .notes-area:focus{border-color:var(--accent)}
-  .toggle{width:40px;height:22px;border-radius:99px;border:none;cursor:pointer;transition:background .2s;position:relative;flex-shrink:0}
-  .toggle.on{background:var(--accent)}
-  .toggle.off{background:var(--bg4);border:1px solid var(--border)}
-  .toggle::after{content:'';position:absolute;width:16px;height:16px;border-radius:99px;background:#fff;top:3px;transition:left .2s}
-  .toggle.on::after{left:21px}
-  .toggle.off::after{left:3px}
-  .theme-card{border:2px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;gap:8px;align-items:center;text-align:center}
-  .theme-card:hover{border-color:var(--border2);transform:translateY(-2px)}
-  .theme-card.active{border-color:var(--accent)}
-  .theme-preview{width:48px;height:32px;border-radius:6px;overflow:hidden;display:flex;flex-direction:column;gap:2px;padding:4px}
-  /* Report preview */
-  .report-card{background:var(--bg2);border-radius:20px;padding:28px;border:1px solid var(--border);width:100%;max-width:500px;margin:0 auto}
-  /* Workout exercise */
-  .workout-exercise{display:flex;align-items:center;gap:12px;padding:10px;border-radius:var(--radius-sm);background:var(--bg3);border:1px solid var(--border);transition:all .2s}
-  .xp-bar-wrap{height:8px;background:var(--bg4);border-radius:99px;overflow:hidden;position:relative}
-  .xp-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--pink));background-size:200%;animation:shimmer 2.5s linear infinite;transition:width 1.2s cubic-bezier(.16,1,.3,1)}
-  .rank-badge{display:inline-flex;align-items:center;gap:7px;padding:7px 16px;border-radius:99px;font-size:12px;font-weight:800;font-family:'Syne',sans-serif;animation:rankGlow 3s ease-in-out infinite}
-  .pomo-ring{position:relative;display:inline-flex;align-items:center;justify-content:center}
-  .pomo-ring svg{transform:rotate(-90deg)}
-  .pomo-center{position:absolute;text-align:center;pointer-events:none}
-  .pomo-time{font-family:'Syne',sans-serif;font-weight:800;font-size:44px;line-height:1;letter-spacing:-2px}
-  .pomo-label{font-size:11px;color:var(--text3);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:.6px}
-  .flashcard-item{display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg2);backdrop-filter:blur(8px);transition:all .2s}
-  .flashcard-item:hover{border-color:var(--border2);transform:translateX(2px)}
-  .conf-btn{flex:1;padding:8px 4px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;transition:all .15s;font-family:inherit}
-  .heatmap-cell{border-radius:3px;cursor:default;transition:transform .15s}
-  .heatmap-cell:hover{transform:scale(1.4);position:relative;z-index:2}
-  /* Mobile bottom nav */
-  .bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;height:64px;background:var(--topbar-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--border);z-index:50;padding-bottom:env(safe-area-inset-bottom,0)}
-  .bn-inner{display:flex;align-items:center;height:100%;padding:0 4px}
-  .bn-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;flex:1;cursor:pointer;color:var(--text3);transition:color .2s;min-width:0}
-  .bn-item.active{color:var(--accent)}
-  .bn-label{font-size:9px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-  @media(max-width:768px){.content{padding-bottom:80px!important}.bottom-nav{display:flex}}
-  .workout-exercise:hover{border-color:var(--border2)}
-  .exercise-complete{background:#10b98112;border-color:#10b98130}
-  /* Ring Chart */
-  .ring-chart{position:relative;display:inline-flex;align-items:center;justify-content:center}
-  .ring-chart svg{transform:rotate(-90deg)}
-  .ring-chart-label{position:absolute;text-align:center}
-  /* Profile page */
-  .profile-hero{border-radius:var(--radius-lg);padding:32px;background:linear-gradient(135deg,var(--accentglow),var(--bg2));border:1px solid var(--border);text-align:center;position:relative;overflow:hidden}
-  .profile-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;background:var(--accent);opacity:.05}
-  .profile-avatar-lg{width:96px;height:96px;border-radius:20px;border:3px solid var(--accent);overflow:hidden;margin:0 auto 16px;background:var(--bg4);display:flex;align-items:center;justify-content:center}
-  .profile-avatar-lg img{width:100%;height:100%;object-fit:cover}
-  .stat-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:99px;background:var(--bg3);border:1px solid var(--border);font-size:13px;font-weight:600}
-  /* Scrollbar */
-  ::-webkit-scrollbar{width:4px;height:4px}
-  ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
-  `;
+}
+
+function selectPill(field, value) {
+  state.data[field] = value;
+  render();
+}
+
+function updateField(field, value) {
+  state.data[field] = value;
+  // Only re-render the animated parts, not the whole card (to avoid losing focus)
+  softRenderMachines();
+}
+
+function updateBio(value) {
+  state.data.bio = value.slice(0, 200);
+  softRenderMachines();
+}
+
+function handlePhoto(input) {
+  const f = input.files[0];
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  openCrop(url);
+}
+
+// ─── Crop System ─────────────────────────────────────────────────────────────
+const crop = {
+  ratio: '1:1',
+  zoom: 1,
+  imgW: 0, imgH: 0,
+  imgX: 0, imgY: 0,
+  wrapW: 0, wrapH: 0,
+  boxX: 0, boxY: 0,
+  boxW: 0, boxH: 0,
+  dragging: false,
+  lastX: 0, lastY: 0,
+  srcUrl: ''
 };
 
-// ─── RING CHART ───────────────────────────────────────────────────────────────
-function RingChart({ percent, color, size = 80, label, sub }) {
-  const r = (size / 2) - 8;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (percent / 100) * circ;
-  return (
-    <div className="ring-chart" style={{ width: size, height: size }}>
-      <svg width={size} height={size}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--bg4)" strokeWidth="6" />
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="6" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" style={{ transition: "stroke-dashoffset 1s cubic-bezier(.16,1,.3,1)" }} />
-      </svg>
-      <div className="ring-chart-label">
-        <div style={{ fontFamily: "Syne", fontWeight: 800, fontSize: size/4, lineHeight: 1 }}>{percent}%</div>
-        {sub && <div style={{ fontSize: 9, color: "var(--text3)", marginTop: 2 }}>{sub}</div>}
-      </div>
-    </div>
-  );
-}
-
-// ─── XP BADGE COMPONENT ──────────────────────────────────────────────────────
-function XPBadge({xp}){
-  const rank=getRank(xp), next=getNextRank(xp);
-  const pct=next?Math.round((xp-rank.minXP)/(next.minXP-rank.minXP)*100):100;
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:8}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-        <div className="rank-badge" style={{background:`linear-gradient(135deg,${rank.color},var(--accent2))`}}>
-          <span style={{fontSize:18}}>{rank.emoji}</span>
-          <span>Lv.{rank.level} {rank.name}</span>
-        </div>
-        <div style={{fontSize:13,color:"var(--text3)",fontWeight:600}}>{xp.toLocaleString()} XP total</div>
-      </div>
-      <div>
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--text3)",marginBottom:5}}>
-          <span>{rank.name}</span>
-          {next && <span>→ {next.name} at {next.minXP.toLocaleString()} XP</span>}
-        </div>
-        <div className="xp-bar-wrap"><div className="xp-bar-fill" style={{width:`${pct}%`}}/></div>
-      </div>
-    </div>
-  );
-}
-
-// ─── ONBOARDING ───────────────────────────────────────────────────────────────
-function Onboarding({ onComplete }) {
-  const [step, setStep] = useState(0);
-  const [data, setData] = useState({ name: "", class: "12", stream: "PCB", target: "NEET 2025", school: "", avatar: null, bio: "" });
-  const fileRef = useRef();
-  const handleAvatar = (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setData(d => ({ ...d, avatar: ev.target.result }));
-    reader.readAsDataURL(file);
+function openCrop(url) {
+  crop.srcUrl = url;
+  crop.zoom = 1;
+  crop.ratio = '1:1';
+  const overlay = document.getElementById('crop-overlay');
+  const img = document.getElementById('crop-img');
+  overlay.style.display = 'flex';
+  img.onload = () => {
+    crop.imgW = img.naturalWidth;
+    crop.imgH = img.naturalHeight;
+    const wrap = document.getElementById('crop-wrap');
+    crop.wrapW = wrap.clientWidth;
+    crop.wrapH = wrap.clientHeight;
+    initCropLayout();
+    updateCropDisplay();
+    updateRatioBtns();
   };
-  return (
-    <div className="onboard">
-      <div className="onboard-card">
-        <div className="step-dots">{[0,1,2].map(i => <div key={i} className={`step-dot ${step===i?"active":""}`}/>)}</div>
-        {step === 0 && (
-          <div className="fade-up">
-            <div style={{ textAlign:"center", marginBottom:28 }}>
-              <div style={{ width:64,height:64,borderRadius:18,background:"linear-gradient(135deg,var(--accent),var(--pink))",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",boxShadow:"0 8px 32px var(--accentglow)" }}>
-                <Icon d={icons.brain} size={28} stroke="#fff" />
-              </div>
-              <h2 style={{ fontFamily:"Syne",fontSize:26,fontWeight:800,marginBottom:8 }}>StudyOS</h2>
-              <p style={{ color:"var(--text3)",fontSize:14,lineHeight:1.6 }}>Your personal high-performance tracker for Class 12 PCB. Built to beat distractions, not just manage them.</p>
-            </div>
-            <button className="btn btn-primary" style={{ width:"100%",justifyContent:"center",padding:14 }} onClick={() => setStep(1)}>Set Up Your Profile →</button>
-          </div>
-        )}
-        {step === 1 && (
-          <div className="fade-up">
-            <h3 style={{ fontFamily:"Syne",fontSize:18,fontWeight:700,marginBottom:20 }}>About You</h3>
-            <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
-              <div>
-                <div className="avatar-upload" onClick={() => fileRef.current.click()}>
-                  {data.avatar ? <img src={data.avatar} alt="avatar" /> : <><Icon d={icons.camera} size={24} stroke="var(--text3)" /><div style={{ fontSize:11,color:"var(--text3)",marginTop:6 }}>Upload Photo</div></>}
-                </div>
-                <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleAvatar} />
-              </div>
-              <div><label className="label">Your Name</label><input className="input" placeholder="e.g. Aryan Sharma" value={data.name} onChange={e => setData(d => ({ ...d, name: e.target.value }))} /></div>
-              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
-                <div><label className="label">Class</label><select className="input" value={data.class} onChange={e => setData(d => ({ ...d, class: e.target.value }))}><option>11</option><option>12</option></select></div>
-                <div><label className="label">Stream</label><select className="input" value={data.stream} onChange={e => setData(d => ({ ...d, stream: e.target.value }))}><option>PCB</option><option>PCM</option><option>PCMB</option></select></div>
-              </div>
-              <div><label className="label">School</label><input className="input" placeholder="School name" value={data.school} onChange={e => setData(d => ({ ...d, school: e.target.value }))} /></div>
-            </div>
-            <div style={{ display:"flex",gap:10,marginTop:20 }}>
-              <button className="btn btn-ghost" style={{ flex:1,justifyContent:"center" }} onClick={() => setStep(0)}>← Back</button>
-              <button className="btn btn-primary" style={{ flex:2,justifyContent:"center" }} onClick={() => data.name && setStep(2)} disabled={!data.name}>Continue →</button>
-            </div>
-          </div>
-        )}
-        {step === 2 && (
-          <div className="fade-up">
-            <h3 style={{ fontFamily:"Syne",fontSize:18,fontWeight:700,marginBottom:8 }}>Your Target</h3>
-            <p style={{ color:"var(--text3)",fontSize:13,marginBottom:20 }}>What are you preparing for?</p>
-            <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
-              <div><label className="label">Target Exam</label>
-                <select className="input" value={data.target} onChange={e => setData(d => ({ ...d, target: e.target.value }))}>
-                  <option>NEET 2025</option><option>NEET 2026</option><option>AIIMS</option><option>JEE Main</option><option>JEE Advanced</option><option>Boards Only</option>
-                </select>
-              </div>
-              <div><label className="label">Bio / Motivation</label><textarea className="notes-area" style={{ minHeight:80 }} placeholder="Why are you doing this? Write your reason..." value={data.bio} onChange={e => setData(d => ({ ...d, bio: e.target.value }))} /></div>
-            </div>
-            <div style={{ display:"flex",gap:10,marginTop:20 }}>
-              <button className="btn btn-ghost" style={{ flex:1,justifyContent:"center" }} onClick={() => setStep(1)}>← Back</button>
-              <button className="btn btn-primary" style={{ flex:2,justifyContent:"center" }} onClick={() => onComplete(data)}>🚀 Let's Go!</button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  img.src = url;
+  document.getElementById('zoom-slider').value = 100;
+  document.getElementById('zoom-val').textContent = '1×';
+  setupCropDrag();
 }
 
-// ─── HOME PAGE ────────────────────────────────────────────────────────────────
-function HomePage({ profile, habits, habitLogs, setHabitLogs, lectures, lectureProgress, workoutLogs, goals, xp, onNavigate }) {
-  const todayKey = today();
-  const todayLog = habitLogs[todayKey] || {};
-  const habitsDone = habits.filter(h => todayLog[h.id]).length;
-  const workoutDone = !!workoutLogs[todayKey]?.done;
-  const lecturesDone = lectures.filter(l => lectureProgress[l.id]?.[todayKey]?.done).length;
-  const goalsAvg = goals.length ? Math.round(goals.reduce((s,g) => s+g.progress,0)/goals.length) : 0;
-  const streak = getStreak(workoutLogs);
-  const toggleHabit = (id, e) => {
-    const wasOn = habitLogs[todayKey]?.[id];
-    setHabitLogs(prev => ({ ...prev, [todayKey]: { ...(prev[todayKey]||{}), [id]: !prev[todayKey]?.[id] } }));
-    if (!wasOn && e) { spawnConfetti(); spawnXP(XP_VALS.habit, e.clientX, e.clientY); }
+function closeCrop() {
+  document.getElementById('crop-overlay').style.display = 'none';
+}
+
+function setRatio(r) {
+  crop.ratio = r;
+  initCropLayout();
+  updateCropDisplay();
+  updateRatioBtns();
+}
+
+function updateRatioBtns() {
+  document.querySelectorAll('.crop-ratio-btn').forEach(b => b.classList.remove('active'));
+  const map = {'1:1':0,'1:4':1,'19:6':2,'free':3};
+  const btns = document.querySelectorAll('.crop-ratio-btn');
+  if (btns[map[crop.ratio]]) btns[map[crop.ratio]].classList.add('active');
+}
+
+function onZoom(val) {
+  crop.zoom = val / 100;
+  document.getElementById('zoom-val').textContent = crop.zoom.toFixed(1) + '×';
+  clampImg();
+  updateCropDisplay();
+}
+
+function initCropLayout() {
+  const wW = crop.wrapW, wH = crop.wrapH;
+  let bW, bH;
+  if (crop.ratio === '1:1')  { bW = Math.min(wW, wH) * 0.75; bH = bW; }
+  else if (crop.ratio === '1:4') { bH = wH * 0.8; bW = bH / 4; }
+  else if (crop.ratio === '19:6') { bW = wW * 0.85; bH = bW * 6/19; }
+  else { bW = wW * 0.75; bH = wH * 0.65; } // free
+
+  crop.boxW = bW; crop.boxH = bH;
+  crop.boxX = (wW - bW) / 2;
+  crop.boxY = (wH - bH) / 2;
+
+  // Fit image to fill box at zoom=1
+  const scaleW = bW / crop.imgW;
+  const scaleH = bH / crop.imgH;
+  const baseScale = Math.max(scaleW, scaleH);
+  crop._baseScale = baseScale;
+  crop.zoom = 1;
+  document.getElementById('zoom-slider').value = 100;
+  document.getElementById('zoom-val').textContent = '1×';
+
+  const dispW = crop.imgW * baseScale;
+  const dispH = crop.imgH * baseScale;
+  crop.imgX = crop.boxX + (bW - dispW) / 2;
+  crop.imgY = crop.boxY + (bH - dispH) / 2;
+}
+
+function clampImg() {
+  const scale = crop._baseScale * crop.zoom;
+  const dispW = crop.imgW * scale;
+  const dispH = crop.imgH * scale;
+  // Image must cover box
+  if (crop.imgX > crop.boxX) crop.imgX = crop.boxX;
+  if (crop.imgY > crop.boxY) crop.imgY = crop.boxY;
+  if (crop.imgX + dispW < crop.boxX + crop.boxW) crop.imgX = crop.boxX + crop.boxW - dispW;
+  if (crop.imgY + dispH < crop.boxY + crop.boxH) crop.imgY = crop.boxY + crop.boxH - dispH;
+}
+
+function updateCropDisplay() {
+  const scale = crop._baseScale * crop.zoom;
+  const img = document.getElementById('crop-img');
+  const box = document.getElementById('crop-box');
+  img.style.left = crop.imgX + 'px';
+  img.style.top  = crop.imgY + 'px';
+  img.style.width  = (crop.imgW * scale) + 'px';
+  img.style.height = (crop.imgH * scale) + 'px';
+  box.style.left   = crop.boxX + 'px';
+  box.style.top    = crop.boxY + 'px';
+  box.style.width  = crop.boxW + 'px';
+  box.style.height = crop.boxH + 'px';
+}
+
+function setupCropDrag() {
+  const wrap = document.getElementById('crop-wrap');
+  // Remove old listeners by cloning
+  const newWrap = wrap.cloneNode(true);
+  wrap.parentNode.replaceChild(newWrap, wrap);
+  // Re-query after replace
+  const w = document.getElementById('crop-wrap');
+
+  let startX, startY, startImgX, startImgY;
+
+  function onStart(ex, ey) {
+    crop.dragging = true;
+    startX = ex; startY = ey;
+    startImgX = crop.imgX; startImgY = crop.imgY;
+  }
+  function onMove(ex, ey) {
+    if (!crop.dragging) return;
+    crop.imgX = startImgX + (ex - startX);
+    crop.imgY = startImgY + (ey - startY);
+    clampImg();
+    updateCropDisplay();
+  }
+  function onEnd() { crop.dragging = false; }
+
+  w.addEventListener('mousedown', e => { e.preventDefault(); onStart(e.clientX, e.clientY); });
+  window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+  window.addEventListener('mouseup', onEnd);
+
+  w.addEventListener('touchstart', e => { e.preventDefault(); onStart(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+  w.addEventListener('touchmove', e => { e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+  w.addEventListener('touchend', onEnd);
+}
+
+function applyCrop() {
+  const scale = crop._baseScale * crop.zoom;
+  // Source coords: where crop box maps back to original image
+  const srcX = (crop.boxX - crop.imgX) / scale;
+  const srcY = (crop.boxY - crop.imgY) / scale;
+  const srcW = crop.boxW / scale;
+  const srcH = crop.boxH / scale;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = Math.round(srcW);
+  canvas.height = Math.round(srcH);
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
+  img.onload = () => {
+    ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+    const result = canvas.toDataURL('image/jpeg', 0.92);
+    state.data.photo = result;
+    state.dropped = false;
+    closeCrop();
+    render();
+    setTimeout(() => { state.dropped = true; render(); }, 50);
   };
-  const now = new Date(); const currentTotal = now.getHours()*60 + now.getMinutes();
-  const currentSchedule = SCHEDULE.find((item,i) => {
-    const [h,m] = item.time.split(":").map(Number); const t = h*60+(m||0);
-    const next = SCHEDULE[i+1]; if (!next) return currentTotal >= t;
-    const [nh,nm] = next.time.split(":").map(Number); const nt = nh*60+(nm||0);
-    return currentTotal>=t && currentTotal<nt;
-  });
-  return (
-    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
-      <div className="card fade-up" style={{ background:"linear-gradient(135deg,var(--accentglow),var(--bg2))",border:"1px solid var(--border)" }}>
-        <div style={{ display:"flex",alignItems:"center",gap:14 }}>
-          <div className="profile-avatar" style={{ width:52,height:52,borderRadius:14,flexShrink:0 }}>
-            {profile.avatar ? <img src={profile.avatar} alt="p" /> : <span style={{ fontSize:22 }}>🧑‍🎓</span>}
-          </div>
-          <div>
-            <div style={{ fontFamily:"Syne",fontSize:20,fontWeight:800 }}>Good {now.getHours()<12?"Morning":now.getHours()<17?"Afternoon":"Evening"}, {profile.name?.split(" ")[0] || "Student"}! 👋</div>
-            <div style={{ color:"var(--text3)",fontSize:13,marginTop:2 }}>{todayLabel()} • {profile.target}</div>
-          </div>
-        </div>
-        {xp !== undefined && (
-          <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)"}}>
-            <XPBadge xp={xp}/>
-          </div>
-        )}
-        {currentSchedule && (
-          <div style={{ marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",alignItems:"center",gap:10 }}>
-            <span style={{ fontSize:11,color:"var(--text3)",textTransform:"uppercase",letterSpacing:".6px",fontWeight:600 }}>NOW:</span>
-            <span style={{ fontSize:14,fontWeight:600,color:"var(--accent2)" }}>{currentSchedule.label}</span>
-            <span style={{ fontSize:10,background:"var(--accentglow)",color:"var(--accent2)",padding:"2px 8px",borderRadius:99,fontWeight:700 }}>{currentSchedule.time}</span>
-          </div>
-        )}
-        {onNavigate && (
-          <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",display:"flex",gap:10}}>
-            <button className="btn btn-primary btn-sm" style={{flex:1,justifyContent:"center"}} onClick={()=>onNavigate("focus")}>⏱ Focus Mode</button>
-            <button className="btn btn-ghost btn-sm" style={{flex:1,justifyContent:"center"}} onClick={()=>onNavigate("revision")}>🧠 Revision Lab</button>
-          </div>
-        )}
-      </div>
-      <div className="grid-4 fade-up" style={{ animationDelay:".05s" }}>
-        {[
-          { label:"Habits Done", value:`${habitsDone}/${habits.length}`, color:"var(--green)", icon:icons.habits },
-          { label:"Streak", value:`${streak}d 🔥`, color:"var(--red)", icon:icons.fire },
-          { label:"Lectures", value:`${lecturesDone}/${lectures.length}`, color:"var(--blue)", icon:icons.lectures },
-          { label:"Goals Avg", value:`${goalsAvg}%`, color:"var(--accent2)", icon:icons.goals },
-        ].map((s,i) => (
-          <div key={i} className="stat-card" style={{ animationDelay:`${i*.04}s` }}>
-            <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:4 }}>
-              <Icon d={s.icon} size={16} stroke={s.color} />
-              <span style={{ fontSize:10,color:"var(--text3)",textTransform:"uppercase",letterSpacing:".6px",fontWeight:600 }}>{s.label}</span>
-            </div>
-            <div className="stat-value" style={{ color:s.color,fontSize:20 }}>{s.value}</div>
-          </div>
-        ))}
-      </div>
-      <div className="grid-2 fade-up" style={{ animationDelay:".1s" }}>
-        <div className="card">
-          <div className="section-title"><Icon d={icons.habits} size={15} stroke="var(--green)" /> Today's Habits</div>
-          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
-            {habits.slice(0,5).map(h => (
-              <div key={h.id} className={`habit-item ${todayLog[h.id]?"done":""}`} onClick={(e) => toggleHabit(h.id, e)}>
-                <div className="habit-check">{todayLog[h.id] && <Icon d={icons.check} size={13} stroke="#fff" strokeWidth={2.5}/>}</div>
-                <span style={{ fontSize:16 }}>{h.emoji}</span>
-                <span style={{ fontSize:13,fontWeight:500,flex:1,textDecoration:todayLog[h.id]?"line-through":"none",color:todayLog[h.id]?"var(--text3)":"var(--text)" }}>{h.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div style={{ display:"flex",flexDirection:"column",gap:16 }}>
-          <div className="card">
-            <div className="section-title"><Icon d={icons.goals} size={15} stroke="var(--accent2)" /> Goals</div>
-            <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
-              {goals.slice(0,3).map(g => (
-                <div key={g.id}>
-                  <div style={{ display:"flex",justifyContent:"space-between",marginBottom:6,fontSize:12 }}>
-                    <span style={{ fontWeight:600 }}>{g.emoji} {g.title}</span>
-                    <span style={{ color:"var(--text3)" }}>{g.progress}%</span>
-                  </div>
-                  <div className="progress-bar"><div className="progress-fill" style={{ width:`${g.progress}%`,background:"linear-gradient(90deg,var(--accent),var(--accent2))" }}/></div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="card" style={{ flex:1 }}>
-            <div style={{ fontFamily:"Syne",fontWeight:700,marginBottom:10 }}>📊 Today's Progress</div>
-            <div style={{ display:"flex",justifyContent:"space-around" }}>
-              <RingChart percent={habits.length ? Math.round(habitsDone/habits.length*100) : 0} color="var(--green)" size={70} />
-              <RingChart percent={lectures.length ? Math.round(lecturesDone/lectures.length*100) : 0} color="var(--blue)" size={70} />
-              <RingChart percent={workoutDone ? 100 : 0} color="var(--red)" size={70} />
-            </div>
-            <div style={{ display:"flex",justifyContent:"space-around",marginTop:8 }}>
-              {["Habits","Lectures","Workout"].map(l => <div key={l} style={{ fontSize:10,color:"var(--text3)",textAlign:"center" }}>{l}</div>)}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  img.src = crop.srcUrl;
 }
 
-// ─── SCHEDULE PAGE ────────────────────────────────────────────────────────────
-function SchedulePage() {
-  const currentHour = new Date().getHours(), currentMin = new Date().getMinutes();
-  const currentTotal = currentHour * 60 + currentMin;
-  return (
-    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
-      <div className="card fade-up" style={{ padding:"20px 24px" }}>
-        <div style={{ fontSize:12,color:"var(--text3)",textTransform:"uppercase",letterSpacing:".8px",fontWeight:600,marginBottom:4 }}>The Survivor Schedule</div>
-        <div style={{ fontFamily:"Syne",fontSize:18,fontWeight:700 }}>Mon – Sat Daily Timeline</div>
-        <div style={{ fontSize:13,color:"var(--text3)",marginTop:4 }}>20 hours committed • 4 hours free • 7 hours sleep</div>
-      </div>
-      <div className="card fade-up" style={{ animationDelay:".05s" }}>
-        {SCHEDULE.map((item,i) => {
-          const [h,m] = item.time.split(":").map(Number); const total = h*60+(m||0);
-          const next = SCHEDULE[i+1];
-          const nextTotal = next ? (() => { const [nh,nm] = next.time.split(":").map(Number); return nh*60+(nm||0); })() : 99999;
-          const isCurrent = currentTotal>=total && currentTotal<nextTotal;
-          return (
-            <div key={i} className={`timeline-item ${isCurrent?"current":""}`}>
-              <div className="timeline-time">{item.time}</div>
-              <div className="timeline-dot" style={{ background:item.color+"20",color:item.color }}>
-                <Icon d={icons[item.icon]||icons.timer} size={16} stroke={item.color} />
-              </div>
-              <div className="timeline-label" style={{ flex:1 }}>
-                {item.label}
-                {isCurrent && <span style={{ marginLeft:8,fontSize:10,background:"var(--accentglow)",color:"var(--accent2)",padding:"2px 8px",borderRadius:99,fontWeight:700 }}>NOW</span>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="card fade-up" style={{ animationDelay:".2s",background:"linear-gradient(135deg,#3b82f618,#06b6d418)",border:"1px solid #3b82f630" }}>
-        <div style={{ fontFamily:"Syne",fontWeight:700,marginBottom:8 }}>☀️ Sunday Reset Mode</div>
-        <div style={{ fontSize:13,color:"var(--text3)",lineHeight:1.8 }}>06:00 Wake → 06:15 Full Workout → 07:45 Bio Revision → 10:00 Chem Revision → 12:00 Podcast → 14:00 Physics + PYQs → 16:00 Meal Prep → 18:00 Free Reading → 21:30 Sleep</div>
-      </div>
-    </div>
-  );
+// Soft re-render: only update machine scenes + button state without touching focused inputs
+function softRenderMachines() {
+  const d = state.data;
+  const s = state.step;
+
+  if (s === 0) {
+    const nameProgress = Math.min(1, (d.name.length || 0) / 15);
+    const gearAngle = ((d.class ? 120 : 0) + (d.stream ? 80 : 0) + (d.school.length || 0) * 3) % 360;
+    const machines = document.querySelectorAll('.sos-machine');
+    if (machines[0]) machines[0].innerHTML = `<div class="sos-machine-label">⚙ mechanism // name input → pulley</div>${pulleyScene(nameProgress)}`;
+    if (machines[1]) machines[1].innerHTML = `<div class="sos-machine-label">⚙ mechanism // selection → gears</div>${gearsScene(gearAngle)}`;
+  }
+
+  if (s === 2) {
+    const bioLen = d.bio.length;
+    const fillPct = Math.min(100, (bioLen / 200) * 100);
+    const machine = document.querySelector('.sos-machine');
+    if (machine) machine.innerHTML = `<div class="sos-machine-label">⚙ mechanism // bio length → flask fill</div>${liquidScene(fillPct)}`;
+    // Update bio counter label
+    const label = document.querySelector('.sos-label span');
+    if (label) label.textContent = `${bioLen}/200`;
+    // Sync textarea value if needed (avoid cursor jump)
+    const ta = document.querySelector('textarea.sos-input');
+    if (ta && ta.value !== d.bio) ta.value = d.bio;
+  }
+
+  // Update button disabled state
+  const btn = document.querySelector('.sos-btn');
+  if (btn) btn.disabled = !checkCanNext();
 }
 
-// ─── HABITS PAGE ─────────────────────────────────────────────────────────────
-function HabitsPage({ habits, setHabits, habitLogs, setHabitLogs }) {
-  const [showAdd, setShowAdd] = useState(false);
-  const [newHabit, setNewHabit] = useState({ name:"", emoji:"✅", category:"morning" });
-  const todayKey = today(); const todayLog = habitLogs[todayKey] || {};
-  const toggleHabit = (id, e) => { setHabitLogs(prev => ({ ...prev, [todayKey]: { ...(prev[todayKey]||{}), [id]: !prev[todayKey]?.[id] } })); if(!habitLogs[todayKey]?.[id] && e){ spawnConfetti(); spawnXP(XP_VALS.habit, e.clientX, e.clientY); } };
-  const addHabit = () => { if (!newHabit.name) return; setHabits(prev => [...prev, { ...newHabit, id:Date.now(), target:1 }]); setNewHabit({ name:"", emoji:"✅", category:"morning" }); setShowAdd(false); };
-  const deleteHabit = (id) => setHabits(prev => prev.filter(h => h.id !== id));
-  const categories = [...new Set(habits.map(h => h.category))];
-  const weekDays = getWeekDays();
-  return (
-    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
-      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-        <div>
-          <div className="section-title" style={{ margin:0 }}><Icon d={icons.habits} size={16} stroke="var(--green)" /> Habit Tracker</div>
-          <div style={{ fontSize:12,color:"var(--text3)",marginTop:2 }}>{habits.filter(h => todayLog[h.id]).length} of {habits.length} done today</div>
-        </div>
-        <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)}><Icon d={icons.plus} size={14} stroke="#fff" /> Add Habit</button>
-      </div>
-      <div className="card fade-up">
-        <div className="section-title">7-Day Overview</div>
-        <div style={{ overflowX:"auto" }}>
-          <div style={{ display:"grid",gridTemplateColumns:"1fr repeat(7,36px)",gap:6,alignItems:"center",minWidth:320 }}>
-            <div style={{ fontSize:11,color:"var(--text3)" }}>Habit</div>
-            {weekDays.map(d => <div key={d} style={{ textAlign:"center",fontSize:10,color:"var(--text3)",fontWeight:600 }}>{new Date(d+"T00:00").toLocaleDateString("en",{ weekday:"narrow" })}</div>)}
-            {habits.map(h => <React.Fragment key={h.id}>
-              <div style={{ fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{h.emoji} {h.name}</div>
-              {weekDays.map(d => <div key={d} style={{ width:28,height:28,borderRadius:6,margin:"0 auto",background:habitLogs[d]?.[h.id]?"var(--green)":"var(--bg4)",display:"flex",alignItems:"center",justifyContent:"center",transition:"background .2s" }}>{habitLogs[d]?.[h.id] && <Icon d={icons.check} size={12} stroke="#fff" strokeWidth={3}/>}</div>)}
-            </React.Fragment>)}
-          </div>
-        </div>
-      </div>
-      {categories.map(cat => (
-        <div key={cat} className="card fade-up">
-          <div className="section-title" style={{ textTransform:"capitalize" }}>{cat}</div>
-          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
-            {habits.filter(h => h.category===cat).map(h => (
-              <div key={h.id} className={`habit-item ${todayLog[h.id]?"done":""}`}>
-                <div onClick={(e) => toggleHabit(h.id, e)} style={{ display:"flex",alignItems:"center",gap:12,flex:1,cursor:"pointer" }}>
-                  <div className="habit-check">{todayLog[h.id] && <Icon d={icons.check} size={14} stroke="#fff" strokeWidth={2.5}/>}</div>
-                  <span style={{ fontSize:18 }}>{h.emoji}</span>
-                  <span style={{ fontSize:13.5,fontWeight:500,textDecoration:todayLog[h.id]?"line-through":"none",color:todayLog[h.id]?"var(--text3)":"var(--text)" }}>{h.name}</span>
-                </div>
-                <button className="btn btn-icon btn-danger btn-sm" onClick={() => deleteHabit(h.id)}><Icon d={icons.trash} size={13} stroke="var(--red)"/></button>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-      {showAdd && (
-        <div className="modal-overlay" onClick={e => e.target===e.currentTarget && setShowAdd(false)}>
-          <div className="modal">
-            <div className="modal-title">Add New Habit</div>
-            <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
-              <div><label className="label">Emoji</label><input className="input" value={newHabit.emoji} onChange={e => setNewHabit(p => ({ ...p, emoji:e.target.value }))} /></div>
-              <div><label className="label">Habit Name</label><input className="input" placeholder="e.g. 10 min meditation" value={newHabit.name} onChange={e => setNewHabit(p => ({ ...p, name:e.target.value }))} /></div>
-              <div><label className="label">Category</label><select className="input" value={newHabit.category} onChange={e => setNewHabit(p => ({ ...p, category:e.target.value }))}><option>morning</option><option>fitness</option><option>discipline</option><option>health</option><option>study</option><option>evening</option></select></div>
-            </div>
-            <div style={{ display:"flex",gap:10,marginTop:20 }}>
-              <button className="btn btn-ghost" style={{ flex:1,justifyContent:"center" }} onClick={() => setShowAdd(false)}>Cancel</button>
-              <button className="btn btn-primary" style={{ flex:2,justifyContent:"center" }} onClick={addHabit}>Add Habit</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+function escHtml(str) {
+  return String(str || '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
 }
 
-// ─── LECTURES PAGE ────────────────────────────────────────────────────────────
-function LecturesPage({ lectures, setLectures, lectureProgress, setLectureProgress, notes, setNotes }) {
-  const [showAdd, setShowAdd] = useState(false);
-  const [selected, setSelected] = useState(null);
-  const [newLec, setNewLec] = useState({ subject:"Biology", topic:"", teacher:"", time:"12:30", duration:120, color:"#10b981" });
-  const todayKey = today();
-  const toggleDone = (id) => setLectureProgress(prev => ({ ...prev, [id]: { ...(prev[id]||{}), [todayKey]: { ...(prev[id]?.[todayKey]||{}), done: !prev[id]?.[todayKey]?.done } } }));
-  const addLec = () => { if (!newLec.subject) return; setLectures(prev => [...prev, { ...newLec, id:Date.now() }]); setNewLec({ subject:"Biology", topic:"", teacher:"", time:"12:30", duration:120, color:"#10b981" }); setShowAdd(false); };
-  const saveNote = (lectureId, text) => setNotes(prev => ({ ...prev, [lectureId]: { ...(prev[lectureId]||{}), [todayKey]:text } }));
-  const subjectColors = { Biology:"#10b981", Chemistry:"#f59e0b", Physics:"#3b82f6", Maths:"#8b5cf6" };
-  return (
-    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
-      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-        <div className="section-title" style={{ margin:0 }}><Icon d={icons.lectures} size={16} stroke="var(--blue)" /> Lecture Tracker</div>
-        <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)}><Icon d={icons.plus} size={14} stroke="#fff" /> Add Class</button>
-      </div>
-      <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
-        {lectures.map((l,i) => {
-          const done = lectureProgress[l.id]?.[todayKey]?.done;
-          const noteText = notes[l.id]?.[todayKey] || "";
-          const isExpanded = selected === l.id;
-          return (
-            <div key={l.id} className="card fade-up" style={{ animationDelay:`${i*.04}s`,border:`1px solid ${done?l.color+"40":"var(--border)"}`,background:done?l.color+"08":"var(--bg2)" }}>
-              <div style={{ display:"flex",gap:14,alignItems:"center" }}>
-                <div style={{ width:48,height:48,borderRadius:12,background:l.color+"20",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-                  <Icon d={l.subject==="Biology"?icons.microscope:l.subject==="Chemistry"?icons.flask:l.subject==="Physics"?icons.atom:icons.book} size={22} stroke={l.color}/>
-                </div>
-                <div style={{ flex:1,minWidth:0 }}>
-                  <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap" }}>
-                    <span style={{ fontFamily:"Syne",fontWeight:700,fontSize:15 }}>{l.subject}</span>
-                    {done && <span className="badge" style={{ background:"#10b98120",color:"#10b981" }}>✓ Done</span>}
-                  </div>
-                  {l.topic && <div style={{ fontSize:12,color:"var(--text3)",marginBottom:4 }}>{l.topic}</div>}
-                  <div style={{ display:"flex",gap:12,fontSize:11,color:"var(--text3)",flexWrap:"wrap" }}>
-                    <span>🕐 {l.time}</span><span>⏱ {l.duration}min</span>{l.teacher&&<span>👨‍🏫 {l.teacher}</span>}
-                  </div>
-                </div>
-                <div style={{ display:"flex",gap:8,alignItems:"center",flexShrink:0 }}>
-                  <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setSelected(isExpanded?null:l.id)}><Icon d={icons.notes} size={15} stroke="var(--text2)"/></button>
-                  <button onClick={() => toggleDone(l.id)} className="btn btn-sm" style={{ background:done?"#10b98120":"var(--bg3)",color:done?"#10b981":"var(--text2)",border:`1px solid ${done?"#10b98140":"var(--border)"}` }}>{done?"✓ Done":"Mark Done"}</button>
-                  <button className="btn btn-icon btn-danger btn-sm" onClick={() => setLectures(prev => prev.filter(x => x.id!==l.id))}><Icon d={icons.trash} size={13} stroke="var(--red)"/></button>
-                </div>
-              </div>
-              {isExpanded && (
-                <div style={{ marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)",animation:"fadeUp .2s ease" }}>
-                  <label className="label">📝 Today's Notes — {l.subject}</label>
-                  <textarea className="notes-area" placeholder="Write your notes, key points, doubts..." value={noteText} onChange={e => saveNote(l.id, e.target.value)} />
-                  <div style={{ display:"flex",gap:8,marginTop:10,flexWrap:"wrap" }}>
-                    <div style={{ flex:1,minWidth:160 }}>
-                      <label className="label">Topic Covered</label>
-                      <input className="input" placeholder="e.g. Photosynthesis" value={l.topic} onChange={e => setLectures(prev => prev.map(x => x.id===l.id?{...x,topic:e.target.value}:x))}/>
-                    </div>
-                    <div style={{ flex:1,minWidth:120 }}>
-                      <label className="label">DPP Status</label>
-                      <select className="input" value={lectureProgress[l.id]?.[todayKey]?.dpp||"pending"} onChange={e => setLectureProgress(prev => ({ ...prev, [l.id]: { ...(prev[l.id]||{}), [todayKey]: { ...(prev[l.id]?.[todayKey]||{}), dpp:e.target.value } } }))}>
-                        <option value="pending">📋 Not Started</option><option value="started">🔄 In Progress</option><option value="done">✅ Completed</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {showAdd && (
-        <div className="modal-overlay" onClick={e => e.target===e.currentTarget && setShowAdd(false)}>
-          <div className="modal">
-            <div className="modal-title">Add New Class</div>
-            <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
-              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
-                <div><label className="label">Subject</label><select className="input" value={newLec.subject} onChange={e => setNewLec(p => ({ ...p, subject:e.target.value, color:subjectColors[e.target.value]||"#7c6fff" }))}><option>Biology</option><option>Chemistry</option><option>Physics</option><option>Maths</option><option>English</option><option>Other</option></select></div>
-                <div><label className="label">Teacher</label><input className="input" placeholder="Teacher name" value={newLec.teacher} onChange={e => setNewLec(p => ({ ...p, teacher:e.target.value }))}/></div>
-              </div>
-              <div><label className="label">Topic</label><input className="input" placeholder="Chapter / Topic" value={newLec.topic} onChange={e => setNewLec(p => ({ ...p, topic:e.target.value }))}/></div>
-              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
-                <div><label className="label">Time</label><input className="input" type="time" value={newLec.time} onChange={e => setNewLec(p => ({ ...p, time:e.target.value }))}/></div>
-                <div><label className="label">Duration (min)</label><input className="input" type="number" value={newLec.duration} onChange={e => setNewLec(p => ({ ...p, duration:+e.target.value }))}/></div>
-              </div>
-              <div><label className="label">Color</label><div style={{ display:"flex",gap:8 }}>{["#10b981","#f59e0b","#3b82f6","#8b5cf6","#ef4444","#ec4899"].map(c => <div key={c} onClick={() => setNewLec(p => ({ ...p, color:c }))} style={{ width:28,height:28,borderRadius:8,background:c,cursor:"pointer",border:newLec.color===c?"2px solid var(--text)":"2px solid transparent",transition:"transform .2s",transform:newLec.color===c?"scale(1.2)":"scale(1)" }}/>)}</div></div>
-            </div>
-            <div style={{ display:"flex",gap:10,marginTop:20 }}>
-              <button className="btn btn-ghost" style={{ flex:1,justifyContent:"center" }} onClick={() => setShowAdd(false)}>Cancel</button>
-              <button className="btn btn-primary" style={{ flex:2,justifyContent:"center" }} onClick={addLec}>Add Class</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── WORKOUT PAGE ─────────────────────────────────────────────────────────────
-function WorkoutPage({ exercises, setExercises, workoutLogs, setWorkoutLogs }) {
-  const [showAdd, setShowAdd] = useState(false);
-  const [sessionActive, setSessionActive] = useState(false);
-  const [completed, setCompleted] = useState({});
-  const [newEx, setNewEx] = useState({ name:"", sets:3, reps:10, unit:"reps", category:"chest" });
-  const todayKey = today();
-  const categories = ["chest","back","legs","shoulders","arms","core","cardio"];
-  const grouped = categories.reduce((acc,cat) => { acc[cat]=exercises.filter(e => e.category===cat); return acc; },{});
-  const finishWorkout = () => { setWorkoutLogs(prev => ({ ...prev, [todayKey]:{ done:true,exercises:completed,timestamp:Date.now() } })); setSessionActive(false); setCompleted({}); };
-  const addEx = () => { if (!newEx.name) return; setExercises(prev => [...prev,{ ...newEx,id:Date.now() }]); setNewEx({ name:"",sets:3,reps:10,unit:"reps",category:"chest" }); setShowAdd(false); };
-  const streak = getStreak(workoutLogs); const todayDone = workoutLogs[todayKey]?.done;
-  return (
-    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
-      <div className="grid-3 fade-up">
-        {[
-          { label:"Current Streak", value:streak+" days", color:"var(--red)", icon:icons.fire },
-          { label:"Total Exercises", value:exercises.length, color:"var(--blue)", icon:icons.dumbbell },
-          { label:"Today", value:todayDone?"✓ Done":"Not Done", color:todayDone?"var(--green)":"var(--text3)", icon:icons.check },
-        ].map((s,i) => (
-          <div key={i} className="stat-card" style={{ animationDelay:`${i*.04}s` }}>
-            <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:8 }}>
-              <Icon d={s.icon} size={18} stroke={s.color}/><span style={{ fontSize:11,color:"var(--text3)",textTransform:"uppercase",letterSpacing:".6px",fontWeight:600 }}>{s.label}</span>
-            </div>
-            <div className="stat-value" style={{ color:s.color,fontSize:22 }}>{s.value}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-        <div className="section-title" style={{ margin:0 }}><Icon d={icons.workout} size={16} stroke="var(--red)" /> Workout Plan</div>
-        <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => setShowAdd(true)}><Icon d={icons.plus} size={14}/> Add Exercise</button>
-          {!sessionActive && !todayDone && <button className="btn btn-primary btn-sm" onClick={() => setSessionActive(true)}><Icon d={icons.fire} size={14} stroke="#fff"/> Start Workout</button>}
-          {todayDone && <span className="badge" style={{ background:"#10b98120",color:"var(--green)",border:"1px solid #10b98130",padding:"8px 14px" }}>✓ Workout Complete!</span>}
-        </div>
-      </div>
-      {sessionActive && (
-        <div className="card fade-up" style={{ background:"linear-gradient(135deg,#ef444412,#f9731612)",border:"1px solid #ef444430" }}>
-          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14 }}>
-            <div style={{ fontFamily:"Syne",fontSize:16,fontWeight:700,color:"var(--red)" }}>🔥 Session Active</div>
-            <div style={{ fontSize:13,color:"var(--text3)" }}>{Object.keys(completed).length}/{exercises.length} done</div>
-          </div>
-          <div className="progress-bar" style={{ marginBottom:14 }}>
-            <div className="progress-fill" style={{ width:`${exercises.length?(Object.keys(completed).length/exercises.length)*100:0}%`,background:"linear-gradient(90deg,var(--red),var(--amber))" }}/>
-          </div>
-          <button className="btn btn-primary" style={{ background:"var(--green)",width:"100%",justifyContent:"center" }} onClick={finishWorkout}>✓ Mark Workout Complete</button>
-        </div>
-      )}
-      {categories.filter(c => grouped[c].length > 0).map(cat => (
-        <div key={cat} className="card fade-up">
-          <div className="section-title" style={{ textTransform:"capitalize" }}>{cat}</div>
-          <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
-            {grouped[cat].map(ex => {
-              const done = sessionActive && completed[ex.id];
-              return (
-                <div key={ex.id} className={`workout-exercise ${done?"exercise-complete":""}`}>
-                  {sessionActive && (
-                    <button onClick={() => setCompleted(prev => ({ ...prev, [ex.id]:!prev[ex.id] }))} style={{ width:28,height:28,borderRadius:8,border:`1.5px solid ${done?"var(--green)":"var(--border2)"}`,background:done?"var(--green)":"var(--bg4)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .2s" }}>
-                      {done && <Icon d={icons.check} size={13} stroke="#fff" strokeWidth={2.5}/>}
-                    </button>
-                  )}
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontWeight:600,fontSize:14,marginBottom:2 }}>{ex.name}</div>
-                    <div style={{ fontSize:12,color:"var(--text3)" }}>{ex.sets} sets × {ex.reps} {ex.unit}</div>
-                  </div>
-                  <button className="btn btn-icon btn-danger btn-sm" onClick={() => setExercises(prev => prev.filter(e => e.id!==ex.id))}><Icon d={icons.trash} size={13} stroke="var(--red)"/></button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-      {showAdd && (
-        <div className="modal-overlay" onClick={e => e.target===e.currentTarget && setShowAdd(false)}>
-          <div className="modal">
-            <div className="modal-title">Add Exercise</div>
-            <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
-              <div><label className="label">Exercise Name</label><input className="input" placeholder="e.g. Pushups" value={newEx.name} onChange={e => setNewEx(p => ({ ...p, name:e.target.value }))}/></div>
-              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10 }}>
-                <div><label className="label">Sets</label><input className="input" type="number" value={newEx.sets} onChange={e => setNewEx(p => ({ ...p, sets:+e.target.value }))}/></div>
-                <div><label className="label">Reps</label><input className="input" type="number" value={newEx.reps} onChange={e => setNewEx(p => ({ ...p, reps:+e.target.value }))}/></div>
-                <div><label className="label">Unit</label><select className="input" value={newEx.unit} onChange={e => setNewEx(p => ({ ...p, unit:e.target.value }))}><option>reps</option><option>seconds</option><option>minutes</option></select></div>
-              </div>
-              <div><label className="label">Category</label><select className="input" value={newEx.category} onChange={e => setNewEx(p => ({ ...p, category:e.target.value }))}>{categories.map(c => <option key={c}>{c}</option>)}</select></div>
-            </div>
-            <div style={{ display:"flex",gap:10,marginTop:20 }}>
-              <button className="btn btn-ghost" style={{ flex:1,justifyContent:"center" }} onClick={() => setShowAdd(false)}>Cancel</button>
-              <button className="btn btn-primary" style={{ flex:2,justifyContent:"center" }} onClick={addEx}>Add Exercise</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── GOALS PAGE ───────────────────────────────────────────────────────────────
-function GoalsPage({ goals, setGoals }) {
-  const [showAdd, setShowAdd] = useState(false);
-  const [newGoal, setNewGoal] = useState({ title:"", emoji:"🎯", deadline:"", progress:0, category:"academic" });
-  const addGoal = () => { if (!newGoal.title) return; setGoals(prev => [...prev,{ ...newGoal, id:Date.now() }]); setNewGoal({ title:"", emoji:"🎯", deadline:"", progress:0, category:"academic" }); setShowAdd(false); };
-  const updateProgress = (id, val) => setGoals(prev => prev.map(g => g.id===id?{ ...g, progress:Math.max(0,Math.min(100,val)) }:g));
-  const categoryColors = { academic:"var(--blue)", discipline:"var(--red)", fitness:"var(--green)", personal:"var(--accent2)" };
-  return (
-    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
-      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-        <div className="section-title" style={{ margin:0 }}><Icon d={icons.goals} size={16} stroke="var(--accent2)"/> Goals</div>
-        <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)}><Icon d={icons.plus} size={14} stroke="#fff"/> Add Goal</button>
-      </div>
-      <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
-        {goals.map((g,i) => (
-          <div key={g.id} className="card fade-up" style={{ animationDelay:`${i*.04}s` }}>
-            <div style={{ display:"flex",alignItems:"flex-start",gap:12 }}>
-              <span style={{ fontSize:28 }}>{g.emoji}</span>
-              <div style={{ flex:1,minWidth:0 }}>
-                <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap" }}>
-                  <div style={{ fontFamily:"Syne",fontWeight:700,fontSize:15 }}>{g.title}</div>
-                  <span className="badge" style={{ background:categoryColors[g.category]+"20",color:categoryColors[g.category] }}>{g.category}</span>
-                </div>
-                {g.deadline && <div style={{ fontSize:11,color:"var(--text3)",marginBottom:10 }}>📅 Deadline: {g.deadline}</div>}
-                <div className="progress-bar" style={{ marginBottom:8 }}>
-                  <div className="progress-fill" style={{ width:`${g.progress}%`,background:`linear-gradient(90deg,var(--accent),var(--accent2))` }}/>
-                </div>
-                <div style={{ display:"flex",alignItems:"center",gap:10 }}>
-                  <span style={{ fontSize:12,fontWeight:600,color:"var(--accent2)" }}>{g.progress}%</span>
-                  <input type="range" min="0" max="100" value={g.progress} onChange={e => updateProgress(g.id,+e.target.value)} style={{ flex:1,accentColor:"var(--accent)" }}/>
-                </div>
-              </div>
-              <button className="btn btn-icon btn-danger btn-sm" onClick={() => setGoals(prev => prev.filter(x => x.id!==g.id))}><Icon d={icons.trash} size={13} stroke="var(--red)"/></button>
-            </div>
-          </div>
-        ))}
-      </div>
-      {showAdd && (
-        <div className="modal-overlay" onClick={e => e.target===e.currentTarget && setShowAdd(false)}>
-          <div className="modal">
-            <div className="modal-title">Add New Goal</div>
-            <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
-              <div style={{ display:"grid",gridTemplateColumns:"80px 1fr",gap:10 }}>
-                <div><label className="label">Emoji</label><input className="input" value={newGoal.emoji} onChange={e => setNewGoal(p => ({ ...p, emoji:e.target.value }))}/></div>
-                <div><label className="label">Goal Title</label><input className="input" placeholder="e.g. Clear NEET 2025" value={newGoal.title} onChange={e => setNewGoal(p => ({ ...p, title:e.target.value }))}/></div>
-              </div>
-              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
-                <div><label className="label">Category</label><select className="input" value={newGoal.category} onChange={e => setNewGoal(p => ({ ...p, category:e.target.value }))}><option>academic</option><option>fitness</option><option>discipline</option><option>personal</option></select></div>
-                <div><label className="label">Deadline</label><input className="input" type="date" value={newGoal.deadline} onChange={e => setNewGoal(p => ({ ...p, deadline:e.target.value }))}/></div>
-              </div>
-              <div><label className="label">Initial Progress: {newGoal.progress}%</label><input type="range" min="0" max="100" value={newGoal.progress} onChange={e => setNewGoal(p => ({ ...p, progress:+e.target.value }))} style={{ width:"100%",accentColor:"var(--accent)" }}/></div>
-            </div>
-            <div style={{ display:"flex",gap:10,marginTop:20 }}>
-              <button className="btn btn-ghost" style={{ flex:1,justifyContent:"center" }} onClick={() => setShowAdd(false)}>Cancel</button>
-              <button className="btn btn-primary" style={{ flex:2,justifyContent:"center" }} onClick={addGoal}>Add Goal</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── NOTES PAGE ───────────────────────────────────────────────────────────────
-function NotesPage({ notes, setNotes, lectures }) {
-  const [activeSubject, setActiveSubject] = useState(lectures[0]?.id || null);
-  const todayKey = today();
-  const subjects = lectures.map(l => ({ id:l.id, name:l.subject, color:l.color }));
-  const allDates = activeSubject && notes[activeSubject] ? Object.keys(notes[activeSubject]).sort().reverse() : [];
-  return (
-    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
-      <div className="section-title"><Icon d={icons.notes} size={16} stroke="var(--text2)"/> Notes</div>
-      <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
-        {subjects.map(s => (
-          <button key={s.id} onClick={() => setActiveSubject(s.id)} style={{ padding:"6px 14px",borderRadius:99,fontSize:13,fontWeight:600,cursor:"pointer",border:`1px solid ${activeSubject===s.id?s.color+"60":"var(--border)"}`,background:activeSubject===s.id?s.color+"20":"var(--bg3)",color:activeSubject===s.id?s.color:"var(--text2)",transition:"all .2s" }}>{s.name}</button>
-        ))}
-      </div>
-      {activeSubject && (
-        <div className="card fade-up">
-          <label className="label">Today's Note — {subjects.find(s => s.id===activeSubject)?.name}</label>
-          <textarea className="notes-area" style={{ minHeight:180 }} placeholder="Write key points, doubts, formulas..." value={notes[activeSubject]?.[todayKey]||""} onChange={e => setNotes(prev => ({ ...prev, [activeSubject]:{ ...(prev[activeSubject]||{}), [todayKey]:e.target.value } }))}/>
-        </div>
-      )}
-      {activeSubject && allDates.filter(d => d!==todayKey).length > 0 && (
-        <div>
-          <div className="section-title">Previous Notes</div>
-          {allDates.filter(d => d!==todayKey).map(date => (
-            <div key={date} className="card-sm" style={{ marginBottom:10,background:"var(--bg3)",borderRadius:12 }}>
-              <div style={{ fontSize:11,color:"var(--text3)",fontWeight:600,marginBottom:6 }}>{new Date(date+"T00:00").toLocaleDateString("en-IN",{ weekday:"short",day:"numeric",month:"short" })}</div>
-              <div style={{ fontSize:13,color:"var(--text2)",lineHeight:1.6,whiteSpace:"pre-wrap" }}>{notes[activeSubject][date]}</div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── ANALYTICS PAGE ───────────────────────────────────────────────────────────
-function AnalyticsPage({ habitLogs, habits, workoutLogs, lectureProgress, lectures, focusLogs, xp }) {
-  const weekDays = getWeekDays(); const maxBarH = 100;
-  const habitData = weekDays.map(date => {
-    const log = habitLogs[date]||{}; const done = habits.filter(h => log[h.id]).length;
-    return { date, done, total:habits.length, pct:habits.length?Math.round(done/habits.length*100):0 };
-  });
-  const workoutData = weekDays.map(date => ({ date, done:!!workoutLogs[date]?.done }));
-  const workoutStreak = getStreak(workoutLogs);
-  const lectureData = weekDays.map(date => {
-    const done = lectures.filter(l => lectureProgress[l.id]?.[date]?.done).length;
-    return { date, done, total:lectures.length };
-  });
-  const last90 = getLast90();
-  const totalSessions = Object.values(focusLogs||{}).reduce((s,d)=>s+(d.sessions||0),0);
-  const totalDistractions = Object.values(focusLogs||{}).reduce((s,d)=>s+(d.distractions||0),0);
-  const focusScore = totalSessions>0?Math.max(0,Math.round(100-(totalDistractions/totalSessions)*20)):0;
-  const getHeat=(date)=>{
-    const log=habitLogs[date]||{};const done=habits.filter(h=>log[h.id]).length;
-    if(!habits.length||done===0)return 0;
-    const p=done/habits.length;return p<.25?1:p<.5?2:p<.75?3:4;
-  };
-  const heatColors=["var(--bg4)","#10b98140","#10b98180","#10b981bb","#10b981"];
-  return (
-    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
-      <div className="section-title"><Icon d={icons.analytics} size={16} stroke="var(--text2)"/> Analytics</div>
-      <div className="grid-4 fade-up">
-        {[
-          {label:"Total XP",value:(xp||0).toLocaleString(),color:"var(--accent2)",icon:icons.star},
-          {label:"Focus Score",value:`${focusScore}/100`,color:focusScore>=70?"var(--green)":focusScore>=40?"var(--amber)":"var(--red)",icon:icons.timer},
-          {label:"Sessions",value:totalSessions,color:"var(--blue)",icon:icons.timer},
-          {label:"Distractions",value:totalDistractions,color:"var(--red)",icon:icons.streak},
-        ].map((s,i)=>(
-          <div key={i} className="stat-card" style={{animationDelay:`${i*.04}s`}}>
-            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}><Icon d={s.icon} size={14} stroke={s.color}/><span style={{fontSize:9,color:"var(--text3)",textTransform:"uppercase",letterSpacing:".6px",fontWeight:600}}>{s.label}</span></div>
-            <div className="stat-value" style={{color:s.color,fontSize:18}}>{s.value}</div>
-          </div>
-        ))}
-      </div>
-      <div className="grid-3 fade-up">
-        <div className="card" style={{ textAlign:"center" }}>
-          <RingChart percent={habitData[6]?.pct||0} color="var(--green)" size={90}/>
-          <div style={{ marginTop:12,fontFamily:"Syne",fontWeight:700,fontSize:14 }}>Habits Today</div>
-          <div style={{ fontSize:12,color:"var(--text3)" }}>{habitData[6]?.done}/{habitData[6]?.total} done</div>
-        </div>
-        <div className="card" style={{ textAlign:"center" }}>
-          <RingChart percent={lectures.length?Math.round((lectureData[6]?.done/lectures.length)*100):0} color="var(--blue)" size={90}/>
-          <div style={{ marginTop:12,fontFamily:"Syne",fontWeight:700,fontSize:14 }}>Lectures Today</div>
-          <div style={{ fontSize:12,color:"var(--text3)" }}>{lectureData[6]?.done}/{lectures.length} done</div>
-        </div>
-        <div className="card" style={{ textAlign:"center" }}>
-          <RingChart percent={Math.min(100,workoutStreak*10)} color="var(--red)" size={90} sub="streak"/>
-          <div style={{ marginTop:12,fontFamily:"Syne",fontWeight:700,fontSize:14 }}>Workout Streak</div>
-          <div style={{ fontSize:12,color:"var(--text3)" }}>{workoutStreak} days</div>
-        </div>
-      </div>
-      <div className="card fade-up" style={{ animationDelay:".1s" }}>
-        <div className="section-title">Habit Completion — Last 7 Days<span style={{ marginLeft:"auto",fontSize:12,color:"var(--text3)",fontWeight:400 }}>{Math.round(habitData.reduce((s,d)=>s+d.pct,0)/7)}% avg</span></div>
-        <div style={{ display:"flex",alignItems:"flex-end",gap:6,height:140,paddingBottom:20,paddingTop:20,position:"relative" }}>
-          {habitData.map((d,i) => (
-            <div key={i} style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:0,height:"100%",justifyContent:"flex-end" }}>
-              <div style={{ fontSize:9,color:"var(--text3)",fontWeight:600,marginBottom:3,textAlign:"center" }}>{d.pct}%</div>
-              <div style={{ width:"100%",height:`${Math.max(d.pct,2)}%`,maxHeight:"calc(100% - 36px)",background:d.pct===100?"var(--green)":d.pct>50?"var(--accent)":"var(--bg4)",borderRadius:"4px 4px 0 0",transition:"height 1s cubic-bezier(.16,1,.3,1)" }}/>
-              <div style={{ fontSize:10,color:"var(--text3)",marginTop:4,textAlign:"center" }}>{new Date(d.date+"T00:00").toLocaleDateString("en",{ weekday:"narrow" })}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="card fade-up" style={{ animationDelay:".15s" }}>
-        <div className="section-title">Workout Heatmap — Last 7 Days</div>
-        <div style={{ display:"flex",gap:8 }}>
-          {workoutData.map((d,i) => (
-            <div key={i} style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:8 }}>
-              <div style={{ width:"100%",aspectRatio:"1/1",borderRadius:8,background:d.done?"var(--green)":"var(--bg4)",display:"flex",alignItems:"center",justifyContent:"center",transition:"background .3s" }}>
-                {d.done && <Icon d={icons.check} size={16} stroke="#fff" strokeWidth={2.5}/>}
-              </div>
-              <div style={{ fontSize:10,color:"var(--text3)" }}>{new Date(d.date+"T00:00").toLocaleDateString("en",{ weekday:"narrow" })}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="card fade-up" style={{ animationDelay:".2s" }}>
-        <div className="section-title">Lectures Attended — Last 7 Days<span style={{ marginLeft:"auto",fontSize:12,color:"var(--text3)",fontWeight:400 }}>{weekDays.reduce((s,d)=>s+lectures.filter(l=>lectureProgress[l.id]?.[d]?.done).length,0)}/{weekDays.length*lectures.length} total</span></div>
-        <div style={{ display:"flex",alignItems:"flex-end",gap:6,height:140,paddingBottom:20,paddingTop:20 }}>
-          {lectureData.map((d,i) => (
-            <div key={i} style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",height:"100%",justifyContent:"flex-end" }}>
-              <div style={{ fontSize:9,color:"var(--text3)",fontWeight:600,marginBottom:3,textAlign:"center" }}>{d.done}/{d.total}</div>
-              <div style={{ width:"100%",height:d.total?`${Math.max((d.done/d.total)*100,d.done>0?2:0)}%`:"0%",maxHeight:"calc(100% - 36px)",background:"var(--blue)",borderRadius:"4px 4px 0 0",transition:"height 1s cubic-bezier(.16,1,.3,1)" }}/>
-              <div style={{ fontSize:10,color:"var(--text3)",marginTop:4,textAlign:"center" }}>{new Date(d.date+"T00:00").toLocaleDateString("en",{ weekday:"narrow" })}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="card fade-up" style={{animationDelay:".12s"}}>
-        <div className="section-title">🔥 Study Heatmap — Last 90 Days</div>
-        <div style={{overflowX:"auto",paddingBottom:8}}>
-          <div style={{display:"flex",flexDirection:"column",gap:3,width:"max-content"}}>
-            <div style={{display:"flex",gap:3}}>
-              {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=><div key={d} style={{width:14,fontSize:8,color:"var(--text3)",textAlign:"center"}}>{d[0]}</div>)}
-            </div>
-            {(()=>{
-              const weeks=[];
-              const startDay=new Date(last90[0]+"T00:00").getDay();
-              const padded=[...Array(startDay).fill(null),...last90];
-              for(let w=0;w<Math.ceil(padded.length/7);w++){
-                weeks.push(padded.slice(w*7,(w+1)*7));
-              }
-              return weeks.map((week,wi)=>(
-                <div key={wi} style={{display:"flex",gap:3}}>
-                  {Array.from({length:7}).map((_,di)=>{
-                    const d=week[di];
-                    return <div key={di} className="heatmap-cell" title={d?`${d}: ${getHeat(d)*25}% habit completion`:""} style={{width:14,height:14,background:d?heatColors[getHeat(d)]:"transparent"}}/>;
-                  })}
-                </div>
-              ));
-            })()}
-          </div>
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:6,marginTop:10,fontSize:11,color:"var(--text3)"}}>
-          <span>Less</span>
-          {heatColors.map((c,i)=><div key={i} style={{width:12,height:12,borderRadius:2,background:c}}/>)}
-          <span>More</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── PROFILE PAGE ─────────────────────────────────────────────────────────────
-function ProfilePage({ profile, setProfile, habitLogs, habits, workoutLogs, lectureProgress, lectures, goals, xp }) {
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState(profile);
-  const fileRef = useRef();
-  const handleAvatar = (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setForm(f => ({ ...f, avatar:ev.target.result }));
-    reader.readAsDataURL(file);
-  };
-  const save = () => { setProfile(form); setEditing(false); };
-  const weekDays = getWeekDays();
-  const totalHabitDays = weekDays.filter(d => habits.some(h => habitLogs[d]?.[h.id])).length;
-  const workoutStreak = getStreak(workoutLogs);
-  const goalsAvg = goals.length ? Math.round(goals.reduce((s,g)=>s+g.progress,0)/goals.length):0;
-  const lectureWeek = weekDays.reduce((s,d)=>s+lectures.filter(l=>lectureProgress[l.id]?.[d]?.done).length,0);
-  return (
-    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
-      <div className="profile-hero fade-up">
-        <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleAvatar}/>
-        <div className="profile-avatar-lg" onClick={() => editing && fileRef.current.click()} style={{ cursor:editing?"pointer":"default" }}>
-          {(editing?form:profile).avatar ? <img src={(editing?form:profile).avatar} alt="avatar"/> : <Icon d={icons.user} size={40} stroke="var(--text3)"/>}
-        </div>
-        <div style={{ fontFamily:"Syne",fontSize:26,fontWeight:800,marginBottom:4 }}>{profile.name||"Student"}</div>
-        <div style={{ color:"var(--text3)",fontSize:14,marginBottom:16 }}>Class {profile.class} {profile.stream} • {profile.target}</div>
-        {profile.school && <div style={{ fontSize:13,color:"var(--text2)",marginBottom:12 }}>🏫 {profile.school}</div>}
-        {profile.bio && <div style={{ fontSize:13,color:"var(--text3)",fontStyle:"italic",marginBottom:16,lineHeight:1.6,maxWidth:400,margin:"0 auto 16px" }}>"{profile.bio}"</div>}
-        <button className="btn btn-ghost btn-sm" onClick={() => { setForm(profile); setEditing(!editing); }} style={{ margin:"0 auto" }}>
-          <Icon d={icons.edit} size={14}/> {editing?"Cancel":"Edit Profile"}
-        </button>
-      </div>
-      {editing && (
-        <div className="card fade-up">
-          <div style={{ fontFamily:"Syne",fontWeight:700,fontSize:15,marginBottom:16 }}>Edit Profile</div>
-          <div style={{ display:"flex",alignItems:"center",gap:16,marginBottom:20 }}>
-            <div style={{ width:72,height:72,borderRadius:16,overflow:"hidden",background:"var(--bg4)",display:"flex",alignItems:"center",justifyContent:"center",border:"2px dashed var(--border2)",cursor:"pointer" }} onClick={() => fileRef.current.click()}>
-              {form.avatar ? <img src={form.avatar} alt="p" style={{ width:"100%",height:"100%",objectFit:"cover" }}/> : <Icon d={icons.camera} size={20} stroke="var(--text3)"/>}
-            </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => fileRef.current.click()}><Icon d={icons.upload} size={13}/> Change Photo</button>
-          </div>
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:14 }}>
-            <div><label className="label">Name</label><input className="input" value={form.name||""} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
-            <div><label className="label">School</label><input className="input" value={form.school||""} onChange={e=>setForm(f=>({...f,school:e.target.value}))}/></div>
-            <div><label className="label">Class</label><select className="input" value={form.class||"12"} onChange={e=>setForm(f=>({...f,class:e.target.value}))}><option>11</option><option>12</option></select></div>
-            <div><label className="label">Stream</label><select className="input" value={form.stream||"PCB"} onChange={e=>setForm(f=>({...f,stream:e.target.value}))}><option>PCB</option><option>PCM</option><option>PCMB</option></select></div>
-            <div style={{ gridColumn:"span 2" }}><label className="label">Target Exam</label><select className="input" value={form.target||"NEET 2025"} onChange={e=>setForm(f=>({...f,target:e.target.value}))}><option>NEET 2025</option><option>NEET 2026</option><option>AIIMS</option><option>JEE Main</option><option>JEE Advanced</option><option>Boards Only</option></select></div>
-            <div style={{ gridColumn:"span 2" }}><label className="label">Bio / Motivation</label><textarea className="notes-area" style={{ minHeight:80 }} value={form.bio||""} onChange={e=>setForm(f=>({...f,bio:e.target.value}))}/></div>
-          </div>
-          <button className="btn btn-primary" style={{ marginTop:16 }} onClick={save}><Icon d={icons.check} size={14} stroke="#fff"/> Save Changes</button>
-        </div>
-      )}
-      <div className="grid-4 fade-up" style={{ animationDelay:".05s" }}>
-        {[
-          { label:"Habit Days", value:totalHabitDays+"/7", color:"var(--green)", icon:icons.habits },
-          { label:"Workout Streak", value:workoutStreak+"d", color:"var(--red)", icon:icons.fire },
-          { label:"Lectures/Week", value:lectureWeek, color:"var(--blue)", icon:icons.lectures },
-          { label:"Goal Progress", value:goalsAvg+"%", color:"var(--accent2)", icon:icons.goals },
-        ].map((s,i) => (
-          <div key={i} className="stat-card">
-            <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:4 }}><Icon d={s.icon} size={16} stroke={s.color}/><span style={{ fontSize:10,color:"var(--text3)",textTransform:"uppercase",letterSpacing:".6px",fontWeight:600 }}>{s.label}</span></div>
-            <div className="stat-value" style={{ color:s.color,fontSize:22 }}>{s.value}</div>
-          </div>
-        ))}
-      </div>
-      <div className="card fade-up" style={{ animationDelay:".1s" }}>
-        <div className="section-title"><Icon d={icons.goals} size={15} stroke="var(--accent2)"/> Goal Progress</div>
-        {goals.map(g => (
-          <div key={g.id} style={{ display:"flex",alignItems:"center",gap:12,marginBottom:12 }}>
-            <span style={{ fontSize:20 }}>{g.emoji}</span>
-            <div style={{ flex:1,minWidth:0 }}>
-              <div style={{ fontSize:13,fontWeight:600,marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{g.title}</div>
-              <div className="progress-bar"><div className="progress-fill" style={{ width:`${g.progress}%`,background:"linear-gradient(90deg,var(--accent),var(--accent2))" }}/></div>
-            </div>
-            <div style={{ fontSize:12,fontWeight:700,color:"var(--accent2)",minWidth:32,textAlign:"right" }}>{g.progress}%</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── WEEKLY REPORT PAGE ───────────────────────────────────────────────────────
-function WeeklyReportPage({ profile, habits, habitLogs, workoutLogs, lectureProgress, lectures, goals }) {
-  const reportRef = useRef();
-  const [generating, setGenerating] = useState(false);
-  const [shareUrl, setShareUrl] = useState(null);
-  const [shareModal, setShareModal] = useState(false);
-  const weekDays = getWeekDays();
-  const workoutStreak = getStreak(workoutLogs);
-  const habitData = weekDays.map(d => ({ date:d, pct:habits.length?Math.round(habits.filter(h=>habitLogs[d]?.[h.id]).length/habits.length*100):0 }));
-  const avgHabit = Math.round(habitData.reduce((s,d)=>s+d.pct,0)/7);
-  const workoutDone = weekDays.filter(d => workoutLogs[d]?.done).length;
-  const lectureDone = weekDays.reduce((s,d)=>s+lectures.filter(l=>lectureProgress[l.id]?.[d]?.done).length,0);
-  const lectureTotal = weekDays.length * lectures.length;
-  const goalsAvg = goals.length?Math.round(goals.reduce((s,g)=>s+g.progress,0)/goals.length):0;
-  const weekLabel = `${new Date(weekDays[0]+"T00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short"})} – ${new Date(weekDays[6]+"T00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}`;
-  const overallScore = Math.round((avgHabit*0.3)+(workoutDone/7*100*0.2)+(lectureTotal?lectureDone/lectureTotal*100*0.3:0)+(goalsAvg*0.2));
-  const getGrade = (s) => s>=90?"S":s>=80?"A+":s>=70?"A":s>=60?"B+":s>=50?"B":s>=40?"C":"D";
-
-  const generateImage = async () => {
-    if (!window.html2canvas) { alert("html2canvas not loaded. Try again."); return; }
-    setGenerating(true);
-    try {
-      const canvas = await window.html2canvas(reportRef.current, { scale:2, backgroundColor:null, useCORS:true, logging:false });
-      const url = canvas.toDataURL("image/png");
-      setShareUrl(url);
-      setShareModal(true);
-    } catch(e) { alert("Error generating report: "+e.message); }
-    setGenerating(false);
-  };
-
-  const downloadImg = () => {
-    if (!shareUrl) return;
-    const a = document.createElement("a");
-    a.href = shareUrl; a.download = `StudyOS_WeeklyReport_${weekDays[0]}.png`; a.click();
-  };
-  const shareNative = () => {
-    if (!shareUrl) return;
-    if (navigator.share) {
-      fetch(shareUrl).then(r=>r.blob()).then(blob => {
-        const file = new File([blob],"WeeklyReport.png",{ type:"image/png" });
-        navigator.share({ files:[file], title:"My Weekly Study Report", text:`📊 My StudyOS Weekly Report — Score: ${overallScore}/100` }).catch(()=>{});
-      });
-    } else { alert("Sharing not supported in your browser. Please download and share manually."); }
-  };
-
-  return (
-    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
-      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-        <div className="section-title" style={{ margin:0 }}><Icon d={icons.report} size={16} stroke="var(--accent2)"/> Weekly Report</div>
-        <button className="btn btn-primary" onClick={generateImage} disabled={generating} style={{ gap:8 }}>
-          {generating ? <><div style={{ width:14,height:14,border:"2px solid #fff4",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin .6s linear infinite" }}/> Generating...</> : <><Icon d={icons.image} size={14} stroke="#fff"/> Generate PNG</>}
-        </button>
-      </div>
-      <div style={{ fontSize:13,color:"var(--text3)" }}>Generate a beautiful PNG report card to share on WhatsApp, Telegram, or Instagram!</div>
-
-      {/* REPORT CARD (capture target) */}
-      <div ref={reportRef} style={{ background:"linear-gradient(135deg,#0a0a0f,#111118)",borderRadius:24,padding:28,border:"1px solid #ffffff15",maxWidth:500,margin:"0 auto",width:"100%",fontFamily:"'DM Sans',sans-serif" }}>
-        {/* Header */}
-        <div style={{ display:"flex",alignItems:"center",gap:14,marginBottom:20,paddingBottom:16,borderBottom:"1px solid #ffffff12" }}>
-          <div style={{ width:52,height:52,borderRadius:14,background:"linear-gradient(135deg,#7c6fff,#ec4899)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-            <Icon d={icons.brain} size={24} stroke="#fff"/>
-          </div>
-          <div style={{ flex:1,minWidth:0 }}>
-            <div style={{ fontFamily:"Syne,sans-serif",fontSize:18,fontWeight:800,color:"#f0f0f5" }}>StudyOS Weekly Report</div>
-            <div style={{ fontSize:12,color:"#5a5a72",marginTop:2 }}>{weekLabel}</div>
-          </div>
-          {profile.avatar && <div style={{ width:44,height:44,borderRadius:12,overflow:"hidden",border:"2px solid #7c6fff50",flexShrink:0 }}><img src={profile.avatar} alt="p" style={{ width:"100%",height:"100%",objectFit:"cover" }}/></div>}
-        </div>
-        {/* Name & Target */}
-        <div style={{ textAlign:"center",marginBottom:20 }}>
-          <div style={{ fontFamily:"Syne,sans-serif",fontSize:20,fontWeight:800,color:"#f0f0f5" }}>{profile.name||"Student"}</div>
-          <div style={{ fontSize:13,color:"#5a5a72" }}>Class {profile.class} {profile.stream} • {profile.target}</div>
-        </div>
-        {/* Score */}
-        <div style={{ textAlign:"center",marginBottom:24 }}>
-          <div style={{ fontFamily:"Syne,sans-serif",fontSize:72,fontWeight:800,lineHeight:1,background:"linear-gradient(135deg,#7c6fff,#a78bfa)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent" }}>{overallScore}</div>
-          <div style={{ fontSize:14,color:"#9191a8",marginTop:4 }}>Overall Score / 100</div>
-          <div style={{ display:"inline-block",marginTop:8,padding:"4px 20px",borderRadius:99,background:overallScore>=70?"#10b98120":"#f59e0b20",border:`1px solid ${overallScore>=70?"#10b98140":"#f59e0b40"}`,color:overallScore>=70?"#10b981":"#f59e0b",fontFamily:"Syne,sans-serif",fontSize:22,fontWeight:800 }}>{getGrade(overallScore)}</div>
-        </div>
-        {/* Stats Grid */}
-        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20 }}>
-          {[
-            { label:"Habit Avg", value:`${avgHabit}%`, color:"#10b981", icon:"✅" },
-            { label:"Workouts Done", value:`${workoutDone}/7 days`, color:"#ef4444", icon:"💪" },
-            { label:"Lectures Done", value:`${lectureDone}/${lectureTotal}`, color:"#3b82f6", icon:"📚" },
-            { label:"Goal Progress", value:`${goalsAvg}%`, color:"#a78bfa", icon:"🎯" },
-          ].map((s,i) => (
-            <div key={i} style={{ background:"#16161f",borderRadius:12,padding:"14px 16px",border:`1px solid ${s.color}25` }}>
-              <div style={{ fontSize:20,marginBottom:6 }}>{s.icon}</div>
-              <div style={{ fontFamily:"Syne,sans-serif",fontSize:20,fontWeight:800,color:s.color }}>{s.value}</div>
-              <div style={{ fontSize:11,color:"#5a5a72",marginTop:2 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-        {/* Habit Bar Chart */}
-        <div style={{ background:"#16161f",borderRadius:14,padding:"16px 14px",marginBottom:10,border:"1px solid #ffffff0a" }}>
-          <div style={{ fontSize:12,color:"#9191a8",fontWeight:600,marginBottom:12,textTransform:"uppercase",letterSpacing:".6px" }}>📊 Habit Completion This Week</div>
-          <div style={{ display:"flex",alignItems:"flex-end",gap:6,height:60 }}>
-            {habitData.map((d,i) => (
-              <div key={i} style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4 }}>
-                <div style={{ width:"100%",height:50,display:"flex",alignItems:"flex-end" }}>
-                  <div style={{ width:"100%",height:`${Math.max(d.pct,2)}%`,background:d.pct===100?"#10b981":d.pct>50?"#7c6fff":"#1c1c28",borderRadius:"4px 4px 0 0",transition:"height 1s" }}/>
-                </div>
-                <div style={{ fontSize:9,color:"#5a5a72",fontWeight:600 }}>{new Date(d.date+"T00:00").toLocaleDateString("en",{ weekday:"narrow" })}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* Workout row */}
-        <div style={{ display:"flex",gap:6,marginBottom:10 }}>
-          {weekDays.map((d,i) => (
-            <div key={i} style={{ flex:1,height:28,borderRadius:6,background:workoutLogs[d]?.done?"#ef4444":"#1c1c28",display:"flex",alignItems:"center",justifyContent:"center",border:"1px solid #ffffff08" }}>
-              {workoutLogs[d]?.done && <span style={{ fontSize:12 }}>💪</span>}
-            </div>
-          ))}
-        </div>
-        <div style={{ fontSize:10,color:"#5a5a72",textAlign:"center",marginBottom:16 }}>Workout Days (Red = Done)</div>
-        {/* Goals */}
-        {goals.slice(0,3).map(g => (
-          <div key={g.id} style={{ marginBottom:8 }}>
-            <div style={{ display:"flex",justifyContent:"space-between",fontSize:12,color:"#9191a8",marginBottom:4 }}>
-              <span>{g.emoji} {g.title}</span><span style={{ color:"#a78bfa" }}>{g.progress}%</span>
-            </div>
-            <div style={{ height:5,background:"#1c1c28",borderRadius:99,overflow:"hidden" }}>
-              <div style={{ width:`${g.progress}%`,height:"100%",background:"linear-gradient(90deg,#7c6fff,#a78bfa)",borderRadius:99 }}/>
-            </div>
-          </div>
-        ))}
-        {/* Footer */}
-        <div style={{ marginTop:18,paddingTop:14,borderTop:"1px solid #ffffff0f",display:"flex",alignItems:"center",justifyContent:"space-between" }}>
-          <div style={{ fontSize:11,color:"#3d3d55" }}>Generated by StudyOS</div>
-          <div style={{ fontSize:11,color:"#3d3d55" }}>{new Date().toLocaleDateString("en-IN",{ day:"numeric",month:"short",year:"numeric" })}</div>
-        </div>
-      </div>
-
-      {/* Streak motivation */}
-      <div className="card fade-up" style={{ background:"linear-gradient(135deg,var(--accentglow),var(--bg2))",border:"1px solid var(--border)",animationDelay:".1s" }}>
-        <div style={{ fontFamily:"Syne",fontWeight:700,fontSize:16,marginBottom:8 }}>
-          {overallScore>=70?"🔥 Great Week!":overallScore>=50?"📈 Keep Going!":"💡 Room to Improve"}
-        </div>
-        <div style={{ fontSize:13,color:"var(--text3)",lineHeight:1.6 }}>
-          {overallScore>=70
-            ? `You scored ${overallScore}/100 this week! Consistency is your superpower. Keep the streak alive! 🚀`
-            : overallScore>=50
-            ? `You scored ${overallScore}/100 — you're on the path. Focus on your weak areas next week. You've got this! 💪`
-            : `You scored ${overallScore}/100 — every champion starts somewhere. Build one habit at a time. Tomorrow is a new day! 🌅`
-          }
-        </div>
-      </div>
-
-      {/* Share Modal */}
-      {shareModal && shareUrl && (
-        <div className="modal-overlay" onClick={e => e.target===e.currentTarget && setShareModal(false)}>
-          <div className="modal" style={{ maxWidth:380 }}>
-            <div className="modal-title">📊 Report Ready!</div>
-            <div style={{ marginBottom:16 }}>
-              <img src={shareUrl} alt="report" style={{ width:"100%",borderRadius:12,border:"1px solid var(--border)" }}/>
-            </div>
-            <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
-              <button className="btn btn-primary" style={{ justifyContent:"center" }} onClick={shareNative}>
-                <Icon d={icons.share} size={15} stroke="#fff"/> Share via Apps (WhatsApp, Telegram...)
-              </button>
-              <button className="btn btn-ghost" style={{ justifyContent:"center" }} onClick={downloadImg}>
-                <Icon d={icons.download} size={15}/> Download PNG
-              </button>
-              <button className="btn btn-ghost" style={{ justifyContent:"center" }} onClick={() => setShareModal(false)}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── SETTINGS PAGE ────────────────────────────────────────────────────────────
-function SettingsPage({ profile, setProfile, onLogout, theme, setTheme, allData, onImport }) {
-  const [form, setForm] = useState(profile);
-  const [importError, setImportError] = useState("");
-  const [importOk, setImportOk] = useState(false);
-  const fileRef = useRef();
-  const importRef = useRef();
-
-  const handleAvatar = (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setForm(f => ({ ...f, avatar:ev.target.result }));
-    reader.readAsDataURL(file);
-  };
-
-  const exportData = () => {
-    const data = JSON.stringify(allData, null, 2);
-    const blob = new Blob([data], { type:"application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href=url; a.download=`StudyOS_backup_${today()}.json`; a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImport = (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    setImportError(""); setImportOk(false);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const data = JSON.parse(ev.target.result);
-        onImport(data);
-        setImportOk(true);
-        setTimeout(() => setImportOk(false), 3000);
-      } catch { setImportError("Invalid backup file. Please use a valid StudyOS JSON backup."); }
-    };
-    reader.readAsText(file);
-    e.target.value = "";
-  };
-
-  return (
-    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
-      <div className="section-title"><Icon d={icons.settings} size={16} stroke="var(--text2)"/> Settings</div>
-
-      {/* Profile */}
-      <div className="card fade-up">
-        <div style={{ fontFamily:"Syne",fontSize:15,fontWeight:700,marginBottom:16 }}>Profile</div>
-        <div style={{ display:"flex",alignItems:"center",gap:20,marginBottom:20 }}>
-          <div className="avatar-upload" onClick={() => fileRef.current.click()} style={{ width:80,height:80,borderRadius:16,margin:0 }}>
-            {form.avatar ? <img src={form.avatar} alt="profile"/> : <Icon d={icons.camera} size={20} stroke="var(--text3)"/>}
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleAvatar}/>
-          <div>
-            <div style={{ fontFamily:"Syne",fontWeight:700,fontSize:16 }}>{form.name}</div>
-            <div style={{ fontSize:13,color:"var(--text3)" }}>Class {form.class} {form.stream} • {form.target}</div>
-            <button className="btn btn-ghost btn-sm" style={{ marginTop:8 }} onClick={() => fileRef.current.click()}><Icon d={icons.upload} size={13}/> Change Photo</button>
-          </div>
-        </div>
-        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:14 }}>
-          <div><label className="label">Name</label><input className="input" value={form.name||""} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
-          <div><label className="label">School</label><input className="input" value={form.school||""} onChange={e=>setForm(f=>({...f,school:e.target.value}))}/></div>
-          <div><label className="label">Class</label><select className="input" value={form.class||"12"} onChange={e=>setForm(f=>({...f,class:e.target.value}))}><option>11</option><option>12</option></select></div>
-          <div><label className="label">Stream</label><select className="input" value={form.stream||"PCB"} onChange={e=>setForm(f=>({...f,stream:e.target.value}))}><option>PCB</option><option>PCM</option><option>PCMB</option></select></div>
-          <div style={{ gridColumn:"span 2" }}><label className="label">Target Exam</label><select className="input" value={form.target||"NEET 2025"} onChange={e=>setForm(f=>({...f,target:e.target.value}))}><option>NEET 2025</option><option>NEET 2026</option><option>AIIMS</option><option>JEE Main</option><option>JEE Advanced</option><option>Boards Only</option></select></div>
-        </div>
-        <button className="btn btn-primary" style={{ marginTop:16 }} onClick={() => setProfile(form)}>Save Changes</button>
-      </div>
-
-      {/* Themes */}
-      <div className="card fade-up" style={{ animationDelay:".04s" }}>
-        <div style={{ fontFamily:"Syne",fontSize:15,fontWeight:700,marginBottom:6,display:"flex",alignItems:"center",gap:8 }}><Icon d={icons.palette} size={16} stroke="var(--accent)"/> Theme & Appearance</div>
-        <div style={{ fontSize:12,color:"var(--text3)",marginBottom:16 }}>Choose your vibe. Changes apply instantly.</div>
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10 }}>
-          {Object.entries(THEMES).map(([key,t]) => (
-            <div key={key} className={`theme-card ${theme===key?"active":""}`} onClick={() => setTheme(key)}>
-              <span style={{ fontSize:24 }}>{t.emoji}</span>
-              <div style={{ fontSize:12,fontWeight:600,color:theme===key?"var(--accent2)":"var(--text2)" }}>{t.name}</div>
-              {theme===key && <div style={{ fontSize:10,color:"var(--accent2)",fontWeight:700 }}>✓ Active</div>}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Import / Export */}
-      <div className="card fade-up" style={{ animationDelay:".08s" }}>
-        <div style={{ fontFamily:"Syne",fontSize:15,fontWeight:700,marginBottom:6,display:"flex",alignItems:"center",gap:8 }}><Icon d={icons.download} size={16} stroke="var(--blue)"/> Data Backup</div>
-        <div style={{ fontSize:12,color:"var(--text3)",marginBottom:16 }}>Export your data as JSON, or restore from a backup.</div>
-        <div style={{ display:"flex",gap:10,flexWrap:"wrap" }}>
-          <button className="btn btn-ghost" onClick={exportData}><Icon d={icons.download} size={14}/> Export Backup</button>
-          <button className="btn btn-ghost" onClick={() => importRef.current.click()}><Icon d={icons.upload} size={14}/> Import Backup</button>
-          <input ref={importRef} type="file" accept=".json" style={{ display:"none" }} onChange={handleImport}/>
-        </div>
-        {importError && <div style={{ marginTop:10,fontSize:12,color:"var(--red)",background:"#ef444415",padding:"8px 12px",borderRadius:8 }}>{importError}</div>}
-        {importOk && <div style={{ marginTop:10,fontSize:12,color:"var(--green)",background:"#10b98115",padding:"8px 12px",borderRadius:8 }}>✅ Data imported successfully! Reload if needed.</div>}
-      </div>
-
-      {/* Notifications */}
-      <div className="card fade-up" style={{ animationDelay:".12s" }}>
-        <div style={{ fontFamily:"Syne",fontSize:15,fontWeight:700,marginBottom:16 }}>Dopamine Control Center</div>
-        {[
-          { label:"📵 Phone curfew reminder (10 PM)", key:"phoneCurfew" },
-          { label:"🔥 Daily streak notification", key:"streakNotif" },
-          { label:"📚 Class start reminder (10 min before)", key:"classReminder" },
-          { label:"💪 Workout reminder (6 AM)", key:"workoutReminder" },
-        ].map(s => (
-          <div key={s.key} style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 0",borderBottom:"1px solid var(--border)" }}>
-            <span style={{ fontSize:13.5 }}>{s.label}</span>
-            <button className={`toggle ${form[s.key]?"on":"off"}`} onClick={() => setForm(f => ({ ...f, [s.key]:!f[s.key] }))}/>
-          </div>
-        ))}
-      </div>
-
-      {/* Danger Zone */}
-      <div className="card fade-up" style={{ animationDelay:".16s",border:"1px solid #ef444420" }}>
-        <div style={{ fontFamily:"Syne",fontSize:15,fontWeight:700,marginBottom:8,color:"var(--red)" }}>Danger Zone</div>
-        <div style={{ fontSize:13,color:"var(--text3)",marginBottom:14 }}>This will clear all data and return to onboarding.</div>
-        <button className="btn btn-danger" onClick={onLogout}><Icon d={icons.trash} size={14} stroke="var(--red)"/> Reset All Data</button>
-      </div>
-    </div>
-  );
-}
-
-// ─── FOCUS MODE (POMODORO + DISTRACTION COUNTER) ────────────────────────────
-function FocusPage({focusLogs,setFocusLogs}){
-  const MODES=[{label:"25/5 Classic",work:25,rest:5},{label:"50/10 Deep Work",work:50,rest:10}];
-  const [mi,setMi]=useState(0);
-  const mode=MODES[mi];
-  const [phase,setPhase]=useState("work");
-  const [secs,setSecs]=useState(25*60);
-  const [running,setRunning]=useState(false);
-  const [sessions,setSessions]=useState(0);
-  const [distractions,setDistractions]=useState(0);
-  const tiRef=useRef(null);
-  const todayKey=today();
-  const total=phase==="work"?mode.work*60:mode.rest*60;
-  const pct=(secs/total)*100;
-  const R=110, circ=2*Math.PI*R;
-  const offset=circ*((100-pct)/100);
-
-  useEffect(()=>{
-    setSecs((phase==="work"?mode.work:mode.rest)*60);
-    setRunning(false); clearInterval(tiRef.current);
-  },[mi,phase]);
-
-  useEffect(()=>{
-    if(running){
-      tiRef.current=setInterval(()=>{
-        setSecs(s=>{
-          if(s<=1){ clearInterval(tiRef.current);
-            if(phase==="work"){setSessions(n=>n+1);spawnConfetti();setPhase("rest");}
-            else setPhase("work");
-            return 0;
-          }
-          return s-1;
-        });
-      },1000);
-    } else clearInterval(tiRef.current);
-    return ()=>clearInterval(tiRef.current);
-  },[running,phase]);
-
-  const mins=String(Math.floor(secs/60)).padStart(2,"0");
-  const sec2=String(secs%60).padStart(2,"0");
-  const focusScore=sessions>0?Math.max(0,Math.round(100-(distractions/sessions)*20)):100;
-  const logToday=focusLogs[todayKey]||{sessions:0,distractions:0};
-
-  const saveSession=()=>{
-    setFocusLogs(prev=>({...prev,[todayKey]:{sessions:(prev[todayKey]?.sessions||0)+sessions,distractions:(prev[todayKey]?.distractions||0)+distractions}}));
-    setSessions(0);setDistractions(0);setPhase("work");setRunning(false);setSecs(mode.work*60);
-  };
-
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:20,maxWidth:480,margin:"0 auto",width:"100%"}}>
-      <div style={{display:"flex",gap:8}}>
-        {MODES.map((m,i)=>(
-          <button key={i} className={`btn ${mi===i?"btn-primary":"btn-ghost"}`} style={{flex:1,justifyContent:"center",borderRadius:12}} onClick={()=>{setMi(i);setPhase("work");}}>
-            {m.label}
-          </button>
-        ))}
-      </div>
-      <div className="card" style={{textAlign:"center",padding:"36px 24px",background:phase==="work"?"linear-gradient(135deg,var(--accentglow),var(--bg2))":"linear-gradient(135deg,#10b98118,var(--bg2))"}}>
-        <div style={{marginBottom:14,fontSize:12,fontWeight:700,color:phase==="work"?"var(--accent2)":"var(--green)",textTransform:"uppercase",letterSpacing:".8px"}}>
-          {phase==="work"?"🎯 DEEP FOCUS":"☕ REST"}
-        </div>
-        <div className="pomo-ring" style={{margin:"0 auto 24px"}}>
-          <svg width={256} height={256}>
-            <circle cx={128} cy={128} r={R} fill="none" stroke="var(--bg4)" strokeWidth="10"/>
-            <circle cx={128} cy={128} r={R} fill="none" stroke={phase==="work"?"var(--accent)":"var(--green)"} strokeWidth="10"
-              strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-              style={{transition:"stroke-dashoffset .95s linear",filter:`drop-shadow(0 0 10px ${phase==="work"?"var(--accent)":"var(--green)"})`}}/>
-          </svg>
-          <div className="pomo-center">
-            <div className="pomo-time">{mins}:{sec2}</div>
-            <div className="pomo-label">{phase==="work"?"Focus":"Rest"}</div>
-          </div>
-        </div>
-        <div style={{display:"flex",gap:12,justifyContent:"center",marginBottom:20}}>
-          <button className="btn btn-primary" style={{borderRadius:99,padding:"12px 28px"}} onClick={()=>setRunning(r=>!r)}>
-            {running?"⏸ Pause":"▶ Start"}
-          </button>
-          <button className="btn btn-ghost" style={{borderRadius:99}} onClick={()=>{setRunning(false);setSecs((phase==="work"?mode.work:mode.rest)*60);}}>↺</button>
-        </div>
-        <div style={{display:"flex",justifyContent:"space-around",paddingTop:16,borderTop:"1px solid var(--border)"}}>
-          <div style={{textAlign:"center"}}>
-            <div style={{fontFamily:"Syne",fontSize:24,fontWeight:800,color:"var(--accent2)"}}>{sessions}</div>
-            <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>Sessions</div>
-          </div>
-          <div style={{textAlign:"center"}}>
-            <button onClick={()=>setDistractions(d=>d+1)} style={{background:"none",border:"none",cursor:"pointer"}}>
-              <div style={{fontFamily:"Syne",fontSize:24,fontWeight:800,color:"var(--red)"}}>{distractions}</div>
-              <div style={{fontSize:11,color:"var(--red)",marginTop:2,fontWeight:600}}>⚠️ I got distracted</div>
-            </button>
-          </div>
-          <div style={{textAlign:"center"}}>
-            <div style={{fontFamily:"Syne",fontSize:24,fontWeight:800,color:focusScore>=80?"var(--green)":focusScore>=50?"var(--amber)":"var(--red)"}}>{focusScore}</div>
-            <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>Focus Score</div>
-          </div>
-        </div>
-        {sessions>0&&<button className="btn btn-ghost" style={{marginTop:16,width:"100%",justifyContent:"center"}} onClick={saveSession}>💾 Save & Reset Session</button>}
-      </div>
-      <div className="card fade-up" style={{animationDelay:".08s"}}>
-        <div className="section-title">📊 Today's Stats</div>
-        <div className="grid-3">
-          {[
-            {label:"Sessions Done",value:logToday.sessions,color:"var(--accent2)"},
-            {label:"Distractions",value:logToday.distractions,color:"var(--red)"},
-            {label:"Focus Score",value:logToday.sessions>0?Math.max(0,Math.round(100-(logToday.distractions/logToday.sessions)*20)):"-",color:"var(--green)"},
-          ].map((s,i)=>(
-            <div key={i} style={{textAlign:"center",padding:"14px 8px",borderRadius:10,background:"var(--bg3)"}}>
-              <div style={{fontFamily:"Syne",fontSize:20,fontWeight:800,color:s.color}}>{s.value}</div>
-              <div style={{fontSize:10,color:"var(--text3)",marginTop:2}}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{marginTop:14,padding:"12px 14px",borderRadius:10,background:"var(--accentglow)",fontSize:12.5,color:"var(--text2)",lineHeight:1.65}}>
-          💡 <strong>How it works:</strong> Every time you feel like checking your phone or drifting mentally, tap "I got distracted". This gives you an honest Focus Score. The goal is to bring distractions to zero over time.
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── REVISION LAB (SPACED REPETITION) ────────────────────────────────────────
-function RevisionPage({flashcards,setFlashcards}){
-  const [showAdd,setShowAdd]=useState(false);
-  const [card,setCard]=useState({topic:"",subject:"Biology",confidence:3,notes:""});
-  const [filter,setFilter]=useState("all");
-  const todayKey=today();
-  const CONF_COLORS=["","#ef4444","#f97316","#f59e0b","#10b981","#3b82f6"];
-  const CONF_LABELS=["","Critical","Weak","Okay","Good","Mastered"];
-  const CONF_FREQ=["","daily","daily","every 3 days","weekly","weekly"];
-
-  const isDue=(c)=>{
-    if(!c.lastReviewed)return true;
-    const days=Math.floor((Date.now()-new Date(c.lastReviewed))/(864e5));
-    if(c.confidence<=2)return days>=1;
-    if(c.confidence===3)return days>=3;
-    return days>=7;
-  };
-  const review=(id,conf)=>setFlashcards(prev=>prev.map(c=>c.id===id?{...c,confidence:conf,lastReviewed:todayKey}:c));
-  const addCard=()=>{
-    if(!card.topic)return;
-    setFlashcards(prev=>[...prev,{...card,id:Date.now(),createdAt:todayKey,lastReviewed:null}]);
-    setCard({topic:"",subject:"Biology",confidence:3,notes:""});
-    setShowAdd(false);
-  };
-
-  const dueCards=flashcards.filter(isDue);
-  const shown=filter==="due"?dueCards:flashcards;
-
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:20}}>
-      <div className="grid-3 fade-up">
-        {[
-          {label:"Total Topics",value:flashcards.length,color:"var(--accent2)"},
-          {label:"Due Today",value:dueCards.length,color:"var(--red)"},
-          {label:"Mastered (4-5)",value:flashcards.filter(c=>c.confidence>=4).length,color:"var(--green)"},
-        ].map((s,i)=>(
-          <div key={i} className="stat-card" style={{animationDelay:`${i*.04}s`}}>
-            <div style={{fontFamily:"Syne",fontSize:26,fontWeight:800,color:s.color}}>{s.value}</div>
-            <div style={{fontSize:11,color:"var(--text3)",marginTop:3}}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
-        <div style={{display:"flex",gap:8}}>
-          {["all","due"].map(f=>(
-            <button key={f} className={`btn ${filter===f?"btn-primary":"btn-ghost"} btn-sm`} onClick={()=>setFilter(f)}>
-              {f==="all"?"All Topics":`Due Today (${dueCards.length})`}
-            </button>
-          ))}
-        </div>
-        <button className="btn btn-primary btn-sm" onClick={()=>setShowAdd(true)}>+ Add Topic</button>
-      </div>
-      <div className="card fade-up" style={{padding:"14px 18px",animationDelay:".04s"}}>
-        <div style={{fontSize:11,color:"var(--text3)",fontWeight:600,marginBottom:8}}>SPACED REPETITION SCHEDULE</div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-          {[1,2,3,4,5].map(n=>(
-            <div key={n} style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:99,background:CONF_COLORS[n]+"18",border:`1px solid ${CONF_COLORS[n]}40`,fontSize:11,fontWeight:600,color:CONF_COLORS[n]}}>
-              <div style={{width:8,height:8,borderRadius:"50%",background:CONF_COLORS[n]}}/>
-              {n}—{CONF_LABELS[n]} <span style={{color:"var(--text3)",fontWeight:400}}>({CONF_FREQ[n]})</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {shown.length===0&&(
-          <div className="card" style={{textAlign:"center",padding:"40px",color:"var(--text3)"}}>
-            <div style={{fontSize:48,marginBottom:12}}>🧠</div>
-            <div style={{fontFamily:"Syne",fontSize:16,fontWeight:700,marginBottom:6}}>No topics yet</div>
-            <div style={{fontSize:13}}>Add topics you've studied to start spaced repetition review</div>
-          </div>
-        )}
-        {shown.map((c,i)=>(
-          <div key={c.id} className="flashcard-item fade-up" style={{animationDelay:`${i*.03}s`}}>
-            <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:600,fontSize:14,marginBottom:4}}>{c.topic}</div>
-                <div style={{fontSize:11,color:"var(--text3)",display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-                  <span style={{padding:"1px 8px",borderRadius:99,background:c.subject==="Biology"?"#10b98120":c.subject==="Chemistry"?"#f59e0b20":"#3b82f620",color:c.subject==="Biology"?"#10b981":c.subject==="Chemistry"?"#f59e0b":"#3b82f6",fontWeight:600}}>{c.subject}</span>
-                  {c.lastReviewed&&<span>Last: {c.lastReviewed}</span>}
-                  {isDue(c)&&<span style={{color:"var(--red)",fontWeight:700}}>DUE NOW</span>}
-                  {c.notes&&<span style={{color:"var(--text3)"}}>📝 {c.notes.slice(0,40)}...</span>}
-                </div>
-              </div>
-              <button className="btn btn-icon btn-danger btn-sm" onClick={()=>setFlashcards(prev=>prev.filter(x=>x.id!==c.id))}><Icon d={icons.trash} size={12} stroke="var(--red)"/></button>
-            </div>
-            <div>
-              <div style={{fontSize:10,color:"var(--text3)",marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:".5px"}}>Rate your confidence:</div>
-              <div style={{display:"flex",gap:6}}>
-                {[1,2,3,4,5].map(n=>(
-                  <button key={n} className="conf-btn" onClick={()=>review(c.id,n)} style={{border:`1.5px solid ${c.confidence===n?CONF_COLORS[n]:"var(--border)"}`,background:c.confidence===n?CONF_COLORS[n]+"22":"var(--bg3)"}}>
-                    <div style={{width:10,height:10,borderRadius:"50%",background:CONF_COLORS[n]}}/>
-                    <div style={{fontSize:10,color:c.confidence===n?CONF_COLORS[n]:"var(--text3)",fontWeight:600}}>{n}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-      {showAdd&&(
-        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowAdd(false)}>
-          <div className="modal">
-            <div className="modal-title">📚 Add Topic to Revision Lab</div>
-            <div style={{display:"flex",flexDirection:"column",gap:14}}>
-              <div><label className="label">Topic / Concept</label><input className="input" placeholder="e.g. Krebs Cycle, Photorespiration" value={card.topic} onChange={e=>setCard(p=>({...p,topic:e.target.value}))}/></div>
-              <div><label className="label">Subject</label>
-                <select className="input" value={card.subject} onChange={e=>setCard(p=>({...p,subject:e.target.value}))}>
-                  <option>Biology</option><option>Chemistry</option><option>Physics</option><option>Organic Chemistry</option><option>Inorganic Chemistry</option>
-                </select>
-              </div>
-              <div>
-                <label className="label">Initial Confidence</label>
-                <div style={{display:"flex",gap:8,marginTop:6}}>
-                  {[1,2,3,4,5].map(n=>(
-                    <button key={n} onClick={()=>setCard(p=>({...p,confidence:n}))} style={{flex:1,padding:"12px 4px",borderRadius:10,border:`2px solid ${card.confidence===n?CONF_COLORS[n]:"var(--border)"}`,background:card.confidence===n?CONF_COLORS[n]+"22":"var(--bg3)",cursor:"pointer",fontFamily:"Syne",fontWeight:700,fontSize:15,color:card.confidence===n?CONF_COLORS[n]:"var(--text3)"}}>
-                      {n}
-                    </button>
-                  ))}
-                </div>
-                <div style={{textAlign:"center",fontSize:12,color:CONF_COLORS[card.confidence],fontWeight:600,marginTop:6}}>{CONF_LABELS[card.confidence]} — reviewed {CONF_FREQ[card.confidence]}</div>
-              </div>
-              <div><label className="label">Quick Notes (optional)</label><textarea className="notes-area" style={{minHeight:60}} placeholder="Key formula, mnemonic, etc." value={card.notes} onChange={e=>setCard(p=>({...p,notes:e.target.value}))}/></div>
-            </div>
-            <div style={{display:"flex",gap:10,marginTop:20}}>
-              <button className="btn btn-ghost" style={{flex:1,justifyContent:"center"}} onClick={()=>setShowAdd(false)}>Cancel</button>
-              <button className="btn btn-primary" style={{flex:2,justifyContent:"center"}} onClick={addCard}>Add to Lab</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── MAIN APP ─────────────────────────────────────────────────────────────────
-function App() {
-  const [onboarded, setOnboarded] = useState(() => storage.get("onboarded",false));
-  const [profile, setProfile] = useState(() => storage.get("profile",{}));
-  const [page, setPage] = useState("home");
-  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => storage.get("sidebarCollapsed",false)); // desktop
-  const [theme, setTheme] = useState(() => storage.get("theme","dark_purple"));
-  const [habits, setHabits] = useState(() => storage.get("habits",INITIAL_HABITS));
-  const [habitLogs, setHabitLogs] = useState(() => storage.get("habitLogs",{}));
-  const [lectures, setLectures] = useState(() => storage.get("lectures",INITIAL_LECTURES));
-  const [lectureProgress, setLectureProgress] = useState(() => storage.get("lectureProgress",{}));
-  const [notes, setNotes] = useState(() => storage.get("notes",{}));
-  const [exercises, setExercises] = useState(() => storage.get("exercises",INITIAL_WORKOUTS));
-  const [workoutLogs, setWorkoutLogs] = useState(() => storage.get("workoutLogs",{}));
-  const [goals, setGoals] = useState(() => storage.get("goals",INITIAL_GOALS));
-  const [flashcards, setFlashcards] = useState(() => storage.get("flashcards",[]));
-  const [focusLogs, setFocusLogs] = useState(() => storage.get("focusLogs",{}));
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-
-  useEffect(() => {
-    const fn = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener("resize",fn); return () => window.removeEventListener("resize",fn);
-  },[]);
-
-  useEffect(() => { storage.set("habits",habits); },[habits]);
-  useEffect(() => { storage.set("habitLogs",habitLogs); },[habitLogs]);
-  useEffect(() => { storage.set("lectures",lectures); },[lectures]);
-  useEffect(() => { storage.set("lectureProgress",lectureProgress); },[lectureProgress]);
-  useEffect(() => { storage.set("notes",notes); },[notes]);
-  useEffect(() => { storage.set("exercises",exercises); },[exercises]);
-  useEffect(() => { storage.set("workoutLogs",workoutLogs); },[workoutLogs]);
-  useEffect(() => { storage.set("goals",goals); },[goals]);
-  useEffect(() => { storage.set("flashcards",flashcards); },[flashcards]);
-  useEffect(() => { storage.set("focusLogs",focusLogs); },[focusLogs]);
-  useEffect(() => { storage.set("profile",profile); },[profile]);
-  useEffect(() => { storage.set("theme",theme); },[theme]);
-  useEffect(() => { storage.set("sidebarCollapsed",sidebarCollapsed); },[sidebarCollapsed]);
-
-  const handleThemeChange = (t) => { setTheme(t); storage.set("theme",t); };
-
-  const handleOnboardComplete = (data) => { setProfile(data); setOnboarded(true); storage.set("onboarded",true); };
-  const handleLogout = () => {
-    localStorage.clear(); setOnboarded(false); setProfile({});
-    setHabits(INITIAL_HABITS); setHabitLogs({}); setLectures(INITIAL_LECTURES);
-    setLectureProgress({}); setNotes({}); setExercises(INITIAL_WORKOUTS);
-    setWorkoutLogs({}); setGoals(INITIAL_GOALS); setFlashcards([]); setFocusLogs({}); setTheme("dark_purple");
-  };
-
-  const allData = { profile,habits,habitLogs,lectures,lectureProgress,notes,exercises,workoutLogs,goals,flashcards,focusLogs };
-  const xp = useMemo(()=>computeXP(habitLogs,habits,workoutLogs,lectureProgress,lectures),[habitLogs,habits,workoutLogs,lectureProgress,lectures]);
-  const handleImport = (data) => {
-    if (data.profile) { setProfile(data.profile); storage.set("profile",data.profile); }
-    if (data.habits) { setHabits(data.habits); storage.set("habits",data.habits); }
-    if (data.habitLogs) { setHabitLogs(data.habitLogs); storage.set("habitLogs",data.habitLogs); }
-    if (data.lectures) { setLectures(data.lectures); storage.set("lectures",data.lectures); }
-    if (data.lectureProgress) { setLectureProgress(data.lectureProgress); storage.set("lectureProgress",data.lectureProgress); }
-    if (data.notes) { setNotes(data.notes); storage.set("notes",data.notes); }
-    if (data.exercises) { setExercises(data.exercises); storage.set("exercises",data.exercises); }
-    if (data.workoutLogs) { setWorkoutLogs(data.workoutLogs); storage.set("workoutLogs",data.workoutLogs); }
-    if (data.goals) { setGoals(data.goals); storage.set("goals",data.goals); }
-    if (data.flashcards) { setFlashcards(data.flashcards); storage.set("flashcards",data.flashcards); }
-    if (data.focusLogs) { setFocusLogs(data.focusLogs); storage.set("focusLogs",data.focusLogs); }
-  };
-
-  const navItems = [
-    { id:"home", label:"Dashboard", icon:"home" },
-    { id:"schedule", label:"Schedule", icon:"schedule" },
-    { id:"habits", label:"Habits", icon:"habits" },
-    { id:"lectures", label:"Lectures", icon:"lectures" },
-    { id:"workout", label:"Workout", icon:"workout" },
-    { id:"goals", label:"Goals", icon:"goals" },
-    { id:"notes", label:"Notes", icon:"notes" },
-    { id:"analytics", label:"Analytics", icon:"analytics" },
-    { id:"profile", label:"Profile", icon:"profile" },
-    { id:"focus", label:"Focus Mode", icon:"timer" },
-    { id:"revision", label:"Revision Lab", icon:"star" },
-    { id:"report", label:"Weekly Report", icon:"report" },
-    { id:"settings", label:"Settings", icon:"settings" },
-  ];
-  const pageTitles = { home:"Dashboard",schedule:"Schedule",habits:"Habits",lectures:"Lectures",workout:"Workout",goals:"Goals",notes:"Notes",analytics:"Analytics",profile:"Profile",focus:"Focus Mode",revision:"Revision Lab",report:"Weekly Report",settings:"Settings" };
-
-  const navigateTo = (id) => { setPage(id); setSidebarOpen(false); };
-
-  if (!onboarded) return <><style>{getCSS(theme)}</style><Onboarding onComplete={handleOnboardComplete}/></>;
-  const mobileNav = [
-    {id:"home",label:"Home",icon:"home"},
-    {id:"habits",label:"Habits",icon:"habits"},
-    {id:"focus",label:"Focus",icon:"timer"},
-    {id:"revision",label:"Revision",icon:"star"},
-    {id:"analytics",label:"Stats",icon:"analytics"},
-  ];
-
-  return (
-    <>
-      <style>{getCSS(theme)}</style>
-      <div className="app">
-        {/* Mobile overlay */}
-        <div className={`sidebar-overlay ${isMobile && sidebarOpen?"visible":""}`} onClick={() => setSidebarOpen(false)}/>
-
-        {/* Sidebar */}
-        <div className={`sidebar ${!isMobile && sidebarCollapsed?"collapsed":""} ${isMobile && sidebarOpen?"mobile-open":""}`}>
-          <div className="sidebar-header">
-            <div className="sidebar-logo"><Icon d={icons.brain} size={18} stroke="#fff"/></div>
-            <div className="sidebar-title">StudyOS</div>
-            {/* Desktop collapse btn */}
-            {!isMobile && (
-              <button onClick={() => setSidebarCollapsed(c => !c)} style={{ display:"flex",alignItems:"center",justifyContent:"center",width:26,height:26,borderRadius:6,border:"1px solid var(--border)",background:"var(--bg3)",cursor:"pointer",color:"var(--text3)",flexShrink:0,transition:"all .2s" }}>
-                <Icon d={sidebarCollapsed ? icons.chevronRight : icons.chevronLeft} size={14} stroke="currentColor"/>
-              </button>
-            )}
-            {/* Mobile close btn */}
-            {isMobile && (
-              <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)}>
-                <Icon d={icons.close} size={18} stroke="currentColor"/>
-              </button>
-            )}
-          </div>
-          <nav className="sidebar-nav">
-            {navItems.map(item => (
-              <div key={item.id} className={`nav-item ${page===item.id?"active":""}`} onClick={() => navigateTo(item.id)} title={!isMobile && sidebarCollapsed ? item.label : ""}>
-                <div className="nav-icon"><Icon d={icons[item.icon]} size={18} stroke="currentColor"/></div>
-                <span className="nav-label">{item.label}</span>
-              </div>
-            ))}
-          </nav>
-          <div className="sidebar-footer">
-            <div className="profile-mini" onClick={() => navigateTo("profile")}>
-              <div className="profile-avatar">
-                {profile.avatar ? <img src={profile.avatar} alt="profile"/> : <Icon d={icons.user} size={18} stroke="var(--text3)"/>}
-              </div>
-              <div className="profile-info">
-                <div className="profile-name">{profile.name||"Student"}</div>
-                <div className="profile-sub">Class {profile.class} {profile.stream}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Main */}
-        <div className="main">
-          <div className="topbar">
-            <div className="topbar-left">
-              <div className="icon-btn" onClick={() => isMobile ? setSidebarOpen(o=>!o) : setSidebarCollapsed(c=>!c)}>
-                <Icon d={icons.menu} size={17} stroke="currentColor"/>
-              </div>
-              <div className="page-title">{pageTitles[page]}</div>
-            </div>
-            <div className="topbar-right">
-              <div className="topbar-date" style={{ display:window.innerWidth<480?"none":"flex" }}>{todayLabel()}</div>
-              <div className="streak-badge" style={{ fontSize:12,padding:"4px 10px" }}>
-                <Icon d={icons.fire} size={13} stroke="var(--red)" fill="var(--red)"/> {getStreak(workoutLogs)}d
-              </div>
-              {/* Theme quick toggle */}
-              <div className="icon-btn" onClick={() => {
-                const keys=Object.keys(THEMES); const i=keys.indexOf(theme); handleThemeChange(keys[(i+1)%keys.length]);
-              }} title="Switch Theme" style={{ fontSize:16 }}>
-                {THEMES[theme]?.emoji||"🌙"}
-              </div>
-            </div>
-          </div>
-          <div className="content" key={page}>
-            {page==="home" && <HomePage profile={profile} habits={habits} habitLogs={habitLogs} setHabitLogs={setHabitLogs} lectures={lectures} lectureProgress={lectureProgress} workoutLogs={workoutLogs} goals={goals} xp={xp} onNavigate={id=>setPage(id)}/>}
-            {page==="schedule" && <SchedulePage/>}
-            {page==="habits" && <HabitsPage habits={habits} setHabits={setHabits} habitLogs={habitLogs} setHabitLogs={setHabitLogs}/>}
-            {page==="lectures" && <LecturesPage lectures={lectures} setLectures={setLectures} lectureProgress={lectureProgress} setLectureProgress={setLectureProgress} notes={notes} setNotes={setNotes}/>}
-            {page==="workout" && <WorkoutPage exercises={exercises} setExercises={setExercises} workoutLogs={workoutLogs} setWorkoutLogs={setWorkoutLogs}/>}
-            {page==="goals" && <GoalsPage goals={goals} setGoals={setGoals}/>}
-            {page==="notes" && <NotesPage notes={notes} setNotes={setNotes} lectures={lectures}/>}
-            {page==="analytics" && <AnalyticsPage habitLogs={habitLogs} habits={habits} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} focusLogs={focusLogs} xp={xp}/>}
-            {page==="focus" && <FocusPage focusLogs={focusLogs} setFocusLogs={setFocusLogs}/>}
-            {page==="revision" && <RevisionPage flashcards={flashcards} setFlashcards={setFlashcards}/>}
-            {page==="profile" && <ProfilePage profile={profile} setProfile={setProfile} habitLogs={habitLogs} habits={habits} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} goals={goals} xp={xp}/>}
-            {page==="report" && <WeeklyReportPage profile={profile} habits={habits} habitLogs={habitLogs} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} goals={goals}/>}
-            {page==="settings" && <SettingsPage profile={profile} setProfile={setProfile} onLogout={handleLogout} theme={theme} setTheme={handleThemeChange} allData={allData} onImport={handleImport}/>}
-          </div>
-        </div>
-      </div>
-      {/* Mobile Bottom Nav */}
-      <div className="bottom-nav">
-        <div className="bn-inner">
-          {mobileNav.map(item=>(
-            <div key={item.id} className={`bn-item ${page===item.id?"active":""}`} onClick={()=>{setPage(item.id);setSidebarOpen(false);}}>
-              <Icon d={icons[item.icon]} size={20} stroke="currentColor"/>
-              <div className="bn-label">{item.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </>
-  );
-}
-
-const bootEl = document.getElementById("boot-screen");
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App/>);
-if(bootEl) setTimeout(()=>{ bootEl.style.transition="opacity .4s"; bootEl.style.opacity="0"; setTimeout(()=>bootEl.remove(),400); },300);
-  
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+render();
 </script>
 </body>
 </html>
