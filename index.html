@@ -178,7 +178,6 @@ const RANKS = [
   { level:10,name:"AIIMS Material",minXP:15000, emoji:"🏆", color:"#a78bfa" },
 ];
 const XP_VALS = { habit:10, lecture:50, workout:30 };
-const CYBERPUNK_THEMES = ["cyberpunk","nordic"];
 // Add cyberpunk+nordic themes
 THEMES.cyberpunk = { name:"Cyberpunk",emoji:"⚡","--bg":"#08000f","--bg2":"#0d0018","--bg3":"#130022","--bg4":"#1a002e","--border":"#ff00ff18","--border2":"#ff00ff30","--text":"#f0f0ff","--text2":"#cc88ff","--text3":"#8844aa","--accent":"#ff00ff","--accent2":"#00ffff","--accentglow":"#ff00ff50","--sidebar-bg":"#0d0018","--topbar-bg":"#0d0018" };
 THEMES.nordic = { name:"Nordic Frost",emoji:"❄️","--bg":"#1a1f2e","--bg2":"#222838","--bg3":"#2a3348","--bg4":"#333f58","--border":"#3d4f6a","--border2":"#4a6080","--text":"#eceff4","--text2":"#aab4c8","--text3":"#6a7d99","--accent":"#88c0d0","--accent2":"#81a1c1","--accentglow":"#88c0d040","--sidebar-bg":"#222838","--topbar-bg":"#222838" };
@@ -213,6 +212,406 @@ const storage = {
   get: (k, def) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
+
+// ─── AUTH SYSTEM ─────────────────────────────────────────────────────────────
+// Permission keys available for admins
+const ALL_PERMISSIONS = [
+  { key:"schedule",   label:"Schedule",     icon:"schedule"  },
+  { key:"habits",     label:"Habits",       icon:"habits"    },
+  { key:"lectures",   label:"Lectures",     icon:"lectures"  },
+  { key:"workout",    label:"Workout",      icon:"workout"   },
+  { key:"goals",      label:"Goals",        icon:"goals"     },
+  { key:"notes",      label:"Notes",        icon:"notes"     },
+  { key:"analytics",  label:"Analytics",    icon:"analytics" },
+  { key:"focus",      label:"Focus Mode",   icon:"timer"     },
+  { key:"revision",   label:"Revision Lab", icon:"star"      },
+  { key:"report",     label:"Weekly Report",icon:"report"    },
+  { key:"settings",   label:"Settings",     icon:"settings"  },
+];
+const MAX_ADMINS = 10;
+const MAX_OWNER_LOGINS_PER_DAY = 4;
+
+const DEFAULT_AUTH = {
+  owner: { username:"owner", password:"owner123", role:"owner" },
+  admins: [] // Array of { id, username, password, displayName, permissions:[], active:true }
+};
+
+const getAuth   = () => storage.get("studyos_auth", DEFAULT_AUTH);
+const setAuth   = (d) => storage.set("studyos_auth", d);
+const getSessions = () => storage.get("studyos_sessions", {});
+const setSessions = (s) => storage.set("studyos_sessions", s);
+
+function getOwnerLoginsToday() {
+  const todayKey = new Date().toISOString().split("T")[0];
+  return getSessions()[todayKey] || 0;
+}
+function recordOwnerLogin() {
+  const s = getSessions();
+  const todayKey = new Date().toISOString().split("T")[0];
+  s[todayKey] = (s[todayKey] || 0) + 1;
+  setSessions(s);
+}
+// Check if admin has a permission (owner always has all)
+function hasPermission(currentUser, page) {
+  if (!currentUser) return false;
+  if (currentUser.role === "owner") return true;
+  return (currentUser.permissions || []).includes(page);
+}
+
+// ─── LOGIN SCREEN ─────────────────────────────────────────────────────────────
+function LoginScreen({ onLogin }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError]       = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [showPass, setShowPass] = useState(false);
+
+  const handleLogin = () => {
+    setError(""); setLoading(true);
+    setTimeout(() => {
+      const auth = getAuth();
+      // Owner check
+      if (username === auth.owner.username && password === auth.owner.password) {
+        if (getOwnerLoginsToday() >= MAX_OWNER_LOGINS_PER_DAY) {
+          setError(`Owner login limit reached! Only ${MAX_OWNER_LOGINS_PER_DAY} logins allowed for today. Please try again tomorrow. 🔒`);
+          setLoading(false); return;
+        }
+        recordOwnerLogin();
+        onLogin({ role:"owner", username:auth.owner.username, id:"owner", permissions: ALL_PERMISSIONS.map(p=>p.key) });
+        return;
+      }
+      // Admin check
+      const admin = (auth.admins||[]).find(a => a.active && a.username === username && a.password === password);
+      if (admin) {
+        onLogin({ role:"admin", username:admin.username, displayName:admin.displayName, id:admin.id, permissions:admin.permissions||[] });
+        return;
+      }
+      setError("Incorrect username or password. Please try again. ❌");
+      setLoading(false);
+    }, 600);
+  };
+
+  const remainingOwner = MAX_OWNER_LOGINS_PER_DAY - getOwnerLoginsToday();
+
+  return (
+    <div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",padding:24}}>
+      <div style={{width:"100%",maxWidth:420,animation:"fadeUp .5s cubic-bezier(.16,1,.3,1)"}}>
+        <div style={{textAlign:"center",marginBottom:32}}>
+          <div style={{width:72,height:72,borderRadius:20,background:"linear-gradient(135deg,var(--accent),var(--pink))",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",boxShadow:"0 8px 32px var(--accentglow)"}}>
+            <Icon d={icons.brain} size={30} stroke="#fff"/>
+          </div>
+          <div style={{fontFamily:"Syne",fontSize:26,fontWeight:800,marginBottom:4}}>StudyOS</div>
+          <div style={{color:"var(--text3)",fontSize:13}}>Command Center — Secure Access</div>
+        </div>
+        <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:20,padding:28}}>
+          <div style={{fontFamily:"Syne",fontSize:16,fontWeight:700,marginBottom:18}}>🔐 Login</div>
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <div>
+              <label className="label">Username</label>
+              <input className="input" placeholder="Enter username" value={username}
+                onChange={e=>{setUsername(e.target.value);setError("");}}
+                onKeyDown={e=>e.key==="Enter"&&handleLogin()}/>
+            </div>
+            <div>
+              <label className="label">Password</label>
+              <div style={{position:"relative"}}>
+                <input className="input" type={showPass?"text":"password"} placeholder="Enter password"
+                  value={password} onChange={e=>{setPassword(e.target.value);setError("");}}
+                  onKeyDown={e=>e.key==="Enter"&&handleLogin()} style={{paddingRight:44}}/>
+                <button onClick={()=>setShowPass(s=>!s)} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--text3)",fontSize:16}}>
+                  {showPass?"🙈":"👁️"}
+                </button>
+              </div>
+            </div>
+          </div>
+          {error && (
+            <div style={{marginTop:12,padding:"10px 14px",background:"#ef444418",border:"1px solid #ef444440",borderRadius:10,fontSize:13,color:"var(--red)",lineHeight:1.5}}>
+              {error}
+            </div>
+          )}
+          <button className="btn btn-primary" onClick={handleLogin} disabled={loading||!username||!password}
+            style={{width:"100%",justifyContent:"center",marginTop:18,padding:14,fontSize:15,fontWeight:700}}>
+            {loading?<><div style={{width:16,height:16,border:"2px solid #fff4",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin .6s linear infinite"}}/> Verifying...</>:"🚀 Login"}
+          </button>
+          <div style={{marginTop:16,padding:"10px 14px",background:"var(--bg3)",borderRadius:10,fontSize:12,color:"var(--text3)",lineHeight:1.9}}>
+            <div>👑 <strong style={{color:"var(--text2)"}}>Owner:</strong> {remainingOwner}/{MAX_OWNER_LOGINS_PER_DAY} logins remaining today</div>
+            <div>🛡️ <strong style={{color:"var(--text2)"}}>Admin:</strong> Unlimited logins • Get credentials from Owner</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── CHANGE MY CREDENTIALS MODAL ──────────────────────────────────────────────
+function ChangeCredentialsModal({ currentUser, onClose }) {
+  const auth = getAuth();
+  const isOwner = currentUser.role === "owner";
+  const myData = isOwner ? auth.owner : (auth.admins||[]).find(a=>a.id===currentUser.id);
+  const [form, setForm] = useState({ username: myData?.username||"", displayName: myData?.displayName||"", password:"", confirmPass:"" });
+  const [error, setError]     = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const save = () => {
+    setError("");
+    if (!form.username.trim()) { setError("Username cannot be blank."); return; }
+    if (form.password && form.password !== form.confirmPass) { setError("Passwords do not match!"); return; }
+    if (form.password && form.password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    const newAuth = { ...getAuth() };
+    if (isOwner) {
+      newAuth.owner = { ...newAuth.owner, username: form.username.trim(), ...(form.password?{password:form.password}:{}) };
+    } else {
+      newAuth.admins = (newAuth.admins||[]).map(a => a.id===currentUser.id
+        ? { ...a, username:form.username.trim(), displayName:form.displayName||form.username, ...(form.password?{password:form.password}:{}) }
+        : a
+      );
+    }
+    setAuth(newAuth);
+    setSuccess(true);
+    setTimeout(onClose, 1400);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal" style={{maxWidth:380}}>
+        <div className="modal-title">🔑 Change Your Credentials</div>
+        <div style={{fontSize:12,color:"var(--text3)",marginBottom:16}}>{isOwner?"👑 Owner":"🛡️ Admin"} account update</div>
+        {success ? (
+          <div style={{textAlign:"center",padding:"20px 0",color:"var(--green)",fontFamily:"Syne",fontSize:16,fontWeight:700}}>✅ Credentials updated successfully!</div>
+        ) : (
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            {!isOwner && <div><label className="label">Display Name</label><input className="input" value={form.displayName} placeholder="e.g. Rahul" onChange={e=>setForm(f=>({...f,displayName:e.target.value}))}/></div>}
+            <div><label className="label">Username</label><input className="input" value={form.username} onChange={e=>setForm(f=>({...f,username:e.target.value}))}/></div>
+            <div><label className="label">New Password (leave blank to keep unchanged)</label><input className="input" type="password" placeholder="New password..." value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}/></div>
+            {form.password && <div><label className="label">Confirm Password</label><input className="input" type="password" placeholder="Confirm..." value={form.confirmPass} onChange={e=>setForm(f=>({...f,confirmPass:e.target.value}))}/></div>}
+            {error && <div style={{padding:"8px 12px",background:"#ef444418",border:"1px solid #ef444440",borderRadius:8,fontSize:12,color:"var(--red)"}}>⚠️ {error}</div>}
+            <div style={{display:"flex",gap:10,marginTop:4}}>
+              <button className="btn btn-ghost" style={{flex:1,justifyContent:"center"}} onClick={onClose}>Cancel</button>
+              <button className="btn btn-primary" style={{flex:2,justifyContent:"center"}} onClick={save}>💾 Save</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── ADMIN MANAGER (Owner Only) ───────────────────────────────────────────────
+function AdminManagerModal({ onClose }) {
+  const [admins, setAdmins]       = useState(() => getAuth().admins || []);
+  const [view, setView]           = useState("list"); // "list" | "add" | "edit"
+  const [editTarget, setEditTarget] = useState(null);
+  const [form, setForm]           = useState({ username:"", displayName:"", password:"", confirmPass:"", permissions:[] });
+  const [error, setError]         = useState("");
+  const [success, setSuccess]     = useState("");
+
+  const refreshAdmins = () => setAdmins(getAuth().admins||[]);
+
+  const saveAuth = (newAdmins) => {
+    const auth = getAuth();
+    auth.admins = newAdmins;
+    setAuth(auth);
+    setAdmins(newAdmins);
+  };
+
+  const togglePerm = (key) => {
+    setForm(f => ({
+      ...f,
+      permissions: f.permissions.includes(key) ? f.permissions.filter(p=>p!==key) : [...f.permissions, key]
+    }));
+  };
+
+  const openAdd = () => {
+    setForm({ username:"", displayName:"", password:"", confirmPass:"", permissions:[] });
+    setError(""); setView("add");
+  };
+
+  const openEdit = (admin) => {
+    setEditTarget(admin);
+    setForm({ username:admin.username, displayName:admin.displayName||"", password:"", confirmPass:"", permissions:[...(admin.permissions||[])] });
+    setError(""); setView("edit");
+  };
+
+  const addAdmin = () => {
+    setError("");
+    if (!form.username.trim()) { setError("Username required."); return; }
+    if (!form.password) { setError("Password required."); return; }
+    if (form.password !== form.confirmPass) { setError("Passwords do not match!"); return; }
+    if (form.password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    const auth = getAuth();
+    if ((auth.admins||[]).length >= MAX_ADMINS) { setError(`Maximum ${MAX_ADMINS} admins can be added!`); return; }
+    const exists = (auth.admins||[]).find(a=>a.username===form.username.trim());
+    if (exists) { setError("This username already exists."); return; }
+    const newAdmin = {
+      id: "adm_"+Date.now(),
+      username: form.username.trim(),
+      displayName: form.displayName.trim() || form.username.trim(),
+      password: form.password,
+      permissions: form.permissions,
+      active: true,
+      createdAt: new Date().toISOString()
+    };
+    const newAdmins = [...(auth.admins||[]), newAdmin];
+    saveAuth(newAdmins);
+    setSuccess(`✅ Admin "${newAdmin.displayName}" added successfully!`);
+    setTimeout(()=>{setSuccess("");setView("list");},1500);
+  };
+
+  const updateAdmin = () => {
+    setError("");
+    if (!form.username.trim()) { setError("Username required."); return; }
+    if (form.password && form.password !== form.confirmPass) { setError("Passwords do not match!"); return; }
+    if (form.password && form.password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    const auth = getAuth();
+    const conflict = (auth.admins||[]).find(a=>a.username===form.username.trim()&&a.id!==editTarget.id);
+    if (conflict) { setError("This username belongs to another admin."); return; }
+    const newAdmins = (auth.admins||[]).map(a => a.id===editTarget.id ? {
+      ...a,
+      username: form.username.trim(),
+      displayName: form.displayName.trim() || form.username.trim(),
+      permissions: form.permissions,
+      ...(form.password?{password:form.password}:{})
+    } : a);
+    saveAuth(newAdmins);
+    setSuccess(`✅ Admin "${form.displayName||form.username}" updated successfully!`);
+    setTimeout(()=>{setSuccess("");setView("list");},1500);
+  };
+
+  const toggleActive = (admin) => {
+    const newAdmins = (getAuth().admins||[]).map(a=>a.id===admin.id?{...a,active:!a.active}:a);
+    saveAuth(newAdmins);
+  };
+
+  const removeAdmin = (admin) => {
+    if(!window.confirm(`Are you sure you want to permanently delete "${admin.displayName||admin.username}"?`)) return;
+    const newAdmins = (getAuth().admins||[]).filter(a=>a.id!==admin.id);
+    saveAuth(newAdmins);
+  };
+
+  const permColor = "#7c6fff";
+
+  return (
+    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal" style={{maxWidth:520,maxHeight:"90vh",overflowY:"auto"}}>
+
+        {/* Header */}
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+          <div style={{flex:1}}>
+            <div className="modal-title" style={{marginBottom:2}}>👑 Admin Manager</div>
+            <div style={{fontSize:12,color:"var(--text3)"}}>{admins.length}/{MAX_ADMINS} admins • Owner supreme control</div>
+          </div>
+          {view!=="list" && (
+            <button className="btn btn-ghost btn-sm" onClick={()=>{setView("list");setError("");}}>← Back</button>
+          )}
+        </div>
+
+        {success && <div style={{padding:"10px 14px",background:"#10b98118",border:"1px solid #10b98140",borderRadius:10,fontSize:13,color:"var(--green)",marginBottom:16}}>{success}</div>}
+
+        {/* LIST VIEW */}
+        {view==="list" && (
+          <>
+            {admins.length===0 ? (
+              <div style={{textAlign:"center",padding:"32px 0",color:"var(--text3)"}}>
+                <div style={{fontSize:40,marginBottom:12}}>🛡️</div>
+                <div style={{fontFamily:"Syne",fontWeight:700,marginBottom:6}}>No admins yet</div>
+                <div style={{fontSize:13}}>Click "+ Add Admin" below to create the first admin</div>
+              </div>
+            ) : (
+              <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
+                {admins.map(admin=>(
+                  <div key={admin.id} style={{padding:"12px 14px",background:"var(--bg3)",borderRadius:12,border:`1px solid ${admin.active?"var(--border)":"#ef444420"}`}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <div style={{width:36,height:36,borderRadius:10,background:admin.active?"var(--accentglow)":"#ef444415",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>
+                        🛡️
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:700,fontSize:14,display:"flex",alignItems:"center",gap:8}}>
+                          {admin.displayName||admin.username}
+                          {!admin.active && <span style={{fontSize:10,padding:"2px 8px",borderRadius:99,background:"#ef444420",color:"var(--red)"}}>Disabled</span>}
+                        </div>
+                        <div style={{fontSize:12,color:"var(--text3)"}}>@{admin.username}</div>
+                        <div style={{marginTop:6,display:"flex",flexWrap:"wrap",gap:4}}>
+                          {(admin.permissions||[]).length===0
+                            ? <span style={{fontSize:11,color:"var(--red)"}}>No permissions</span>
+                            : (admin.permissions||[]).map(p=>{
+                                const pdef=ALL_PERMISSIONS.find(x=>x.key===p);
+                                return <span key={p} style={{fontSize:10,padding:"2px 8px",borderRadius:99,background:permColor+"20",color:permColor,fontWeight:600}}>{pdef?.label||p}</span>;
+                              })
+                          }
+                        </div>
+                      </div>
+                      <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                        <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(admin)} title="Edit"><Icon d={icons.edit} size={13}/></button>
+                        <button onClick={()=>toggleActive(admin)} className="btn btn-sm"
+                          style={{background:admin.active?"#ef444415":"#10b98115",color:admin.active?"var(--red)":"var(--green)",border:`1px solid ${admin.active?"#ef444430":"#10b98130"}`,fontSize:11}}>
+                          {admin.active?"Disable":"Enable"}
+                        </button>
+                        <button className="btn btn-icon btn-danger btn-sm" onClick={()=>removeAdmin(admin)} title="Delete"><Icon d={icons.trash} size={13} stroke="var(--red)"/></button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button className="btn btn-primary" style={{width:"100%",justifyContent:"center"}}
+              disabled={admins.length>=MAX_ADMINS} onClick={openAdd}>
+              <Icon d={icons.plus} size={15} stroke="#fff"/> Add New Admin {admins.length>=MAX_ADMINS&&`(Limit: ${MAX_ADMINS})`}
+            </button>
+          </>
+        )}
+
+        {/* ADD / EDIT FORM */}
+        {(view==="add"||view==="edit") && (
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div><label className="label">Display Name</label><input className="input" placeholder="e.g. Rahul" value={form.displayName} onChange={e=>setForm(f=>({...f,displayName:e.target.value}))}/></div>
+              <div><label className="label">Username *</label><input className="input" placeholder="login username" value={form.username} onChange={e=>setForm(f=>({...f,username:e.target.value}))}/></div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div><label className="label">{view==="add"?"Password *":"New Password (optional)"}</label><input className="input" type="password" placeholder="password..." value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}/></div>
+              <div><label className="label">Confirm Password</label><input className="input" type="password" placeholder="confirm..." value={form.confirmPass} onChange={e=>setForm(f=>({...f,confirmPass:e.target.value}))}/></div>
+            </div>
+
+            {/* Permissions */}
+            <div>
+              <label className="label" style={{marginBottom:10}}>
+                Permissions — {form.permissions.length}/{ALL_PERMISSIONS.length} pages access
+                <button onClick={()=>setForm(f=>({...f,permissions:f.permissions.length===ALL_PERMISSIONS.length?[]:ALL_PERMISSIONS.map(p=>p.key)}))}
+                  style={{marginLeft:10,fontSize:10,padding:"2px 8px",borderRadius:99,background:"var(--accentglow)",border:"1px solid var(--border)",color:"var(--accent2)",cursor:"pointer",fontWeight:700}}>
+                  {form.permissions.length===ALL_PERMISSIONS.length?"Deselect All":"Select All"}
+                </button>
+              </label>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {ALL_PERMISSIONS.map(p=>{
+                  const on=form.permissions.includes(p.key);
+                  return (
+                    <div key={p.key} onClick={()=>togglePerm(p.key)}
+                      style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:10,border:`1.5px solid ${on?permColor+"60":"var(--border)"}`,background:on?permColor+"12":"var(--bg3)",cursor:"pointer",transition:"all .15s"}}>
+                      <div style={{width:18,height:18,borderRadius:5,border:`2px solid ${on?permColor:"var(--border2)"}`,background:on?permColor:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .15s"}}>
+                        {on&&<Icon d={icons.check} size={10} stroke="#fff" strokeWidth={3}/>}
+                      </div>
+                      <Icon d={icons[p.icon]||icons.star} size={13} stroke={on?permColor:"var(--text3)"}/>
+                      <span style={{fontSize:12,fontWeight:600,color:on?permColor:"var(--text2)"}}>{p.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {error && <div style={{padding:"8px 12px",background:"#ef444418",border:"1px solid #ef444440",borderRadius:8,fontSize:12,color:"var(--red)"}}>⚠️ {error}</div>}
+
+            <div style={{display:"flex",gap:10,marginTop:4}}>
+              <button className="btn btn-ghost" style={{flex:1,justifyContent:"center"}} onClick={()=>{setView("list");setError("");}}>Cancel</button>
+              <button className="btn btn-primary" style={{flex:2,justifyContent:"center"}} onClick={view==="add"?addAdmin:updateAdmin}>
+                {view==="add"?"✅ Add Admin":"💾 Save Changes"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ─── INITIAL DATA ─────────────────────────────────────────────────────────────
 const INITIAL_HABITS = [
@@ -266,6 +665,8 @@ const today = () => new Date().toISOString().split("T")[0];
 const todayLabel = () => new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" });
 const getStreak = (logs) => {
   let streak = 0; const d = new Date();
+  // If today not logged yet, start checking from yesterday so streak isn't prematurely reset
+  if (!logs[d.toISOString().split("T")[0]]) d.setDate(d.getDate() - 1);
   while (true) { const key = d.toISOString().split("T")[0]; if (logs[key]) { streak++; d.setDate(d.getDate() - 1); } else break; }
   return streak;
 };
@@ -382,7 +783,7 @@ const getCSS = (theme) => {
   .progress-fill{height:100%;border-radius:99px;transition:width .8s cubic-bezier(.16,1,.3,1)}
   .habit-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg3);transition:all .2s;cursor:pointer}
   .habit-item:hover{border-color:var(--border2)}
-  .habit-item.done{background:var(--green)12;border-color:var(--green)30}
+  .habit-item.done{background:#10b98112;border-color:#10b98130}
   .habit-check{width:28px;height:28px;border-radius:8px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .25s;background:var(--bg4)}
   .habit-item.done .habit-check{background:var(--green);border-color:var(--green)}
   .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;letter-spacing:.4px}
@@ -714,40 +1115,225 @@ function HomePage({ profile, habits, habitLogs, setHabitLogs, lectures, lectureP
 }
 
 // ─── SCHEDULE PAGE ────────────────────────────────────────────────────────────
+const ICON_OPTIONS = ["sun","book","dumbbell","fire","brain","flask","atom","microscope","timer","target","notes","moon","star","habits","check","bell"];
+const COLOR_OPTIONS = ["#f59e0b","#10b981","#ef4444","#f97316","#3b82f6","#8b5cf6","#06b6d4","#ec4899","#6b7280","#22c55e"];
+
 function SchedulePage() {
   const currentHour = new Date().getHours(), currentMin = new Date().getMinutes();
   const currentTotal = currentHour * 60 + currentMin;
+
+  const getTomorrowKey = () => {
+    const d = new Date(); d.setDate(d.getDate()+1);
+    return d.toISOString().split("T")[0];
+  };
+  const tomorrowKey = getTomorrowKey();
+  const tomorrowLabel = new Date(tomorrowKey+"T00:00").toLocaleDateString("en-IN",{ weekday:"long",day:"numeric",month:"short" });
+
+  const [activeTab, setActiveTab] = useState("today"); // "today" | "tomorrow"
+  const [tomorrowSchedule, setTomorrowSchedule] = useState(() => { const s = storage.get("tomorrowSchedule_"+tomorrowKey, null); return Array.isArray(s) ? s : null; });
+  const [editMode, setEditMode] = useState(false);
+  const [localItems, setLocalItems] = useState([]);
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [newItem, setNewItem] = useState({ time:"06:00", label:"", icon:"sun", color:"#f59e0b" });
+
+  // When tab switches to tomorrow, init local items
+  useEffect(() => {
+    if (activeTab === "tomorrow") {
+      const saved = storage.get("tomorrowSchedule_"+tomorrowKey, null);
+      setLocalItems(Array.isArray(saved) ? [...saved] : SCHEDULE.map(s=>({...s})));
+    }
+  }, [activeTab, tomorrowKey]);
+
+  const saveSchedule = () => {
+    const sorted = [...localItems].sort((a,b) => a.time.localeCompare(b.time));
+    storage.set("tomorrowSchedule_"+tomorrowKey, sorted);
+    setTomorrowSchedule(sorted);
+    setEditMode(false);
+  };
+
+  const deleteItem = (idx) => setLocalItems(prev => prev.filter((_,i)=>i!==idx));
+  const updateItem = (idx, key, val) => setLocalItems(prev => prev.map((it,i)=>i===idx?{...it,[key]:val}:it));
+
+  const addItem = () => {
+    if (!newItem.label.trim() || !newItem.time) return;
+    setLocalItems(prev => [...prev, { ...newItem }]);
+    setNewItem({ time:"06:00", label:"", icon:"sun", color:"#f59e0b" });
+    setShowAddItem(false);
+  };
+
+  const displayTomorrow = tomorrowSchedule || SCHEDULE;
+
   return (
     <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
+      {/* Header */}
       <div className="card fade-up" style={{ padding:"20px 24px" }}>
         <div style={{ fontSize:12,color:"var(--text3)",textTransform:"uppercase",letterSpacing:".8px",fontWeight:600,marginBottom:4 }}>The Survivor Schedule</div>
         <div style={{ fontFamily:"Syne",fontSize:18,fontWeight:700 }}>Mon – Sat Daily Timeline</div>
         <div style={{ fontSize:13,color:"var(--text3)",marginTop:4 }}>20 hours committed • 4 hours free • 7 hours sleep</div>
       </div>
-      <div className="card fade-up" style={{ animationDelay:".05s" }}>
-        {SCHEDULE.map((item,i) => {
-          const [h,m] = item.time.split(":").map(Number); const total = h*60+(m||0);
-          const next = SCHEDULE[i+1];
-          const nextTotal = next ? (() => { const [nh,nm] = next.time.split(":").map(Number); return nh*60+(nm||0); })() : 99999;
-          const isCurrent = currentTotal>=total && currentTotal<nextTotal;
-          return (
-            <div key={i} className={`timeline-item ${isCurrent?"current":""}`}>
-              <div className="timeline-time">{item.time}</div>
-              <div className="timeline-dot" style={{ background:item.color+"20",color:item.color }}>
-                <Icon d={icons[item.icon]||icons.timer} size={16} stroke={item.color} />
+
+      {/* Tabs */}
+      <div style={{ display:"flex",gap:8 }}>
+        {["today","tomorrow"].map(tab => (
+          <button key={tab} onClick={() => { setActiveTab(tab); setEditMode(false); }}
+            style={{ flex:1,padding:"10px 0",borderRadius:12,border:`1.5px solid ${activeTab===tab?"var(--accent)":"var(--border)"}`,background:activeTab===tab?"var(--accentglow)":"var(--bg2)",color:activeTab===tab?"var(--accent2)":"var(--text2)",fontFamily:"Syne",fontWeight:700,fontSize:13,cursor:"pointer",transition:"all .2s" }}>
+            {tab==="today" ? "📅 Today" : `📆 Tomorrow — ${tomorrowLabel}`}
+          </button>
+        ))}
+      </div>
+
+      {/* TODAY'S SCHEDULE */}
+      {activeTab === "today" && (
+        <>
+          <div className="card fade-up" style={{ animationDelay:".05s" }}>
+            {SCHEDULE.map((item,i) => {
+              const [h,m] = item.time.split(":").map(Number); const total = h*60+(m||0);
+              const next = SCHEDULE[i+1];
+              const nextTotal = next ? (() => { const [nh,nm] = next.time.split(":").map(Number); return nh*60+(nm||0); })() : 99999;
+              const isCurrent = currentTotal>=total && currentTotal<nextTotal;
+              return (
+                <div key={i} className={`timeline-item ${isCurrent?"current":""}`}>
+                  <div className="timeline-time">{item.time}</div>
+                  <div className="timeline-dot" style={{ background:item.color+"20",color:item.color }}>
+                    <Icon d={icons[item.icon]||icons.timer} size={16} stroke={item.color} />
+                  </div>
+                  <div className="timeline-label" style={{ flex:1 }}>
+                    {item.label}
+                    {isCurrent && <span style={{ marginLeft:8,fontSize:10,background:"var(--accentglow)",color:"var(--accent2)",padding:"2px 8px",borderRadius:99,fontWeight:700 }}>NOW</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="card fade-up" style={{ animationDelay:".2s",background:"linear-gradient(135deg,#3b82f618,#06b6d418)",border:"1px solid #3b82f630" }}>
+            <div style={{ fontFamily:"Syne",fontWeight:700,marginBottom:8 }}>☀️ Sunday Reset Mode</div>
+            <div style={{ fontSize:13,color:"var(--text3)",lineHeight:1.8 }}>06:00 Wake → 06:15 Full Workout → 07:45 Bio Revision → 10:00 Chem Revision → 12:00 Podcast → 14:00 Physics + PYQs → 16:00 Meal Prep → 18:00 Free Reading → 21:30 Sleep</div>
+          </div>
+        </>
+      )}
+
+      {/* TOMORROW'S SCHEDULE */}
+      {activeTab === "tomorrow" && (
+        <>
+          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+            <div style={{ fontSize:13,color:"var(--text3)" }}>
+              {tomorrowSchedule ? "✅ Custom schedule saved" : "ℹ️ Using default schedule"}
+            </div>
+            <div style={{ display:"flex",gap:8 }}>
+              {!editMode ? (
+                <button className="btn btn-primary btn-sm" onClick={() => { setEditMode(true); setLocalItems(displayTomorrow.map(s=>({...s}))); }}>
+                  <Icon d={icons.edit} size={14} stroke="#fff"/> Edit Schedule
+                </button>
+              ) : (
+                <>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setEditMode(false)}>Cancel</button>
+                  <button className="btn btn-success btn-sm" onClick={saveSchedule}>
+                    <Icon d={icons.check} size={14} stroke="var(--green)"/> Save
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {!editMode ? (
+            <div className="card fade-up">
+              {displayTomorrow.map((item,i) => (
+                <div key={i} className="timeline-item">
+                  <div className="timeline-time">{item.time}</div>
+                  <div className="timeline-dot" style={{ background:item.color+"20" }}>
+                    <Icon d={icons[item.icon]||icons.timer} size={16} stroke={item.color} />
+                  </div>
+                  <div className="timeline-label" style={{ flex:1 }}>{item.label}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="card fade-up">
+              <div style={{ fontFamily:"Syne",fontWeight:700,fontSize:14,marginBottom:16,color:"var(--accent2)" }}>
+                ✏️ Edit Tomorrow's Schedule
               </div>
-              <div className="timeline-label" style={{ flex:1 }}>
-                {item.label}
-                {isCurrent && <span style={{ marginLeft:8,fontSize:10,background:"var(--accentglow)",color:"var(--accent2)",padding:"2px 8px",borderRadius:99,fontWeight:700 }}>NOW</span>}
+              <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
+                {localItems.sort((a,b)=>a.time.localeCompare(b.time)).map((item,i) => (
+                  <div key={i} style={{ display:"flex",gap:8,alignItems:"center",padding:"10px 12px",background:"var(--bg3)",borderRadius:10,border:"1px solid var(--border)" }}>
+                    <input type="time" value={item.time}
+                      onChange={e => updateItem(i, "time", e.target.value)}
+                      style={{ background:"var(--bg4)",border:"1px solid var(--border)",borderRadius:8,padding:"4px 8px",color:"var(--text)",fontSize:12,width:90,flexShrink:0 }}
+                    />
+                    <div style={{ width:28,height:28,borderRadius:8,background:item.color+"30",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                      <Icon d={icons[item.icon]||icons.timer} size={14} stroke={item.color}/>
+                    </div>
+                    <input className="input" value={item.label} placeholder="Activity..."
+                      onChange={e => updateItem(i, "label", e.target.value)}
+                      style={{ flex:1,padding:"6px 10px",fontSize:13 }}
+                    />
+                    <div style={{ display:"flex",gap:4,flexShrink:0 }}>
+                      {COLOR_OPTIONS.slice(0,5).map(c => (
+                        <div key={c} onClick={() => updateItem(i,"color",c)}
+                          style={{ width:16,height:16,borderRadius:4,background:c,cursor:"pointer",border:item.color===c?"2px solid var(--text)":"1px solid transparent",flexShrink:0 }}
+                        />
+                      ))}
+                    </div>
+                    <button onClick={() => deleteItem(i)} style={{ background:"none",border:"none",cursor:"pointer",color:"var(--red)",padding:4,flexShrink:0 }}>
+                      <Icon d={icons.trash} size={14} stroke="var(--red)"/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button className="btn btn-ghost btn-sm" style={{ marginTop:12,width:"100%",justifyContent:"center" }}
+                onClick={() => setShowAddItem(true)}>
+                <Icon d={icons.plus} size={14}/> Add Activity
+              </button>
+            </div>
+          )}
+
+          {/* Reset to default */}
+          {tomorrowSchedule && !editMode && (
+            <button className="btn btn-ghost btn-sm" style={{ alignSelf:"flex-start" }}
+              onClick={() => { storage.set("tomorrowSchedule_"+tomorrowKey, false); setTomorrowSchedule(null); }}>
+              🔄 Reset to Default Schedule
+            </button>
+          )}
+        </>
+      )}
+
+      {/* Add Item Modal */}
+      {showAddItem && (
+        <div className="modal-overlay" onClick={e => e.target===e.currentTarget && setShowAddItem(false)}>
+          <div className="modal" style={{ maxWidth:400 }}>
+            <div className="modal-title">➕ Add New Activity</div>
+            <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+              <div><label className="label">Time</label>
+                <input type="time" className="input" value={newItem.time} onChange={e=>setNewItem(p=>({...p,time:e.target.value}))}/>
+              </div>
+              <div><label className="label">Activity Name</label>
+                <input className="input" placeholder="e.g. Biology Revision" value={newItem.label} onChange={e=>setNewItem(p=>({...p,label:e.target.value}))}/>
+              </div>
+              <div><label className="label">Icon</label>
+                <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
+                  {ICON_OPTIONS.map(ic => (
+                    <div key={ic} onClick={() => setNewItem(p=>({...p,icon:ic}))}
+                      style={{ width:36,height:36,borderRadius:8,border:`2px solid ${newItem.icon===ic?"var(--accent)":"var(--border)"}`,background:newItem.icon===ic?"var(--accentglow)":"var(--bg3)",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer" }}>
+                      <Icon d={icons[ic]||icons.timer} size={16} stroke={newItem.icon===ic?"var(--accent2)":"var(--text3)"}/>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div><label className="label">Color</label>
+                <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
+                  {COLOR_OPTIONS.map(c => (
+                    <div key={c} onClick={() => setNewItem(p=>({...p,color:c}))}
+                      style={{ width:28,height:28,borderRadius:8,background:c,cursor:"pointer",border:newItem.color===c?"2px solid var(--text)":"2px solid transparent",transition:"transform .15s",transform:newItem.color===c?"scale(1.2)":"scale(1)" }}/>
+                  ))}
+                </div>
               </div>
             </div>
-          );
-        })}
-      </div>
-      <div className="card fade-up" style={{ animationDelay:".2s",background:"linear-gradient(135deg,#3b82f618,#06b6d418)",border:"1px solid #3b82f630" }}>
-        <div style={{ fontFamily:"Syne",fontWeight:700,marginBottom:8 }}>☀️ Sunday Reset Mode</div>
-        <div style={{ fontSize:13,color:"var(--text3)",lineHeight:1.8 }}>06:00 Wake → 06:15 Full Workout → 07:45 Bio Revision → 10:00 Chem Revision → 12:00 Podcast → 14:00 Physics + PYQs → 16:00 Meal Prep → 18:00 Free Reading → 21:30 Sleep</div>
-      </div>
+            <div style={{ display:"flex",gap:10,marginTop:20 }}>
+              <button className="btn btn-ghost" style={{ flex:1,justifyContent:"center" }} onClick={() => setShowAddItem(false)}>Cancel</button>
+              <button className="btn btn-primary" style={{ flex:2,justifyContent:"center" }} onClick={addItem}>Add Activity</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -757,7 +1343,11 @@ function HabitsPage({ habits, setHabits, habitLogs, setHabitLogs }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newHabit, setNewHabit] = useState({ name:"", emoji:"✅", category:"morning" });
   const todayKey = today(); const todayLog = habitLogs[todayKey] || {};
-  const toggleHabit = (id, e) => { setHabitLogs(prev => ({ ...prev, [todayKey]: { ...(prev[todayKey]||{}), [id]: !prev[todayKey]?.[id] } })); if(!habitLogs[todayKey]?.[id] && e){ spawnConfetti(); spawnXP(XP_VALS.habit, e.clientX, e.clientY); } };
+  const toggleHabit = (id, e) => {
+    const wasOn = habitLogs[todayKey]?.[id];
+    setHabitLogs(prev => ({ ...prev, [todayKey]: { ...(prev[todayKey]||{}), [id]: !prev[todayKey]?.[id] } }));
+    if (!wasOn && e) { spawnConfetti(); spawnXP(XP_VALS.habit, e.clientX, e.clientY); }
+  };
   const addHabit = () => { if (!newHabit.name) return; setHabits(prev => [...prev, { ...newHabit, id:Date.now(), target:1 }]); setNewHabit({ name:"", emoji:"✅", category:"morning" }); setShowAdd(false); };
   const deleteHabit = (id) => setHabits(prev => prev.filter(h => h.id !== id));
   const categories = [...new Set(habits.map(h => h.category))];
@@ -1109,7 +1699,7 @@ function NotesPage({ notes, setNotes, lectures }) {
 
 // ─── ANALYTICS PAGE ───────────────────────────────────────────────────────────
 function AnalyticsPage({ habitLogs, habits, workoutLogs, lectureProgress, lectures, focusLogs, xp }) {
-  const weekDays = getWeekDays(); const maxBarH = 100;
+  const weekDays = getWeekDays();
   const habitData = weekDays.map(date => {
     const log = habitLogs[date]||{}; const done = habits.filter(h => log[h.id]).length;
     return { date, done, total:habits.length, pct:habits.length?Math.round(done/habits.length*100):0 };
@@ -1203,32 +1793,67 @@ function AnalyticsPage({ habitLogs, habits, workoutLogs, lectureProgress, lectur
       <div className="card fade-up" style={{animationDelay:".12s"}}>
         <div className="section-title">🔥 Study Heatmap — Last 90 Days</div>
         <div style={{overflowX:"auto",paddingBottom:8}}>
-          <div style={{display:"flex",flexDirection:"column",gap:3,width:"max-content"}}>
-            <div style={{display:"flex",gap:3}}>
-              {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=><div key={d} style={{width:14,fontSize:8,color:"var(--text3)",textAlign:"center"}}>{d[0]}</div>)}
+          <div style={{display:"flex",gap:12}}>
+            {/* Day labels column */}
+            <div style={{display:"flex",flexDirection:"column",gap:4,paddingTop:22,flexShrink:0}}>
+              {["M","T","W","T","F","S","S"].map((d,i)=>(
+                <div key={i} style={{height:18,fontSize:10,color:"var(--text3)",fontWeight:600,display:"flex",alignItems:"center"}}>{d}</div>
+              ))}
             </div>
-            {(()=>{
-              const weeks=[];
-              const startDay=new Date(last90[0]+"T00:00").getDay();
-              const padded=[...Array(startDay).fill(null),...last90];
-              for(let w=0;w<Math.ceil(padded.length/7);w++){
-                weeks.push(padded.slice(w*7,(w+1)*7));
-              }
-              return weeks.map((week,wi)=>(
-                <div key={wi} style={{display:"flex",gap:3}}>
-                  {Array.from({length:7}).map((_,di)=>{
-                    const d=week[di];
-                    return <div key={di} className="heatmap-cell" title={d?`${d}: ${getHeat(d)*25}% habit completion`:""} style={{width:14,height:14,background:d?heatColors[getHeat(d)]:"transparent"}}/>;
-                  })}
-                </div>
-              ));
-            })()}
+            {/* Weeks grid */}
+            <div style={{display:"flex",flexDirection:"column",gap:0,overflowX:"auto"}}>
+              {/* Month labels */}
+              {(()=>{
+                const startDay=new Date(last90[0]+"T00:00").getDay();
+                const padded=[...Array(startDay).fill(null),...last90];
+                const weeks=[];
+                for(let w=0;w<Math.ceil(padded.length/7);w++) weeks.push(padded.slice(w*7,(w+1)*7));
+                const monthLabels=[];
+                let lastMonth=-1;
+                weeks.forEach((week,wi)=>{
+                  const firstReal=week.find(d=>d!==null);
+                  if(firstReal){
+                    const m=new Date(firstReal+"T00:00").getMonth();
+                    if(m!==lastMonth){ monthLabels.push({wi,name:new Date(firstReal+"T00:00").toLocaleDateString("en",{month:"short"})}); lastMonth=m; }
+                    else monthLabels.push(null);
+                  } else monthLabels.push(null);
+                });
+                return (
+                  <>
+                    <div style={{display:"flex",gap:4,marginBottom:4,height:18}}>
+                      {weeks.map((_,wi)=>(
+                        <div key={wi} style={{width:18,fontSize:9,color:"var(--text3)",overflow:"hidden",flexShrink:0}}>
+                          {monthLabels[wi]?.name||""}
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{display:"flex",gap:4}}>
+                      {weeks.map((week,wi)=>(
+                        <div key={wi} style={{display:"flex",flexDirection:"column",gap:4,flexShrink:0}}>
+                          {Array.from({length:7}).map((_,di)=>{
+                            const d=week[di];
+                            const heat=d?getHeat(d):0;
+                            return (
+                              <div key={di} className="heatmap-cell"
+                                title={d?`${d}: ${Math.round(heat/4*100)}% habit completion`:""}
+                                style={{width:18,height:18,borderRadius:4,background:d?heatColors[heat]:"transparent",border:d?"1px solid rgba(255,255,255,0.04)":"none"}}
+                              />
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
           </div>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:6,marginTop:10,fontSize:11,color:"var(--text3)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,marginTop:12,fontSize:11,color:"var(--text3)"}}>
           <span>Less</span>
-          {heatColors.map((c,i)=><div key={i} style={{width:12,height:12,borderRadius:2,background:c}}/>)}
+          {heatColors.map((c,i)=><div key={i} style={{width:14,height:14,borderRadius:3,background:c,border:"1px solid rgba(255,255,255,0.06)"}}/>)}
           <span>More</span>
+          <span style={{marginLeft:"auto",fontSize:10}}>Last 90 days of habit activity</span>
         </div>
       </div>
     </div>
@@ -1239,6 +1864,7 @@ function AnalyticsPage({ habitLogs, habits, workoutLogs, lectureProgress, lectur
 function ProfilePage({ profile, setProfile, habitLogs, habits, workoutLogs, lectureProgress, lectures, goals, xp }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(profile);
+  useEffect(() => { if (!editing) setForm(profile); }, [profile]);
   const fileRef = useRef();
   const handleAvatar = (e) => {
     const file = e.target.files[0]; if (!file) return;
@@ -1494,6 +2120,7 @@ function WeeklyReportPage({ profile, habits, habitLogs, workoutLogs, lectureProg
 // ─── SETTINGS PAGE ────────────────────────────────────────────────────────────
 function SettingsPage({ profile, setProfile, onLogout, theme, setTheme, allData, onImport }) {
   const [form, setForm] = useState(profile);
+  useEffect(() => { setForm(profile); }, [profile]);
   const [importError, setImportError] = useState("");
   const [importOk, setImportOk] = useState(false);
   const fileRef = useRef();
@@ -1812,7 +2439,7 @@ function RevisionPage({flashcards,setFlashcards}){
                   <span style={{padding:"1px 8px",borderRadius:99,background:c.subject==="Biology"?"#10b98120":c.subject==="Chemistry"?"#f59e0b20":"#3b82f620",color:c.subject==="Biology"?"#10b981":c.subject==="Chemistry"?"#f59e0b":"#3b82f6",fontWeight:600}}>{c.subject}</span>
                   {c.lastReviewed&&<span>Last: {c.lastReviewed}</span>}
                   {isDue(c)&&<span style={{color:"var(--red)",fontWeight:700}}>DUE NOW</span>}
-                  {c.notes&&<span style={{color:"var(--text3)"}}>📝 {c.notes.slice(0,40)}...</span>}
+                  {c.notes&&<span style={{color:"var(--text3)"}}>📝 {c.notes.length>40?c.notes.slice(0,40)+"...":c.notes}</span>}
                 </div>
               </div>
               <button className="btn btn-icon btn-danger btn-sm" onClick={()=>setFlashcards(prev=>prev.filter(x=>x.id!==c.id))}><Icon d={icons.trash} size={12} stroke="var(--red)"/></button>
@@ -1868,6 +2495,10 @@ function RevisionPage({flashcards,setFlashcards}){
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 function App() {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [showCredModal, setShowCredModal] = useState(false);
+  const [showAdminManager, setShowAdminManager] = useState(false);
   const [onboarded, setOnboarded] = useState(() => storage.get("onboarded",false));
   const [profile, setProfile] = useState(() => storage.get("profile",{}));
   const [page, setPage] = useState("home");
@@ -1905,15 +2536,24 @@ function App() {
   useEffect(() => { storage.set("theme",theme); },[theme]);
   useEffect(() => { storage.set("sidebarCollapsed",sidebarCollapsed); },[sidebarCollapsed]);
 
-  const handleThemeChange = (t) => { setTheme(t); storage.set("theme",t); };
+  const handleThemeChange = (t) => { setTheme(t); };
 
   const handleOnboardComplete = (data) => { setProfile(data); setOnboarded(true); storage.set("onboarded",true); };
   const handleLogout = () => {
-    localStorage.clear(); setOnboarded(false); setProfile({});
+    // Preserve auth and sessions — only reset data
+    const authBackup = storage.get("studyos_auth", null);
+    const sessBackup = storage.get("studyos_sessions", null);
+    localStorage.clear();
+    if (authBackup) storage.set("studyos_auth", authBackup);
+    if (sessBackup) storage.set("studyos_sessions", sessBackup);
+    storage.set("onboarded", false);
+    setOnboarded(false); setProfile({});
     setHabits(INITIAL_HABITS); setHabitLogs({}); setLectures(INITIAL_LECTURES);
     setLectureProgress({}); setNotes({}); setExercises(INITIAL_WORKOUTS);
     setWorkoutLogs({}); setGoals(INITIAL_GOALS); setFlashcards([]); setFocusLogs({}); setTheme("dark_purple");
+    setLoggedIn(false); setCurrentUser(null);
   };
+  const handleSessionLogout = () => { setLoggedIn(false); setCurrentUser(null); };
 
   const allData = { profile,habits,habitLogs,lectures,lectureProgress,notes,exercises,workoutLogs,goals,flashcards,focusLogs };
   const xp = useMemo(()=>computeXP(habitLogs,habits,workoutLogs,lectureProgress,lectures),[habitLogs,habits,workoutLogs,lectureProgress,lectures]);
@@ -1931,25 +2571,34 @@ function App() {
     if (data.focusLogs) { setFocusLogs(data.focusLogs); storage.set("focusLogs",data.focusLogs); }
   };
 
-  const navItems = [
-    { id:"home", label:"Dashboard", icon:"home" },
-    { id:"schedule", label:"Schedule", icon:"schedule" },
-    { id:"habits", label:"Habits", icon:"habits" },
-    { id:"lectures", label:"Lectures", icon:"lectures" },
-    { id:"workout", label:"Workout", icon:"workout" },
-    { id:"goals", label:"Goals", icon:"goals" },
-    { id:"notes", label:"Notes", icon:"notes" },
-    { id:"analytics", label:"Analytics", icon:"analytics" },
-    { id:"profile", label:"Profile", icon:"profile" },
-    { id:"focus", label:"Focus Mode", icon:"timer" },
-    { id:"revision", label:"Revision Lab", icon:"star" },
-    { id:"report", label:"Weekly Report", icon:"report" },
-    { id:"settings", label:"Settings", icon:"settings" },
+  const ALL_NAV = [
+    { id:"home",     label:"Dashboard",   icon:"home",     alwaysShow:true },
+    { id:"schedule", label:"Schedule",    icon:"schedule"  },
+    { id:"habits",   label:"Habits",      icon:"habits"    },
+    { id:"lectures", label:"Lectures",    icon:"lectures"  },
+    { id:"workout",  label:"Workout",     icon:"workout"   },
+    { id:"goals",    label:"Goals",       icon:"goals"     },
+    { id:"notes",    label:"Notes",       icon:"notes"     },
+    { id:"analytics",label:"Analytics",   icon:"analytics" },
+    { id:"profile",  label:"Profile",     icon:"profile",  alwaysShow:true },
+    { id:"focus",    label:"Focus Mode",  icon:"timer"     },
+    { id:"revision", label:"Revision Lab",icon:"star"      },
+    { id:"report",   label:"Weekly Report",icon:"report"   },
+    { id:"settings", label:"Settings",    icon:"settings"  },
   ];
+  // Owner sees all; Admin sees only permitted pages + always-show pages
+  const navItems = ALL_NAV.filter(item =>
+    currentUser?.role === "owner" || item.alwaysShow || hasPermission(currentUser, item.id)
+  );
   const pageTitles = { home:"Dashboard",schedule:"Schedule",habits:"Habits",lectures:"Lectures",workout:"Workout",goals:"Goals",notes:"Notes",analytics:"Analytics",profile:"Profile",focus:"Focus Mode",revision:"Revision Lab",report:"Weekly Report",settings:"Settings" };
 
-  const navigateTo = (id) => { setPage(id); setSidebarOpen(false); };
+  const navigateTo = (id) => {
+    // Prevent admin from navigating to pages they don't have access to
+    if (currentUser?.role !== "owner" && !["home","profile"].includes(id) && !hasPermission(currentUser, id)) return;
+    setPage(id); setSidebarOpen(false);
+  };
 
+  if (!loggedIn) return <><style>{getCSS(theme)}</style><LoginScreen onLogin={(user)=>{setLoggedIn(true);setCurrentUser(user);}}/></>;
   if (!onboarded) return <><style>{getCSS(theme)}</style><Onboarding onComplete={handleOnboardComplete}/></>;
   const mobileNav = [
     {id:"home",label:"Home",icon:"home"},
@@ -1957,7 +2606,7 @@ function App() {
     {id:"focus",label:"Focus",icon:"timer"},
     {id:"revision",label:"Revision",icon:"star"},
     {id:"analytics",label:"Stats",icon:"analytics"},
-  ];
+  ].filter(item => currentUser?.role==="owner" || ["home"].includes(item.id) || hasPermission(currentUser, item.id));
 
   return (
     <>
@@ -1998,9 +2647,26 @@ function App() {
                 {profile.avatar ? <img src={profile.avatar} alt="profile"/> : <Icon d={icons.user} size={18} stroke="var(--text3)"/>}
               </div>
               <div className="profile-info">
-                <div className="profile-name">{profile.name||"Student"}</div>
-                <div className="profile-sub">Class {profile.class} {profile.stream}</div>
+                <div className="profile-name">{currentUser?.displayName || profile.name||"Student"}</div>
+                <div className="profile-sub">{currentUser?.role==="owner"?"👑 Owner":"🛡️ Admin"}</div>
               </div>
+            </div>
+            {currentUser?.role==="owner" && (
+              <div style={{padding:"0 12px 8px"}}>
+                <button onClick={()=>setShowAdminManager(true)}
+                  style={{width:"100%",padding:"8px",borderRadius:10,border:"1px solid #7c6fff40",background:"var(--accentglow)",cursor:"pointer",color:"var(--accent2)",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:7,transition:"all .2s"}}>
+                  <span style={{fontSize:14}}>🛡️</span>
+                  <span className="nav-label">Admin Manager</span>
+                </button>
+              </div>
+            )}
+            <div style={{display:"flex",gap:6,padding:"0 12px 12px"}}>
+              <button onClick={()=>setShowCredModal(true)} title="Change Credentials" style={{flex:1,padding:"7px",borderRadius:8,border:"1px solid var(--border)",background:"var(--bg3)",cursor:"pointer",color:"var(--text3)",fontSize:11,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
+                <Icon d={icons.edit} size={12}/><span className="nav-label">Password</span>
+              </button>
+              <button onClick={handleSessionLogout} title="Logout" style={{flex:1,padding:"7px",borderRadius:8,border:"1px solid #ef444430",background:"#ef444412",cursor:"pointer",color:"var(--red)",fontSize:11,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
+                <Icon d={icons.x} size={12} stroke="var(--red)"/><span className="nav-label">Logout</span>
+              </button>
             </div>
           </div>
         </div>
@@ -2028,6 +2694,16 @@ function App() {
             </div>
           </div>
           <div className="content" key={page}>
+            {/* Permission block for non-owner */}
+            {currentUser?.role!=="owner" && !["home","profile"].includes(page) && !hasPermission(currentUser,page) ? (
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"60vh",gap:16,textAlign:"center",padding:24}}>
+                <div style={{fontSize:56}}>🔒</div>
+                <div style={{fontFamily:"Syne",fontSize:20,fontWeight:800}}>Access Denied</div>
+                <div style={{color:"var(--text3)",fontSize:14,maxWidth:300}}>The Owner has not granted access to this page. Please request permission from the Owner.</div>
+                <button className="btn btn-ghost" onClick={()=>navigateTo("home")}>← Back to Dashboard</button>
+              </div>
+            ) : (
+              <>
             {page==="home" && <HomePage profile={profile} habits={habits} habitLogs={habitLogs} setHabitLogs={setHabitLogs} lectures={lectures} lectureProgress={lectureProgress} workoutLogs={workoutLogs} goals={goals} xp={xp} onNavigate={id=>setPage(id)}/>}
             {page==="schedule" && <SchedulePage/>}
             {page==="habits" && <HabitsPage habits={habits} setHabits={setHabits} habitLogs={habitLogs} setHabitLogs={setHabitLogs}/>}
@@ -2041,6 +2717,8 @@ function App() {
             {page==="profile" && <ProfilePage profile={profile} setProfile={setProfile} habitLogs={habitLogs} habits={habits} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} goals={goals} xp={xp}/>}
             {page==="report" && <WeeklyReportPage profile={profile} habits={habits} habitLogs={habitLogs} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} goals={goals}/>}
             {page==="settings" && <SettingsPage profile={profile} setProfile={setProfile} onLogout={handleLogout} theme={theme} setTheme={handleThemeChange} allData={allData} onImport={handleImport}/>}
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -2055,6 +2733,8 @@ function App() {
           ))}
         </div>
       </div>
+      {showCredModal && currentUser && <ChangeCredentialsModal currentUser={currentUser} onClose={()=>setShowCredModal(false)}/>}
+      {showAdminManager && currentUser?.role==="owner" && <AdminManagerModal onClose={()=>setShowAdminManager(false)}/>}
     </>
   );
 }
