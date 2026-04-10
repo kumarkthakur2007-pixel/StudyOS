@@ -229,7 +229,7 @@ const ALL_PERMISSIONS = [
   { key:"settings",   label:"Settings",     icon:"settings"  },
 ];
 const MAX_ADMINS = 10;
-const MAX_OWNER_LOGINS_PER_DAY = 4;
+const MAX_OWNER_LOGINS_PER_DAY = 10;
 
 const DEFAULT_AUTH = {
   owner: { username:"owner", password:"owner123", role:"owner" },
@@ -265,6 +265,9 @@ function LoginScreen({ onLogin }) {
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [importMsg, setImportMsg] = useState("");
+  const [importErr, setImportErr] = useState("");
+  const importRef = useRef();
 
   const handleLogin = () => {
     setError(""); setLoading(true);
@@ -287,15 +290,33 @@ function LoginScreen({ onLogin }) {
         return;
       }
       setError("Incorrect username or password. Please try again. ❌");
+      setPassword("");
       setLoading(false);
     }, 600);
   };
 
-  const remainingOwner = MAX_OWNER_LOGINS_PER_DAY - getOwnerLoginsToday();
+  const handleImportBackup = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    setImportErr(""); setImportMsg("");
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        const keys = ["profile","habits","habitLogs","lectures","lectureProgress","notes","exercises","workoutLogs","goals","flashcards","focusLogs","theme"];
+        keys.forEach(k => { if (data[k] !== undefined) localStorage.setItem(k, JSON.stringify(data[k])); });
+        if (data.auth) localStorage.setItem("studyos_auth", JSON.stringify(data.auth));
+        if (data.onboarded !== undefined) localStorage.setItem("onboarded", JSON.stringify(data.onboarded));
+        setImportMsg("✅ Backup restored! Page reload ho raha hai...");
+        setTimeout(() => window.location.reload(), 1500);
+      } catch { setImportErr("❌ Invalid file. Sirf StudyOS backup (.json) use karein."); }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
 
   return (
-    <div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",padding:24}}>
-      <div style={{width:"100%",maxWidth:420,animation:"fadeUp .5s cubic-bezier(.16,1,.3,1)"}}>
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",padding:"32px 24px",boxSizing:"border-box"}}>
+      <div style={{width:"100%",maxWidth:420,animation:"fadeUp .5s cubic-bezier(.16,1,.3,1)",paddingBottom:24}}>
         <div style={{textAlign:"center",marginBottom:32}}>
           <div style={{width:72,height:72,borderRadius:20,background:"linear-gradient(135deg,var(--accent),var(--pink))",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",boxShadow:"0 8px 32px var(--accentglow)"}}>
             <Icon d={icons.brain} size={30} stroke="#fff"/>
@@ -333,10 +354,32 @@ function LoginScreen({ onLogin }) {
             style={{width:"100%",justifyContent:"center",marginTop:18,padding:14,fontSize:15,fontWeight:700}}>
             {loading?<><div style={{width:16,height:16,border:"2px solid #fff4",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin .6s linear infinite"}}/> Verifying...</>:"🚀 Login"}
           </button>
-          <div style={{marginTop:16,padding:"10px 14px",background:"var(--bg3)",borderRadius:10,fontSize:12,color:"var(--text3)",lineHeight:1.9}}>
-            <div>👑 <strong style={{color:"var(--text2)"}}>Owner:</strong> {remainingOwner}/{MAX_OWNER_LOGINS_PER_DAY} logins remaining today</div>
-            <div>🛡️ <strong style={{color:"var(--text2)"}}>Admin:</strong> Unlimited logins • Get credentials from Owner</div>
+        </div>
+
+        {/* ── Optional Import Section ── */}
+        <div style={{marginTop:16,background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:16,padding:"18px 20px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+            <span style={{fontSize:16}}>📲</span>
+            <div style={{fontFamily:"Syne",fontSize:13,fontWeight:700}}>Naye device pe ho?</div>
           </div>
+          <div style={{fontSize:12,color:"var(--text3)",marginBottom:12,lineHeight:1.6}}>
+            Agar aapke paas purana <strong style={{color:"var(--text2)"}}>StudyOS backup</strong> (.json file) hai, toh pehle import karo — phir login karo. <span style={{color:"var(--text3)"}}>(Optional)</span>
+          </div>
+          {importMsg && (
+            <div style={{marginBottom:10,padding:"9px 12px",background:"#10b98118",border:"1px solid #10b98140",borderRadius:9,fontSize:12,color:"var(--green)",lineHeight:1.5}}>
+              {importMsg}
+            </div>
+          )}
+          {importErr && (
+            <div style={{marginBottom:10,padding:"9px 12px",background:"#ef444418",border:"1px solid #ef444440",borderRadius:9,fontSize:12,color:"var(--red)"}}>
+              {importErr}
+            </div>
+          )}
+          <button onClick={()=>importRef.current.click()}
+            style={{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid var(--border2)",background:"var(--bg3)",cursor:"pointer",color:"var(--text2)",fontSize:13,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"all .2s"}}>
+            <Icon d={icons.upload} size={14} stroke="var(--text2)"/> Backup File Import Karo
+          </button>
+          <input ref={importRef} type="file" accept=".json" style={{display:"none"}} onChange={handleImportBackup}/>
         </div>
       </div>
     </div>
@@ -397,15 +440,43 @@ function ChangeCredentialsModal({ currentUser, onClose }) {
 }
 
 // ─── ADMIN MANAGER (Owner Only) ───────────────────────────────────────────────
-function AdminManagerModal({ onClose }) {
+function AdminPage({ onSessionLogout, onFullLogout, allData, onImport }) {
   const [admins, setAdmins]       = useState(() => getAuth().admins || []);
-  const [view, setView]           = useState("list"); // "list" | "add" | "edit"
+  const [view, setView]           = useState("list");
   const [editTarget, setEditTarget] = useState(null);
   const [form, setForm]           = useState({ username:"", displayName:"", password:"", confirmPass:"", permissions:[] });
   const [error, setError]         = useState("");
   const [success, setSuccess]     = useState("");
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [importOk, setImportOk]   = useState(false);
+  const importRef = useRef();
 
-  const refreshAdmins = () => setAdmins(getAuth().admins||[]);
+  const exportData = () => {
+    if (!allData) return;
+    const data = JSON.stringify(allData, null, 2);
+    const blob = new Blob([data], { type:"application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href=url; a.download=`StudyOS_fullbackup_${new Date().toISOString().split("T")[0]}.json`; a.click();
+    URL.revokeObjectURL(url);
+    storage.set("lastExportDate", new Date().toISOString());
+  };
+  const handleImportFile = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    setImportError(""); setImportOk(false);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (onImport) onImport(data);
+        setImportOk(true);
+        setTimeout(() => setImportOk(false), 4000);
+      } catch { setImportError("Invalid backup file!"); }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
 
   const saveAuth = (newAdmins) => {
     const auth = getAuth();
@@ -453,7 +524,7 @@ function AdminManagerModal({ onClose }) {
     };
     const newAdmins = [...(auth.admins||[]), newAdmin];
     saveAuth(newAdmins);
-    setSuccess(`✅ Admin "${newAdmin.displayName}" added successfully!`);
+    setSuccess(`Admin "${newAdmin.displayName}" added successfully!`);
     setTimeout(()=>{setSuccess("");setView("list");},1500);
   };
 
@@ -473,7 +544,7 @@ function AdminManagerModal({ onClose }) {
       ...(form.password?{password:form.password}:{})
     } : a);
     saveAuth(newAdmins);
-    setSuccess(`✅ Admin "${form.displayName||form.username}" updated successfully!`);
+    setSuccess(`Admin "${form.displayName||form.username}" updated successfully!`);
     setTimeout(()=>{setSuccess("");setView("list");},1500);
   };
 
@@ -491,128 +562,190 @@ function AdminManagerModal({ onClose }) {
   const permColor = "#7c6fff";
 
   return (
-    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="modal" style={{maxWidth:520,maxHeight:"90vh",overflowY:"auto"}}>
+    <div style={{display:"flex",flexDirection:"column",gap:20}}>
 
-        {/* Header */}
-        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+      {/* Page Header */}
+      <div className="card fade-up" style={{background:"linear-gradient(135deg,#7c6fff18,var(--bg2))",border:"1px solid #7c6fff30"}}>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          <div style={{width:52,height:52,borderRadius:14,background:"linear-gradient(135deg,#7c6fff,#ec4899)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:24}}>
+            👑
+          </div>
           <div style={{flex:1}}>
-            <div className="modal-title" style={{marginBottom:2}}>👑 Admin Manager</div>
-            <div style={{fontSize:12,color:"var(--text3)"}}>{admins.length}/{MAX_ADMINS} admins • Owner supreme control</div>
+            <div style={{fontFamily:"Syne",fontSize:20,fontWeight:800}}>Admin Manager</div>
+            <div style={{fontSize:13,color:"var(--text3)",marginTop:2}}>{admins.length}/{MAX_ADMINS} admins • Owner supreme control</div>
           </div>
           {view!=="list" && (
             <button className="btn btn-ghost btn-sm" onClick={()=>{setView("list");setError("");}}>← Back</button>
           )}
         </div>
-
-        {success && <div style={{padding:"10px 14px",background:"#10b98118",border:"1px solid #10b98140",borderRadius:10,fontSize:13,color:"var(--green)",marginBottom:16}}>{success}</div>}
-
-        {/* LIST VIEW */}
+        {/* Owner quick actions */}
         {view==="list" && (
-          <>
-            {admins.length===0 ? (
-              <div style={{textAlign:"center",padding:"32px 0",color:"var(--text3)"}}>
-                <div style={{fontSize:40,marginBottom:12}}>🛡️</div>
-                <div style={{fontFamily:"Syne",fontWeight:700,marginBottom:6}}>No admins yet</div>
-                <div style={{fontSize:13}}>Click "+ Add Admin" below to create the first admin</div>
-              </div>
-            ) : (
-              <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
-                {admins.map(admin=>(
-                  <div key={admin.id} style={{padding:"12px 14px",background:"var(--bg3)",borderRadius:12,border:`1px solid ${admin.active?"var(--border)":"#ef444420"}`}}>
-                    <div style={{display:"flex",alignItems:"center",gap:10}}>
-                      <div style={{width:36,height:36,borderRadius:10,background:admin.active?"var(--accentglow)":"#ef444415",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>
-                        🛡️
-                      </div>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontWeight:700,fontSize:14,display:"flex",alignItems:"center",gap:8}}>
-                          {admin.displayName||admin.username}
-                          {!admin.active && <span style={{fontSize:10,padding:"2px 8px",borderRadius:99,background:"#ef444420",color:"var(--red)"}}>Disabled</span>}
-                        </div>
-                        <div style={{fontSize:12,color:"var(--text3)"}}>@{admin.username}</div>
-                        <div style={{marginTop:6,display:"flex",flexWrap:"wrap",gap:4}}>
-                          {(admin.permissions||[]).length===0
-                            ? <span style={{fontSize:11,color:"var(--red)"}}>No permissions</span>
-                            : (admin.permissions||[]).map(p=>{
-                                const pdef=ALL_PERMISSIONS.find(x=>x.key===p);
-                                return <span key={p} style={{fontSize:10,padding:"2px 8px",borderRadius:99,background:permColor+"20",color:permColor,fontWeight:600}}>{pdef?.label||p}</span>;
-                              })
-                          }
-                        </div>
-                      </div>
-                      <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
-                        <button className="btn btn-ghost btn-sm" onClick={()=>openEdit(admin)} title="Edit"><Icon d={icons.edit} size={13}/></button>
-                        <button onClick={()=>toggleActive(admin)} className="btn btn-sm"
-                          style={{background:admin.active?"#ef444415":"#10b98115",color:admin.active?"var(--red)":"var(--green)",border:`1px solid ${admin.active?"#ef444430":"#10b98130"}`,fontSize:11}}>
-                          {admin.active?"Disable":"Enable"}
-                        </button>
-                        <button className="btn btn-icon btn-danger btn-sm" onClick={()=>removeAdmin(admin)} title="Delete"><Icon d={icons.trash} size={13} stroke="var(--red)"/></button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            <button className="btn btn-primary" style={{width:"100%",justifyContent:"center"}}
-              disabled={admins.length>=MAX_ADMINS} onClick={openAdd}>
-              <Icon d={icons.plus} size={15} stroke="#fff"/> Add New Admin {admins.length>=MAX_ADMINS&&`(Limit: ${MAX_ADMINS})`}
+          <div style={{display:"flex",gap:8,marginTop:14,paddingTop:14,borderTop:"1px solid #7c6fff20",flexWrap:"wrap"}}>
+            <button onClick={exportData}
+              style={{flex:1,minWidth:120,padding:"9px 12px",borderRadius:10,border:"1px solid #7c6fff40",background:"#7c6fff15",cursor:"pointer",color:"#a78bfa",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              <Icon d={icons.download} size={13} stroke="#a78bfa"/> Export Backup
             </button>
-          </>
-        )}
-
-        {/* ADD / EDIT FORM */}
-        {(view==="add"||view==="edit") && (
-          <div style={{display:"flex",flexDirection:"column",gap:14}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              <div><label className="label">Display Name</label><input className="input" placeholder="e.g. Rahul" value={form.displayName} onChange={e=>setForm(f=>({...f,displayName:e.target.value}))}/></div>
-              <div><label className="label">Username *</label><input className="input" placeholder="login username" value={form.username} onChange={e=>setForm(f=>({...f,username:e.target.value}))}/></div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              <div><label className="label">{view==="add"?"Password *":"New Password (optional)"}</label><input className="input" type="password" placeholder="password..." value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}/></div>
-              <div><label className="label">Confirm Password</label><input className="input" type="password" placeholder="confirm..." value={form.confirmPass} onChange={e=>setForm(f=>({...f,confirmPass:e.target.value}))}/></div>
-            </div>
-
-            {/* Permissions */}
-            <div>
-              <label className="label" style={{marginBottom:10}}>
-                Permissions — {form.permissions.length}/{ALL_PERMISSIONS.length} pages access
-                <button onClick={()=>setForm(f=>({...f,permissions:f.permissions.length===ALL_PERMISSIONS.length?[]:ALL_PERMISSIONS.map(p=>p.key)}))}
-                  style={{marginLeft:10,fontSize:10,padding:"2px 8px",borderRadius:99,background:"var(--accentglow)",border:"1px solid var(--border)",color:"var(--accent2)",cursor:"pointer",fontWeight:700}}>
-                  {form.permissions.length===ALL_PERMISSIONS.length?"Deselect All":"Select All"}
-                </button>
-              </label>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                {ALL_PERMISSIONS.map(p=>{
-                  const on=form.permissions.includes(p.key);
-                  return (
-                    <div key={p.key} onClick={()=>togglePerm(p.key)}
-                      style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:10,border:`1.5px solid ${on?permColor+"60":"var(--border)"}`,background:on?permColor+"12":"var(--bg3)",cursor:"pointer",transition:"all .15s"}}>
-                      <div style={{width:18,height:18,borderRadius:5,border:`2px solid ${on?permColor:"var(--border2)"}`,background:on?permColor:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .15s"}}>
-                        {on&&<Icon d={icons.check} size={10} stroke="#fff" strokeWidth={3}/>}
-                      </div>
-                      <Icon d={icons[p.icon]||icons.star} size={13} stroke={on?permColor:"var(--text3)"}/>
-                      <span style={{fontSize:12,fontWeight:600,color:on?permColor:"var(--text2)"}}>{p.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {error && <div style={{padding:"8px 12px",background:"#ef444418",border:"1px solid #ef444440",borderRadius:8,fontSize:12,color:"var(--red)"}}>⚠️ {error}</div>}
-
-            <div style={{display:"flex",gap:10,marginTop:4}}>
-              <button className="btn btn-ghost" style={{flex:1,justifyContent:"center"}} onClick={()=>{setView("list");setError("");}}>Cancel</button>
-              <button className="btn btn-primary" style={{flex:2,justifyContent:"center"}} onClick={view==="add"?addAdmin:updateAdmin}>
-                {view==="add"?"✅ Add Admin":"💾 Save Changes"}
-              </button>
-            </div>
+            <button onClick={()=>importRef.current.click()}
+              style={{flex:1,minWidth:120,padding:"9px 12px",borderRadius:10,border:"1px solid #10b98140",background:"#10b98115",cursor:"pointer",color:"var(--green)",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              <Icon d={icons.upload} size={13} stroke="var(--green)"/> Import / Restore
+            </button>
+            <input ref={importRef} type="file" accept=".json" style={{display:"none"}} onChange={handleImportFile}/>
+            <button onClick={()=>{ if(window.confirm("Logout from this session? Data will be preserved.")) onSessionLogout && onSessionLogout(); }}
+              style={{flex:1,minWidth:120,padding:"9px 12px",borderRadius:10,border:"1px solid #ef444430",background:"#ef444412",cursor:"pointer",color:"var(--red)",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              <Icon d={icons.x} size={13} stroke="var(--red)"/> Logout
+            </button>
           </div>
         )}
+        {importOk && <div style={{marginTop:10,padding:"8px 12px",background:"#10b98115",border:"1px solid #10b98140",borderRadius:8,fontSize:12,color:"var(--green)"}}>✅ Data restored successfully! Refresh page for full effect.</div>}
+        {importError && <div style={{marginTop:10,padding:"8px 12px",background:"#ef444415",border:"1px solid #ef444440",borderRadius:8,fontSize:12,color:"var(--red)"}}>⚠️ {importError}</div>}
       </div>
+
+      {/* Stats Row */}
+      {view==="list" && (
+        <div className="grid-3 fade-up">
+          {[
+            {label:"Total Admins", value:admins.length+"/"+MAX_ADMINS, color:"var(--accent2)"},
+            {label:"Active", value:admins.filter(a=>a.active).length, color:"var(--green)"},
+            {label:"Disabled", value:admins.filter(a=>!a.active).length, color:"var(--red)"},
+          ].map((s,i)=>(
+            <div key={i} className="stat-card">
+              <div style={{fontSize:11,color:"var(--text3)",textTransform:"uppercase",letterSpacing:".6px",fontWeight:600,marginBottom:6}}>{s.label}</div>
+              <div style={{fontFamily:"Syne",fontSize:26,fontWeight:800,color:s.color}}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {success && (
+        <div style={{padding:"12px 16px",background:"#10b98118",border:"1px solid #10b98140",borderRadius:12,fontSize:13,color:"var(--green)"}}>
+          ✅ {success}
+        </div>
+      )}
+
+      {/* LIST VIEW */}
+      {view==="list" && (
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {admins.length===0 ? (
+            <div className="card" style={{textAlign:"center",padding:"48px 20px",color:"var(--text3)"}}>
+              <div style={{fontSize:56,marginBottom:16}}>🛡️</div>
+              <div style={{fontFamily:"Syne",fontWeight:700,fontSize:18,marginBottom:8}}>No admins yet</div>
+              <div style={{fontSize:13,marginBottom:20}}>Add an admin to give someone limited access to this app.</div>
+              <button className="btn btn-primary" style={{margin:"0 auto"}} onClick={openAdd}>
+                <Icon d={icons.plus} size={15} stroke="#fff"/> Add First Admin
+              </button>
+            </div>
+          ) : (
+            <>
+              {admins.map(admin=>(
+                <div key={admin.id} className="card fade-up" style={{border:`1px solid ${admin.active?"var(--border)":"#ef444420"}`,background:admin.active?"var(--bg2)":"#ef444406"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+                    <div style={{width:44,height:44,borderRadius:12,background:admin.active?"var(--accentglow)":"#ef444415",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>
+                      🛡️
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontFamily:"Syne",fontWeight:700,fontSize:16,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                        {admin.displayName||admin.username}
+                        {!admin.active && <span style={{fontSize:10,padding:"2px 10px",borderRadius:99,background:"#ef444420",color:"var(--red)",fontWeight:600}}>Disabled</span>}
+                      </div>
+                      <div style={{fontSize:12,color:"var(--text3)",marginTop:2}}>@{admin.username}</div>
+                      {admin.createdAt && <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>Created: {new Date(admin.createdAt).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</div>}
+                    </div>
+                  </div>
+                  <div style={{marginBottom:14}}>
+                    <div style={{fontSize:11,color:"var(--text3)",fontWeight:600,textTransform:"uppercase",letterSpacing:".5px",marginBottom:8}}>
+                      Permissions ({(admin.permissions||[]).length}/{ALL_PERMISSIONS.length})
+                    </div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                      {(admin.permissions||[]).length===0
+                        ? <span style={{fontSize:12,color:"var(--red)",fontWeight:600}}>No permissions assigned</span>
+                        : ALL_PERMISSIONS.map(p=>{
+                            const has=(admin.permissions||[]).includes(p.key);
+                            return (
+                              <span key={p.key} style={{
+                                fontSize:11,padding:"3px 10px",borderRadius:99,fontWeight:600,
+                                background:has?permColor+"20":"var(--bg4)",
+                                color:has?permColor:"var(--text3)",
+                                border:`1px solid ${has?permColor+"40":"var(--border)"}`,
+                                opacity:has?1:0.5
+                              }}>{p.label}</span>
+                            );
+                          })
+                      }
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <button className="btn btn-ghost btn-sm" style={{flex:1,justifyContent:"center"}} onClick={()=>openEdit(admin)}>
+                      <Icon d={icons.edit} size={13}/> Edit
+                    </button>
+                    <button onClick={()=>toggleActive(admin)} className="btn btn-sm" style={{flex:1,justifyContent:"center",background:admin.active?"#ef444415":"#10b98115",color:admin.active?"var(--red)":"var(--green)",border:`1px solid ${admin.active?"#ef444430":"#10b98130"}`}}>
+                      {admin.active?"Disable":"Enable"}
+                    </button>
+                    <button className="btn btn-danger btn-sm" style={{justifyContent:"center"}} onClick={()=>removeAdmin(admin)}>
+                      <Icon d={icons.trash} size={13} stroke="var(--red)"/> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button className="btn btn-primary" style={{width:"100%",justifyContent:"center",padding:14}}
+                disabled={admins.length>=MAX_ADMINS} onClick={openAdd}>
+                <Icon d={icons.plus} size={15} stroke="#fff"/>
+                {admins.length>=MAX_ADMINS?`Admin limit reached (${MAX_ADMINS})`:"Add New Admin"}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ADD / EDIT FORM */}
+      {(view==="add"||view==="edit") && (
+        <div className="card fade-up" style={{display:"flex",flexDirection:"column",gap:16}}>
+          <div style={{fontFamily:"Syne",fontSize:17,fontWeight:700}}>
+            {view==="add"?"Add New Admin":"Edit Admin"}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div><label className="label">Display Name</label><input className="input" placeholder="e.g. Rahul" value={form.displayName} onChange={e=>setForm(f=>({...f,displayName:e.target.value}))}/></div>
+            <div><label className="label">Username *</label><input className="input" placeholder="login username" value={form.username} onChange={e=>setForm(f=>({...f,username:e.target.value}))}/></div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div><label className="label">{view==="add"?"Password *":"New Password (optional)"}</label><input className="input" type="password" placeholder="password..." value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}/></div>
+            <div><label className="label">Confirm Password</label><input className="input" type="password" placeholder="confirm..." value={form.confirmPass} onChange={e=>setForm(f=>({...f,confirmPass:e.target.value}))}/></div>
+          </div>
+          <div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+              <label className="label" style={{margin:0}}>Permissions — {form.permissions.length}/{ALL_PERMISSIONS.length} pages</label>
+              <button onClick={()=>setForm(f=>({...f,permissions:f.permissions.length===ALL_PERMISSIONS.length?[]:ALL_PERMISSIONS.map(p=>p.key)}))}
+                style={{fontSize:11,padding:"4px 12px",borderRadius:99,background:"var(--accentglow)",border:"1px solid var(--border)",color:"var(--accent2)",cursor:"pointer",fontWeight:700}}>
+                {form.permissions.length===ALL_PERMISSIONS.length?"Deselect All":"Select All"}
+              </button>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              {ALL_PERMISSIONS.map(p=>{
+                const on=form.permissions.includes(p.key);
+                return (
+                  <div key={p.key} onClick={()=>togglePerm(p.key)}
+                    style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:12,border:`1.5px solid ${on?permColor+"60":"var(--border)"}`,background:on?permColor+"12":"var(--bg3)",cursor:"pointer",transition:"all .15s"}}>
+                    <div style={{width:20,height:20,borderRadius:6,border:`2px solid ${on?permColor:"var(--border2)"}`,background:on?permColor:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .15s"}}>
+                      {on&&<Icon d={icons.check} size={11} stroke="#fff" strokeWidth={3}/>}
+                    </div>
+                    <Icon d={icons[p.icon]||icons.star} size={14} stroke={on?permColor:"var(--text3)"}/>
+                    <span style={{fontSize:13,fontWeight:600,color:on?permColor:"var(--text2)"}}>{p.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          {error && <div style={{padding:"10px 14px",background:"#ef444418",border:"1px solid #ef444440",borderRadius:10,fontSize:13,color:"var(--red)"}}>⚠️ {error}</div>}
+          <div style={{display:"flex",gap:10}}>
+            <button className="btn btn-ghost" style={{flex:1,justifyContent:"center"}} onClick={()=>{setView("list");setError("");}}>Cancel</button>
+            <button className="btn btn-primary" style={{flex:2,justifyContent:"center"}} onClick={view==="add"?addAdmin:updateAdmin}>
+              {view==="add"?"Add Admin":"Save Changes"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
 // ─── INITIAL DATA ─────────────────────────────────────────────────────────────
 const INITIAL_HABITS = [
   { id: 1, name: "Morning Cold Water + 10 Pushups", emoji: "💧", category: "morning", target: 1 },
@@ -2126,6 +2259,13 @@ function SettingsPage({ profile, setProfile, onLogout, theme, setTheme, allData,
   const fileRef = useRef();
   const importRef = useRef();
 
+  // Track last export date
+  const lastExport = storage.get("lastExportDate", null);
+  const daysSinceExport = lastExport
+    ? Math.floor((Date.now() - new Date(lastExport).getTime()) / 864e5)
+    : null;
+  const showBackupWarning = daysSinceExport === null || daysSinceExport >= 7;
+
   const handleAvatar = (e) => {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
@@ -2140,6 +2280,7 @@ function SettingsPage({ profile, setProfile, onLogout, theme, setTheme, allData,
     const a = document.createElement("a");
     a.href=url; a.download=`StudyOS_backup_${today()}.json`; a.click();
     URL.revokeObjectURL(url);
+    storage.set("lastExportDate", new Date().toISOString());
   };
 
   const handleImport = (e) => {
@@ -2151,7 +2292,6 @@ function SettingsPage({ profile, setProfile, onLogout, theme, setTheme, allData,
         const data = JSON.parse(ev.target.result);
         onImport(data);
         setImportOk(true);
-        setTimeout(() => setImportOk(false), 3000);
       } catch { setImportError("Invalid backup file. Please use a valid StudyOS JSON backup."); }
     };
     reader.readAsText(file);
@@ -2201,17 +2341,66 @@ function SettingsPage({ profile, setProfile, onLogout, theme, setTheme, allData,
         </div>
       </div>
 
-      {/* Import / Export */}
-      <div className="card fade-up" style={{ animationDelay:".08s" }}>
-        <div style={{ fontFamily:"Syne",fontSize:15,fontWeight:700,marginBottom:6,display:"flex",alignItems:"center",gap:8 }}><Icon d={icons.download} size={16} stroke="var(--blue)"/> Data Backup</div>
-        <div style={{ fontSize:12,color:"var(--text3)",marginBottom:16 }}>Export your data as JSON, or restore from a backup.</div>
+      {/* Import / Export — Cross-Device Sync */}
+      <div className="card fade-up" style={{ animationDelay:".08s",border:`1px solid ${showBackupWarning?"#f9731640":"#7c6fff30"}`,background:`linear-gradient(135deg,${showBackupWarning?"#f9731608":"#7c6fff08"},var(--bg2))` }}>
+        <div style={{ fontFamily:"Syne",fontSize:15,fontWeight:700,marginBottom:4,display:"flex",alignItems:"center",gap:8 }}>
+          <span style={{fontSize:18}}>🔄</span> Cross-Device Sync
+          {showBackupWarning && <span style={{marginLeft:"auto",fontSize:10,padding:"3px 8px",borderRadius:99,background:"#f9731620",color:"#f97316",fontWeight:700,border:"1px solid #f9731640"}}>⚠️ Backup overdue</span>}
+        </div>
+
+        {/* Backup warning */}
+        {showBackupWarning && (
+          <div style={{marginBottom:12,padding:"9px 12px",background:"#f9731612",border:"1px solid #f9731630",borderRadius:9,fontSize:12,color:"#f97316",lineHeight:1.5}}>
+            {daysSinceExport === null
+              ? "⚠️ Aapne abhi tak koi backup nahi liya! Data loss se bachne ke liye export karo."
+              : `⚠️ Last backup ${daysSinceExport} din pehle tha. Weekly backup lena safe rahega.`}
+          </div>
+        )}
+        {!showBackupWarning && lastExport && (
+          <div style={{marginBottom:10,fontSize:11,color:"var(--green)"}}>
+            ✅ Last backup: {new Date(lastExport).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})} ({daysSinceExport} din pehle)
+          </div>
+        )}
+
+        <div style={{ fontSize:12,color:"var(--text3)",marginBottom:14,lineHeight:1.6 }}>
+          Export karo aur kisi bhi device pe import karo — <strong style={{color:"var(--text2)"}}>sab kuch transfer hoga.</strong> No backend needed!
+        </div>
+
+        {/* Step guide */}
+        <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16,padding:"12px 14px",background:"var(--bg3)",borderRadius:12}}>
+          {[
+            {n:"1",icon:"📤",label:"Export from this device → save the .json file"},
+            {n:"2",icon:"📁",label:"Transfer the file (WhatsApp, Google Drive, email)"},
+            {n:"3",icon:"📥",label:"Open StudyOS on new device → Import that file"},
+          ].map(s=>(
+            <div key={s.n} style={{display:"flex",alignItems:"center",gap:10,fontSize:12,color:"var(--text2)"}}>
+              <div style={{width:20,height:20,borderRadius:"50%",background:"var(--accentglow)",border:"1px solid var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:"var(--accent2)",flexShrink:0}}>{s.n}</div>
+              <span style={{fontSize:13}}>{s.icon} {s.label}</span>
+            </div>
+          ))}
+        </div>
+
         <div style={{ display:"flex",gap:10,flexWrap:"wrap" }}>
-          <button className="btn btn-ghost" onClick={exportData}><Icon d={icons.download} size={14}/> Export Backup</button>
-          <button className="btn btn-ghost" onClick={() => importRef.current.click()}><Icon d={icons.upload} size={14}/> Import Backup</button>
+          <button className="btn btn-primary" style={{flex:1,justifyContent:"center"}} onClick={exportData}>
+            <Icon d={icons.download} size={14} stroke="#fff"/> Export Full Backup
+          </button>
+          <button className="btn btn-ghost" style={{flex:1,justifyContent:"center"}} onClick={() => importRef.current.click()}>
+            <Icon d={icons.upload} size={14}/> Import & Restore
+          </button>
           <input ref={importRef} type="file" accept=".json" style={{ display:"none" }} onChange={handleImport}/>
         </div>
-        {importError && <div style={{ marginTop:10,fontSize:12,color:"var(--red)",background:"#ef444415",padding:"8px 12px",borderRadius:8 }}>{importError}</div>}
-        {importOk && <div style={{ marginTop:10,fontSize:12,color:"var(--green)",background:"#10b98115",padding:"8px 12px",borderRadius:8 }}>✅ Data imported successfully! Reload if needed.</div>}
+        <div style={{marginTop:10,fontSize:11,color:"var(--text3)",lineHeight:1.5}}>
+          ✅ Exports include: all study data, habits, goals, notes, workout logs, flashcards, focus sessions, admin credentials, theme & settings.
+        </div>
+        {importError && <div style={{ marginTop:10,fontSize:12,color:"var(--red)",background:"#ef444415",padding:"8px 12px",borderRadius:8 }}>⚠️ {importError}</div>}
+        {importOk && (
+          <div style={{ marginTop:10,display:"flex",flexDirection:"column",gap:8 }}>
+            <div style={{fontSize:12,color:"var(--green)",background:"#10b98115",padding:"8px 12px",borderRadius:8}}>✅ Data restore ho gaya! Page reload karo full effect ke liye.</div>
+            <button className="btn btn-primary" style={{justifyContent:"center"}} onClick={()=>window.location.reload()}>
+              🔄 Reload Now
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Notifications */}
@@ -2498,13 +2687,17 @@ function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [showCredModal, setShowCredModal] = useState(false);
-  const [showAdminManager, setShowAdminManager] = useState(false);
   const [onboarded, setOnboarded] = useState(() => storage.get("onboarded",false));
   const [profile, setProfile] = useState(() => storage.get("profile",{}));
   const [page, setPage] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => storage.get("sidebarCollapsed",false)); // desktop
-  const [theme, setTheme] = useState(() => storage.get("theme","dark_purple"));
+  const [theme, setTheme] = useState(() => {
+    const saved = storage.get("theme", null);
+    if (saved && THEMES[saved]) return saved;
+    // Auto-detect system theme on first launch
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark_purple";
+  });
   const [habits, setHabits] = useState(() => storage.get("habits",INITIAL_HABITS));
   const [habitLogs, setHabitLogs] = useState(() => storage.get("habitLogs",{}));
   const [lectures, setLectures] = useState(() => storage.get("lectures",INITIAL_LECTURES));
@@ -2555,7 +2748,16 @@ function App() {
   };
   const handleSessionLogout = () => { setLoggedIn(false); setCurrentUser(null); };
 
-  const allData = { profile,habits,habitLogs,lectures,lectureProgress,notes,exercises,workoutLogs,goals,flashcards,focusLogs };
+  const allData = {
+    _version: 3,
+    _exportedAt: new Date().toISOString(),
+    _exportedBy: currentUser?.username || "unknown",
+    profile, habits, habitLogs, lectures, lectureProgress,
+    notes, exercises, workoutLogs, goals, flashcards, focusLogs,
+    theme,
+    onboarded: true,
+    auth: storage.get("studyos_auth", null),
+  };
   const xp = useMemo(()=>computeXP(habitLogs,habits,workoutLogs,lectureProgress,lectures),[habitLogs,habits,workoutLogs,lectureProgress,lectures]);
   const handleImport = (data) => {
     if (data.profile) { setProfile(data.profile); storage.set("profile",data.profile); }
@@ -2569,6 +2771,9 @@ function App() {
     if (data.goals) { setGoals(data.goals); storage.set("goals",data.goals); }
     if (data.flashcards) { setFlashcards(data.flashcards); storage.set("flashcards",data.flashcards); }
     if (data.focusLogs) { setFocusLogs(data.focusLogs); storage.set("focusLogs",data.focusLogs); }
+    if (data.theme && THEMES[data.theme]) { setTheme(data.theme); storage.set("theme",data.theme); }
+    if (data.auth) { storage.set("studyos_auth", data.auth); }
+    if (data.onboarded !== undefined) { storage.set("onboarded", data.onboarded); }
   };
 
   const ALL_NAV = [
@@ -2584,13 +2789,16 @@ function App() {
     { id:"focus",    label:"Focus Mode",  icon:"timer"     },
     { id:"revision", label:"Revision Lab",icon:"star"      },
     { id:"report",   label:"Weekly Report",icon:"report"   },
+    { id:"admin",    label:"Admin Manager",icon:"profile",  ownerOnly:true },
     { id:"settings", label:"Settings",    icon:"settings"  },
   ];
   // Owner sees all; Admin sees only permitted pages + always-show pages
   const navItems = ALL_NAV.filter(item =>
-    currentUser?.role === "owner" || item.alwaysShow || hasPermission(currentUser, item.id)
+    currentUser?.role === "owner"
+      ? true
+      : !item.ownerOnly && (item.alwaysShow || hasPermission(currentUser, item.id))
   );
-  const pageTitles = { home:"Dashboard",schedule:"Schedule",habits:"Habits",lectures:"Lectures",workout:"Workout",goals:"Goals",notes:"Notes",analytics:"Analytics",profile:"Profile",focus:"Focus Mode",revision:"Revision Lab",report:"Weekly Report",settings:"Settings" };
+  const pageTitles = { home:"Dashboard",schedule:"Schedule",habits:"Habits",lectures:"Lectures",workout:"Workout",goals:"Goals",notes:"Notes",analytics:"Analytics",profile:"Profile",focus:"Focus Mode",revision:"Revision Lab",report:"Weekly Report",admin:"Admin Manager",settings:"Settings" };
 
   const navigateTo = (id) => {
     // Prevent admin from navigating to pages they don't have access to
@@ -2653,7 +2861,7 @@ function App() {
             </div>
             {currentUser?.role==="owner" && (
               <div style={{padding:"0 12px 8px"}}>
-                <button onClick={()=>setShowAdminManager(true)}
+                <button onClick={()=>navigateTo("admin")}
                   style={{width:"100%",padding:"8px",borderRadius:10,border:"1px solid #7c6fff40",background:"var(--accentglow)",cursor:"pointer",color:"var(--accent2)",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:7,transition:"all .2s"}}>
                   <span style={{fontSize:14}}>🛡️</span>
                   <span className="nav-label">Admin Manager</span>
@@ -2716,6 +2924,7 @@ function App() {
             {page==="revision" && <RevisionPage flashcards={flashcards} setFlashcards={setFlashcards}/>}
             {page==="profile" && <ProfilePage profile={profile} setProfile={setProfile} habitLogs={habitLogs} habits={habits} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} goals={goals} xp={xp}/>}
             {page==="report" && <WeeklyReportPage profile={profile} habits={habits} habitLogs={habitLogs} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} goals={goals}/>}
+            {page==="admin" && currentUser?.role==="owner" && <AdminPage onSessionLogout={handleSessionLogout} onFullLogout={handleLogout} allData={allData} onImport={handleImport}/>}
             {page==="settings" && <SettingsPage profile={profile} setProfile={setProfile} onLogout={handleLogout} theme={theme} setTheme={handleThemeChange} allData={allData} onImport={handleImport}/>}
               </>
             )}
@@ -2734,7 +2943,6 @@ function App() {
         </div>
       </div>
       {showCredModal && currentUser && <ChangeCredentialsModal currentUser={currentUser} onClose={()=>setShowCredModal(false)}/>}
-      {showAdminManager && currentUser?.role==="owner" && <AdminManagerModal onClose={()=>setShowAdminManager(false)}/>}
     </>
   );
 }
