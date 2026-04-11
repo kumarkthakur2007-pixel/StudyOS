@@ -15,33 +15,79 @@
   <meta name="application-name" content="StudyOS" />
   <meta name="msapplication-TileColor" content="#0a0a0f" />
 
-  <!-- PWA Manifest -->
+  <!-- PWA Manifest (optional - won't break if missing) -->
   <link rel="manifest" href="manifest.json" />
 
-  <!-- Apple Touch Icons (inline SVG converted via data URI) -->
+  <!-- Apple Touch Icons -->
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230a0a0f'/%3E%3Ccircle cx='256' cy='256' r='220' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c6fff'/%3E%3Cstop offset='1' stop-color='%23ec4899'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='256' y='330' font-size='240' text-anchor='middle' fill='white' font-family='sans-serif'%3E🧠%3C/text%3E%3C/svg%3E" />
+
+  <!-- Google Fonts: non-blocking (preconnect first, then load async) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" /></noscript>
 
   <style>
     #boot-screen{position:fixed;inset:0;background:#0a0a0f;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:18px;font-family:sans-serif}
     #boot-logo{width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,#7c6fff,#ec4899);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 8px 32px #7c6fff40}
     #boot-title{color:#f0f0f5;font-size:22px;font-weight:800;letter-spacing:.5px}
-    #boot-sub{color:#5a5a72;font-size:13px}
+    #boot-sub{color:#5a5a72;font-size:13px;text-align:center;max-width:260px;line-height:1.6}
     #boot-spinner{width:36px;height:36px;border:3px solid #ffffff15;border-top:3px solid #7c6fff;border-radius:50%;animation:bspin .7s linear infinite}
     @keyframes bspin{to{transform:rotate(360deg)}}
-    #boot-err{display:none;color:#ef4444;font-size:13px;text-align:center;max-width:280px;line-height:1.6}
+    #boot-err{display:none;color:#ef4444;font-size:13px;text-align:center;max-width:300px;line-height:1.7;padding:0 16px}
+    #boot-reload-btn{display:none;margin-top:8px;padding:10px 24px;background:#7c6fff;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:sans-serif}
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" onerror="document.getElementById('boot-err').style.display='block';document.getElementById('boot-err').textContent='React failed to load. Check internet connection and reload.'"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js" onerror="document.getElementById('boot-err').style.display='block';document.getElementById('boot-err').textContent='Babel failed to load. Check internet and reload.'"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-  <!-- Register Service Worker -->
+  <!-- React 18 -->
+  <script>
+    function _bootErr(msg) {
+      var e = document.getElementById('boot-err');
+      var b = document.getElementById('boot-reload-btn');
+      var s = document.getElementById('boot-spinner');
+      var sub = document.getElementById('boot-sub');
+      if(s) s.style.display='none';
+      if(sub) sub.style.display='none';
+      if(e){ e.style.display='block'; e.textContent = msg; }
+      if(b){ b.style.display='inline-block'; }
+    }
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"
+    onerror="_bootErr('❌ React load nahi hua. Internet check karo aur reload karo.')"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"
+    onerror="_bootErr('❌ ReactDOM load nahi hua. Internet check karo aur reload karo.')"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"
+    onerror="_bootErr('❌ Babel load nahi hua. Internet check karo aur reload karo.')"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+    onerror="console.warn('html2canvas load failed — screenshot feature disabled')"></script>
+
+  <!-- Timeout watchdog: agar 15 sec mein app render nahi hua toh error dikhao -->
+  <script>
+    var _appRenderTimeout = setTimeout(function() {
+      var root = document.getElementById('root');
+      var bootScreen = document.getElementById('boot-screen');
+      // Agar root empty hai matlab app render nahi hua
+      if(root && !root.hasChildNodes() && bootScreen && bootScreen.parentNode) {
+        if(typeof React === 'undefined') {
+          _bootErr('❌ Scripts load nahi hue. Internet slow hai ya CDN block hai.\nWifi ya 4G/5G se try karo.');
+        } else if(typeof Babel === 'undefined') {
+          _bootErr('❌ Babel load nahi hua (app run karne ke liye zaroori hai).\nPage reload karo.');
+        } else {
+          _bootErr('❌ App start nahi hua. Page reload karo. Agar phir bhi nahi chala toh cache clear karo (Ctrl+Shift+R).');
+        }
+      }
+    }, 15000);
+    // App successfully render hone par timeout cancel karo
+    window._appReady = function() { clearTimeout(_appRenderTimeout); };
+  </script>
+
+  <!-- Register Service Worker (safe — error ignore hoga) -->
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
+      window.addEventListener('load', function() {
         navigator.serviceWorker.register('sw.js')
-          .then(reg => console.log('StudyOS SW registered:', reg.scope))
-          .catch(err => console.log('SW registration failed:', err));
+          .then(function(reg){ console.log('StudyOS SW registered:', reg.scope); })
+          .catch(function(err){ console.log('SW registration skipped (file missing):', err.message); });
       });
     }
   </script>
@@ -53,6 +99,7 @@
     <div id="boot-spinner"></div>
     <div id="boot-sub">Loading your command center...</div>
     <div id="boot-err"></div>
+    <button id="boot-reload-btn" onclick="window.location.reload()">🔄 Reload App</button>
   </div>
   <div id="root"></div>
   <script type="text/babel">
@@ -982,7 +1029,6 @@ const getCSS = (theme) => {
   const t = THEMES[theme] || THEMES.dark_purple;
   const vars = Object.entries(t).filter(([k]) => k.startsWith('--')).map(([k,v]) => `${k}:${v}`).join(';');
   return `
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{${vars};
     --green:#10b981;--amber:#f59e0b;--red:#ef4444;--blue:#3b82f6;--pink:#ec4899;
@@ -2528,6 +2574,8 @@ function SettingsPage({ currentUser, profile, setProfile, onLogout, theme, setTh
   const [importError, setImportError] = useState("");
   const [importOk, setImportOk] = useState(false);
   const importRef = useRef();
+  const [form, setForm] = useState(() => storage.get("settingsToggles", { phoneCurfew:false, streakNotif:false, classReminder:false, workoutReminder:false }));
+  useEffect(() => { storage.set("settingsToggles", form); }, [form]);
 
   // Track last export date
   const lastExport = storage.get("lastExportDate", null);
@@ -3261,6 +3309,8 @@ function App() {
 const bootEl = document.getElementById("boot-screen");
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<App/>);
+// Cancel the watchdog timer — app is rendering
+if(typeof window._appReady === 'function') window._appReady();
 if(bootEl) setTimeout(()=>{ bootEl.style.transition="opacity .4s"; bootEl.style.opacity="0"; setTimeout(()=>bootEl.remove(),400); },300);
   
 </script>
