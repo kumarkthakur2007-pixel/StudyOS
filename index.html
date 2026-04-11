@@ -224,14 +224,13 @@ const storage = {
 //   value = { name, bio, school, class, stream, target, avatar, ... }
 //
 // File System Access API — optional per-user file handle stored in IDB store
-// "fileHandles" (FileSystemFileHandle objects can be stored in IDB directly).
+
 
 const AVATAR_EMOJIS = ["🧑‍💻","👨‍🎓","👩‍🎓","🦸","🧠","🔥","⚡","🎯","🏆","👑","🦊","🐯","🦁","🐼","🐸","🐺","🦅","🌟","💎","🚀","🎮","🎸","🏋️","🥷","🧬","⚔️","🛡️","🌙","☀️","🌈"];
 
 const ProfileDB = (() => {
   const DB_NAME  = "studyos_profiles";
   const PROFILES = "profiles";
-  const HANDLES  = "fileHandles";  // stores FileSystemFileHandle per userId
   const VERSION  = 1;
   let _db = null;
 
@@ -241,7 +240,6 @@ const ProfileDB = (() => {
     req.onupgradeneeded = e => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains(PROFILES)) db.createObjectStore(PROFILES);
-      if (!db.objectStoreNames.contains(HANDLES))  db.createObjectStore(HANDLES);
     };
     req.onsuccess = e => { _db = e.target.result; res(_db); };
     req.onerror   = e => rej(e.target.error);
@@ -259,7 +257,6 @@ const ProfileDB = (() => {
   };
 
   return {
-    // ── Profile CRUD ──────────────────────────────────────────────────────────
     getProfile: async (userId) => {
       try { return await tx(PROFILES, "readonly", s => s.get(userId)); }
       catch { return null; }
@@ -267,18 +264,6 @@ const ProfileDB = (() => {
     setProfile: async (userId, data) => {
       try { return await tx(PROFILES, "readwrite", s => s.put(data, userId)); }
       catch { return false; }
-    },
-
-    // ── File System Handle (optional linked .json file) ───────────────────────
-    getHandle: async (userId) => {
-      try { return await tx(HANDLES, "readonly", s => s.get(userId)); }
-      catch { return null; }
-    },
-    setHandle: async (userId, handle) => {
-      try {
-        if (handle) return await tx(HANDLES, "readwrite", s => s.put(handle, userId));
-        return await tx(HANDLES, "readwrite", s => s.delete(userId));
-      } catch { return false; }
     },
   };
 })();
@@ -288,42 +273,6 @@ const getUserProfile = (userId, cb) => {
   ProfileDB.getProfile(userId).then(p => cb(p || {})).catch(() => cb({}));
 };
 const saveUserProfile = (userId, data) => ProfileDB.setProfile(userId, data);
-
-// ── File System Access API helpers ────────────────────────────────────────────
-const FS_SUPPORTED = ("showOpenFilePicker" in window || "showSaveFilePicker" in window);
-
-// Read profile from a linked file handle (returns parsed object or null)
-const readProfileFile = async (handle) => {
-  try {
-    const file = await handle.getFile();
-    const text = await file.text();
-    return JSON.parse(text);
-  } catch { return null; }
-};
-
-// Write profile data to a linked file handle
-const writeProfileFile = async (handle, data) => {
-  try {
-    const writable = await handle.createWritable();
-    await writable.write(JSON.stringify(data, null, 2));
-    await writable.close();
-    return true;
-  } catch { return false; }
-};
-
-// Ask user to pick / create a profile JSON file
-const pickProfileFile = async (userId, displayName) => {
-  try {
-    const opts = {
-      suggestedName: `studyos_profile_${displayName || userId}.json`,
-      types: [{ description:"Profile JSON", accept:{"application/json":[".json"]} }],
-    };
-    const handle = "showSaveFilePicker" in window
-      ? await window.showSaveFilePicker(opts)
-      : (await window.showOpenFilePicker({ ...opts, multiple:false }))[0];
-    return handle;
-  } catch { return null; } // user cancelled
-};
 
 // Backward-compat avatar wrappers used in existing components
 const getUserAvatar = (userId, cb) => {
@@ -2222,28 +2171,10 @@ function ProfilePage({ currentUser, profile, setProfile, habitLogs, habits, work
   const [avatarTab, setAvatarTab] = useState("emoji"); // "emoji" | "upload"
   const [saving, setSaving]       = useState(false);
   const [saveMsg, setSaveMsg]     = useState("");
-  // File System Access API
-  const [fileHandle, setFileHandle] = useState(null);
-  const [fileLinked, setFileLinked] = useState(false);
-  const [fileStatus, setFileStatus] = useState(""); // status message
   const fileRef  = useRef();
 
   // Populate form whenever profile (from IDB) changes
   useEffect(() => { setForm({ ...profile }); }, [profile]);
-
-  // On mount — check if this user has a linked file handle in IDB
-  useEffect(() => {
-    if (!currentUser?.id) return;
-    ProfileDB.getHandle(currentUser.id).then(async (h) => {
-      if (!h) return;
-      // Verify permission is still granted
-      try {
-        const perm = await h.queryPermission({ mode:"readwrite" });
-        if (perm === "granted") { setFileHandle(h); setFileLinked(true); setFileStatus("📁 Linked to file"); }
-        else { setFileLinked(false); setFileHandle(null); }
-      } catch { setFileLinked(false); }
-    });
-  }, [currentUser?.id]);
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const handleImageUpload = (e) => {
@@ -2258,55 +2189,10 @@ function ProfilePage({ currentUser, profile, setProfile, habitLogs, habits, work
   const saveProfile = async () => {
     setSaving(true);
     const data = { ...form, _savedAt: new Date().toISOString() };
-    await setProfile(data);          // saves to IDB via App's unified setProfile
-    // If file is linked, also write to file
-    if (fileHandle) {
-      const ok = await writeProfileFile(fileHandle, data);
-      setFileStatus(ok ? "✅ Saved to file" : "⚠️ File write failed");
-      setTimeout(() => setFileStatus(fileLinked ? "📁 Linked to file" : ""), 2500);
-    }
+    await setProfile(data);
     setSaving(false);
     setSaveMsg("✅ Profile saved!");
     setTimeout(() => { setSaveMsg(""); setEditing(false); }, 1200);
-  };
-
-  // ── File System API ────────────────────────────────────────────────────────
-  const linkFile = async () => {
-    if (!FS_SUPPORTED) { setFileStatus("❌ Browser doesn't support File System API"); return; }
-    const handle = await pickProfileFile(currentUser.id, form.name || currentUser.displayName);
-    if (!handle) return;
-    // Try to read existing data from file
-    const existing = await readProfileFile(handle);
-    if (existing && Object.keys(existing).length > 0) {
-      if (window.confirm("File mein data mila! Kya file ka data load karein? (No = current data rakhein)")) {
-        const merged = { ...existing };
-        setForm(merged);
-        await setProfile(merged);
-      }
-    }
-    await ProfileDB.setHandle(currentUser.id, handle);
-    setFileHandle(handle);
-    setFileLinked(true);
-    setFileStatus("📁 File linked! Save karte waqt file update hogi.");
-  };
-
-  const unlinkFile = async () => {
-    await ProfileDB.setHandle(currentUser.id, null);
-    setFileHandle(null); setFileLinked(false); setFileStatus("");
-  };
-
-  const loadFromFile = async () => {
-    if (!fileHandle) return;
-    let perm = await fileHandle.queryPermission({ mode:"readwrite" });
-    if (perm !== "granted") perm = await fileHandle.requestPermission({ mode:"readwrite" });
-    if (perm !== "granted") { setFileStatus("❌ Permission denied"); return; }
-    const data = await readProfileFile(fileHandle);
-    if (data) {
-      setForm(data);
-      await setProfile(data);
-      setFileStatus("✅ File se load ho gaya!");
-      setTimeout(() => setFileStatus("📁 Linked to file"), 2000);
-    } else setFileStatus("❌ File read failed");
   };
 
   // ── Stats ──────────────────────────────────────────────────────────────────
@@ -2340,21 +2226,10 @@ function ProfilePage({ currentUser, profile, setProfile, habitLogs, habits, work
         {profile.school && <div style={{fontSize:13,color:"var(--text2)",marginBottom:8}}>🏫 {profile.school}</div>}
         {profile.bio && <div style={{fontSize:13,color:"var(--text3)",fontStyle:"italic",marginBottom:12,lineHeight:1.6,maxWidth:400,margin:"0 auto 12px"}}>"{profile.bio}"</div>}
 
-        {/* File link status */}
-        {fileStatus && <div style={{fontSize:11,color:"var(--green)",marginBottom:8,fontWeight:600}}>{fileStatus}</div>}
-
         <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
           <button className="btn btn-ghost btn-sm" onClick={() => { setForm({...profile}); setEditing(!editing); }}>
             <Icon d={icons.edit} size={14}/> {editing ? "Cancel" : "Edit Profile"}
           </button>
-          {!editing && FS_SUPPORTED && (
-            fileLinked
-              ? <>
-                  <button className="btn btn-ghost btn-sm" onClick={loadFromFile} title="File se reload karo">📂 Load from File</button>
-                  <button className="btn btn-ghost btn-sm" style={{color:"var(--red)"}} onClick={unlinkFile}>✕ Unlink</button>
-                </>
-              : <button className="btn btn-ghost btn-sm" onClick={linkFile} title="Profile ko ek file se link karo">📁 Link File</button>
-          )}
         </div>
       </div>
 
@@ -2426,22 +2301,6 @@ function ProfilePage({ currentUser, profile, setProfile, habitLogs, habits, work
               <textarea className="notes-area" style={{minHeight:72}} value={form.bio||""} placeholder="Apni motivation likho..." onChange={e=>setForm(f=>({...f,bio:e.target.value}))}/>
             </div>
           </div>
-
-          {/* File link option inside form */}
-          {FS_SUPPORTED && (
-            <div style={{padding:"10px 14px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg3)",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:12,fontWeight:700,color:"var(--text2)"}}>📁 File System Sync</div>
-                <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>
-                  {fileLinked ? "Profile ek real file se linked hai. Save karne par file update hogi." : "Profile ko phone/PC pe ek .json file se link karo — automatic sync."}
-                </div>
-              </div>
-              {fileLinked
-                ? <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",flexShrink:0}} onClick={unlinkFile}>Unlink</button>
-                : <button className="btn btn-ghost btn-sm" style={{flexShrink:0}} onClick={linkFile}>Link File</button>
-              }
-            </div>
-          )}
 
           {saveMsg && <div style={{padding:"8px 12px",background:"#10b98118",border:"1px solid #10b98140",borderRadius:8,fontSize:12,color:"var(--green)",textAlign:"center"}}>{saveMsg}</div>}
           <div style={{display:"flex",gap:10}}>
