@@ -213,6 +213,127 @@ const storage = {
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
 
+// ─── PER-USER PROFILE SYSTEM ─────────────────────────────────────────────────
+// Each user (owner + every admin) has their own independent profile stored in
+// IndexedDB. Avatar (image/emoji) is stored alongside other profile fields.
+// Optionally, a File System Access API "linked file" can be used to persist
+// the profile as a real JSON file on the device.
+//
+// Storage layout — IndexedDB "studyos_profiles" DB, object store "profiles":
+//   key  = userId  (e.g. "owner", "adm_1234567890")
+//   value = { name, bio, school, class, stream, target, avatar, ... }
+//
+// File System Access API — optional per-user file handle stored in IDB store
+// "fileHandles" (FileSystemFileHandle objects can be stored in IDB directly).
+
+const AVATAR_EMOJIS = ["🧑‍💻","👨‍🎓","👩‍🎓","🦸","🧠","🔥","⚡","🎯","🏆","👑","🦊","🐯","🦁","🐼","🐸","🐺","🦅","🌟","💎","🚀","🎮","🎸","🏋️","🥷","🧬","⚔️","🛡️","🌙","☀️","🌈"];
+
+const ProfileDB = (() => {
+  const DB_NAME  = "studyos_profiles";
+  const PROFILES = "profiles";
+  const HANDLES  = "fileHandles";  // stores FileSystemFileHandle per userId
+  const VERSION  = 1;
+  let _db = null;
+
+  const open = () => new Promise((res, rej) => {
+    if (_db) { res(_db); return; }
+    const req = indexedDB.open(DB_NAME, VERSION);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(PROFILES)) db.createObjectStore(PROFILES);
+      if (!db.objectStoreNames.contains(HANDLES))  db.createObjectStore(HANDLES);
+    };
+    req.onsuccess = e => { _db = e.target.result; res(_db); };
+    req.onerror   = e => rej(e.target.error);
+  });
+
+  const tx = async (store, mode, fn) => {
+    const db = await open();
+    return new Promise((res, rej) => {
+      const t = db.transaction(store, mode);
+      const s = t.objectStore(store);
+      const r = fn(s);
+      r.onsuccess = () => res(r.result ?? null);
+      r.onerror   = () => rej(r.error);
+    });
+  };
+
+  return {
+    // ── Profile CRUD ──────────────────────────────────────────────────────────
+    getProfile: async (userId) => {
+      try { return await tx(PROFILES, "readonly", s => s.get(userId)); }
+      catch { return null; }
+    },
+    setProfile: async (userId, data) => {
+      try { return await tx(PROFILES, "readwrite", s => s.put(data, userId)); }
+      catch { return false; }
+    },
+
+    // ── File System Handle (optional linked .json file) ───────────────────────
+    getHandle: async (userId) => {
+      try { return await tx(HANDLES, "readonly", s => s.get(userId)); }
+      catch { return null; }
+    },
+    setHandle: async (userId, handle) => {
+      try {
+        if (handle) return await tx(HANDLES, "readwrite", s => s.put(handle, userId));
+        return await tx(HANDLES, "readwrite", s => s.delete(userId));
+      } catch { return false; }
+    },
+  };
+})();
+
+// ── Helpers called from components ────────────────────────────────────────────
+const getUserProfile = (userId, cb) => {
+  ProfileDB.getProfile(userId).then(p => cb(p || {})).catch(() => cb({}));
+};
+const saveUserProfile = (userId, data) => ProfileDB.setProfile(userId, data);
+
+// ── File System Access API helpers ────────────────────────────────────────────
+const FS_SUPPORTED = ("showOpenFilePicker" in window || "showSaveFilePicker" in window);
+
+// Read profile from a linked file handle (returns parsed object or null)
+const readProfileFile = async (handle) => {
+  try {
+    const file = await handle.getFile();
+    const text = await file.text();
+    return JSON.parse(text);
+  } catch { return null; }
+};
+
+// Write profile data to a linked file handle
+const writeProfileFile = async (handle, data) => {
+  try {
+    const writable = await handle.createWritable();
+    await writable.write(JSON.stringify(data, null, 2));
+    await writable.close();
+    return true;
+  } catch { return false; }
+};
+
+// Ask user to pick / create a profile JSON file
+const pickProfileFile = async (userId, displayName) => {
+  try {
+    const opts = {
+      suggestedName: `studyos_profile_${displayName || userId}.json`,
+      types: [{ description:"Profile JSON", accept:{"application/json":[".json"]} }],
+    };
+    const handle = "showSaveFilePicker" in window
+      ? await window.showSaveFilePicker(opts)
+      : (await window.showOpenFilePicker({ ...opts, multiple:false }))[0];
+    return handle;
+  } catch { return null; } // user cancelled
+};
+
+// Backward-compat avatar wrappers used in existing components
+const getUserAvatar = (userId, cb) => {
+  ProfileDB.getProfile(userId).then(p => cb((p && p.avatar) || null)).catch(() => cb(null));
+};
+const setUserAvatar = async (userId, avatarVal) => {
+  const existing = await ProfileDB.getProfile(userId) || {};
+  return ProfileDB.setProfile(userId, { ...existing, avatar: avatarVal });
+};
+
 // ─── AUTH SYSTEM ─────────────────────────────────────────────────────────────
 // Permission keys available for admins
 const ALL_PERMISSIONS = [
@@ -387,15 +508,40 @@ function LoginScreen({ onLogin }) {
 }
 
 // ─── CHANGE MY CREDENTIALS MODAL ──────────────────────────────────────────────
-function ChangeCredentialsModal({ currentUser, onClose }) {
+function ChangeCredentialsModal({ currentUser, onClose, onAvatarChange }) {
   const auth = getAuth();
   const isOwner = currentUser.role === "owner";
   const myData = isOwner ? auth.owner : (auth.admins||[]).find(a=>a.id===currentUser.id);
-  const [form, setForm] = useState({ username: myData?.username||"", displayName: myData?.displayName||"", password:"", confirmPass:"" });
+  const [form, setForm]       = useState({ username: myData?.username||"", displayName: myData?.displayName||"", password:"", confirmPass:"" });
   const [error, setError]     = useState("");
   const [success, setSuccess] = useState(false);
+  const [avatarTab, setAvatarTab] = useState("current"); // "current" | "upload" | "emoji"
+  const [avatar, setAvatar]   = useState(null);
+  const [avatarLoading, setAvatarLoading] = useState(true);
+  const [emojiSearch, setEmojiSearch] = useState("");
+  const fileRef = useRef();
 
-  const save = () => {
+  // Load avatar from IndexedDB on mount
+  useEffect(() => {
+    getUserAvatar(currentUser.id, (av) => { setAvatar(av); setAvatarLoading(false); });
+  }, []);
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("Sirf image file upload karein!"); return; }
+    if (file.size > 2*1024*1024) { setError("Image 2MB se chhoti honi chahiye."); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => { setAvatar(ev.target.result); setAvatarTab("current"); setError(""); };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const saveAvatar = async () => {
+    await setUserAvatar(currentUser.id, avatar);
+    if (onAvatarChange) onAvatarChange(avatar);
+  };
+
+  const save = async () => {
     setError("");
     if (!form.username.trim()) { setError("Username cannot be blank."); return; }
     if (form.password && form.password !== form.confirmPass) { setError("Passwords do not match!"); return; }
@@ -410,33 +556,109 @@ function ChangeCredentialsModal({ currentUser, onClose }) {
       );
     }
     setAuth(newAuth);
+    await saveAvatar();
     setSuccess(true);
     setTimeout(onClose, 1400);
   };
 
+  const filteredEmojis = emojiSearch ? AVATAR_EMOJIS.filter(e=>e.includes(emojiSearch)) : AVATAR_EMOJIS;
+
   return (
     <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="modal" style={{maxWidth:380}}>
-        <div className="modal-title">🔑 Change Your Credentials</div>
-        <div style={{fontSize:12,color:"var(--text3)",marginBottom:16}}>{isOwner?"👑 Owner":"🛡️ Admin"} account update</div>
+      <div className="modal" style={{maxWidth:400}}>
+        <div className="modal-title">🔑 My Profile & Credentials</div>
+        <div style={{fontSize:12,color:"var(--text3)",marginBottom:16}}>{isOwner?"👑 Owner":"🛡️ Admin"} — apna profile update karo</div>
         {success ? (
-          <div style={{textAlign:"center",padding:"20px 0",color:"var(--green)",fontFamily:"Syne",fontSize:16,fontWeight:700}}>✅ Credentials updated successfully!</div>
+          <div style={{textAlign:"center",padding:"20px 0",color:"var(--green)",fontFamily:"Syne",fontSize:16,fontWeight:700}}>✅ Profile updated successfully!</div>
         ) : (
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
+
+            {/* ── Avatar Section ── */}
+            <div style={{background:"var(--bg3)",borderRadius:14,padding:14,border:"1px solid var(--border)"}}>
+              <div style={{fontSize:12,fontWeight:700,color:"var(--text2)",marginBottom:10,textTransform:"uppercase",letterSpacing:".5px"}}>Profile Picture</div>
+              <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:12}}>
+                {/* Preview */}
+                <div style={{width:60,height:60,borderRadius:16,background:"var(--accentglow)",border:"2px solid var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden",fontSize:28}}>
+                  {avatar
+                    ? (avatar.startsWith("data:") || avatar.startsWith("http")
+                        ? <img src={avatar} alt="av" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                        : <span>{avatar}</span>)
+                    : <Icon d={icons.user} size={24} stroke="var(--text3)"/>
+                  }
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{isOwner?"Owner":form.displayName||form.username||"Admin"}</div>
+                  <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>{isOwner?"👑 Owner":"🛡️ Admin"}</div>
+                  {avatar && (
+                    <button onClick={()=>setAvatar(null)} style={{marginTop:6,fontSize:10,color:"var(--red)",background:"none",border:"none",cursor:"pointer",padding:0,fontWeight:600}}>
+                      ✕ Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Tabs */}
+              <div style={{display:"flex",gap:6,marginBottom:10}}>
+                {[{key:"upload",label:"📷 Upload"},{key:"emoji",label:"😀 Emoji"}].map(tab=>(
+                  <button key={tab.key} onClick={()=>setAvatarTab(t=>t===tab.key?"current":tab.key)}
+                    style={{flex:1,padding:"6px 10px",borderRadius:8,border:`1px solid ${avatarTab===tab.key?"var(--accent)":"var(--border)"}`,background:avatarTab===tab.key?"var(--accentglow)":"var(--bg4)",cursor:"pointer",color:avatarTab===tab.key?"var(--accent2)":"var(--text3)",fontSize:11,fontWeight:600,transition:"all .15s"}}>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Upload Panel */}
+              {avatarTab==="upload" && (
+                <div>
+                  <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleFileUpload}/>
+                  <button onClick={()=>fileRef.current.click()}
+                    style={{width:"100%",padding:"10px",borderRadius:10,border:"2px dashed var(--border2)",background:"var(--bg4)",cursor:"pointer",color:"var(--text2)",fontSize:12,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"all .2s"}}>
+                    <Icon d={icons.upload} size={14} stroke="var(--text2)"/>
+                    Image choose karo (max 2MB)
+                  </button>
+                  <div style={{fontSize:10,color:"var(--text3)",marginTop:6,textAlign:"center"}}>JPG, PNG, GIF, WebP supported</div>
+                </div>
+              )}
+
+              {/* Emoji Panel */}
+              {avatarTab==="emoji" && (
+                <div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:4,maxHeight:100,overflowY:"auto",padding:4,borderRadius:10,background:"var(--bg4)",border:"1px solid var(--border)"}}>
+                    {AVATAR_EMOJIS.map(em=>(
+                      <button key={em} onClick={()=>{setAvatar(em);setAvatarTab("current");}}
+                        style={{width:32,height:32,borderRadius:8,border:`1px solid ${avatar===em?"var(--accent)":"transparent"}`,background:avatar===em?"var(--accentglow)":"transparent",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .1s"}}>
+                        {em}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Credentials ── */}
             {!isOwner && <div><label className="label">Display Name</label><input className="input" value={form.displayName} placeholder="e.g. Rahul" onChange={e=>setForm(f=>({...f,displayName:e.target.value}))}/></div>}
             <div><label className="label">Username</label><input className="input" value={form.username} onChange={e=>setForm(f=>({...f,username:e.target.value}))}/></div>
-            <div><label className="label">New Password (leave blank to keep unchanged)</label><input className="input" type="password" placeholder="New password..." value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}/></div>
+            <div><label className="label">New Password (blank = unchanged)</label><input className="input" type="password" placeholder="New password..." value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}/></div>
             {form.password && <div><label className="label">Confirm Password</label><input className="input" type="password" placeholder="Confirm..." value={form.confirmPass} onChange={e=>setForm(f=>({...f,confirmPass:e.target.value}))}/></div>}
             {error && <div style={{padding:"8px 12px",background:"#ef444418",border:"1px solid #ef444440",borderRadius:8,fontSize:12,color:"var(--red)"}}>⚠️ {error}</div>}
             <div style={{display:"flex",gap:10,marginTop:4}}>
               <button className="btn btn-ghost" style={{flex:1,justifyContent:"center"}} onClick={onClose}>Cancel</button>
-              <button className="btn btn-primary" style={{flex:2,justifyContent:"center"}} onClick={save}>💾 Save</button>
+              <button className="btn btn-primary" style={{flex:2,justifyContent:"center"}} onClick={save}>💾 Save Changes</button>
             </div>
           </div>
         )}
       </div>
     </div>
   );
+}
+
+// Small component that async-loads a user's avatar from IndexedDB
+function AdminAvatar({ userId }) {
+  const [av, setAv] = useState(null);
+  useEffect(() => { getUserAvatar(userId, setAv); }, [userId]);
+  if (!av) return <span>🛡️</span>;
+  if (av.startsWith("data:") || av.startsWith("http")) return <img src={av} alt="av" style={{width:"100%",height:"100%",objectFit:"cover"}}/>;
+  return <span>{av}</span>;
 }
 
 // ─── ADMIN MANAGER (Owner Only) ───────────────────────────────────────────────
@@ -639,8 +861,8 @@ function AdminPage({ onSessionLogout, onFullLogout, allData, onImport }) {
               {admins.map(admin=>(
                 <div key={admin.id} className="card fade-up" style={{border:`1px solid ${admin.active?"var(--border)":"#ef444420"}`,background:admin.active?"var(--bg2)":"#ef444406"}}>
                   <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
-                    <div style={{width:44,height:44,borderRadius:12,background:admin.active?"var(--accentglow)":"#ef444415",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>
-                      🛡️
+                    <div style={{width:44,height:44,borderRadius:12,background:admin.active?"var(--accentglow)":"#ef444415",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0,overflow:"hidden",border:`1px solid ${admin.active?"var(--accent)":"#ef444430"}`}}>
+                      <AdminAvatar userId={admin.id}/>
                     </div>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontFamily:"Syne",fontWeight:700,fontSize:16,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
@@ -1994,81 +2216,273 @@ function AnalyticsPage({ habitLogs, habits, workoutLogs, lectureProgress, lectur
 }
 
 // ─── PROFILE PAGE ─────────────────────────────────────────────────────────────
-function ProfilePage({ profile, setProfile, habitLogs, habits, workoutLogs, lectureProgress, lectures, goals, xp }) {
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState(profile);
-  useEffect(() => { if (!editing) setForm(profile); }, [profile]);
-  const fileRef = useRef();
-  const handleAvatar = (e) => {
+function ProfilePage({ currentUser, profile, setProfile, habitLogs, habits, workoutLogs, lectureProgress, lectures, goals, xp }) {
+  const [editing, setEditing]     = useState(false);
+  const [form, setForm]           = useState({});
+  const [avatarTab, setAvatarTab] = useState("emoji"); // "emoji" | "upload"
+  const [saving, setSaving]       = useState(false);
+  const [saveMsg, setSaveMsg]     = useState("");
+  // File System Access API
+  const [fileHandle, setFileHandle] = useState(null);
+  const [fileLinked, setFileLinked] = useState(false);
+  const [fileStatus, setFileStatus] = useState(""); // status message
+  const fileRef  = useRef();
+
+  // Populate form whenever profile (from IDB) changes
+  useEffect(() => { setForm({ ...profile }); }, [profile]);
+
+  // On mount — check if this user has a linked file handle in IDB
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    ProfileDB.getHandle(currentUser.id).then(async (h) => {
+      if (!h) return;
+      // Verify permission is still granted
+      try {
+        const perm = await h.queryPermission({ mode:"readwrite" });
+        if (perm === "granted") { setFileHandle(h); setFileLinked(true); setFileStatus("📁 Linked to file"); }
+        else { setFileLinked(false); setFileHandle(null); }
+      } catch { setFileLinked(false); }
+    });
+  }, [currentUser?.id]);
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  const handleImageUpload = (e) => {
     const file = e.target.files[0]; if (!file) return;
+    if (!file.type.startsWith("image/")) return;
     const reader = new FileReader();
-    reader.onload = (ev) => setForm(f => ({ ...f, avatar:ev.target.result }));
+    reader.onload = (ev) => { setForm(f => ({ ...f, avatar: ev.target.result })); setAvatarTab("emoji"); };
     reader.readAsDataURL(file);
+    e.target.value = "";
   };
-  const save = () => { setProfile(form); setEditing(false); };
-  const weekDays = getWeekDays();
+
+  const saveProfile = async () => {
+    setSaving(true);
+    const data = { ...form, _savedAt: new Date().toISOString() };
+    await setProfile(data);          // saves to IDB via App's unified setProfile
+    // If file is linked, also write to file
+    if (fileHandle) {
+      const ok = await writeProfileFile(fileHandle, data);
+      setFileStatus(ok ? "✅ Saved to file" : "⚠️ File write failed");
+      setTimeout(() => setFileStatus(fileLinked ? "📁 Linked to file" : ""), 2500);
+    }
+    setSaving(false);
+    setSaveMsg("✅ Profile saved!");
+    setTimeout(() => { setSaveMsg(""); setEditing(false); }, 1200);
+  };
+
+  // ── File System API ────────────────────────────────────────────────────────
+  const linkFile = async () => {
+    if (!FS_SUPPORTED) { setFileStatus("❌ Browser doesn't support File System API"); return; }
+    const handle = await pickProfileFile(currentUser.id, form.name || currentUser.displayName);
+    if (!handle) return;
+    // Try to read existing data from file
+    const existing = await readProfileFile(handle);
+    if (existing && Object.keys(existing).length > 0) {
+      if (window.confirm("File mein data mila! Kya file ka data load karein? (No = current data rakhein)")) {
+        const merged = { ...existing };
+        setForm(merged);
+        await setProfile(merged);
+      }
+    }
+    await ProfileDB.setHandle(currentUser.id, handle);
+    setFileHandle(handle);
+    setFileLinked(true);
+    setFileStatus("📁 File linked! Save karte waqt file update hogi.");
+  };
+
+  const unlinkFile = async () => {
+    await ProfileDB.setHandle(currentUser.id, null);
+    setFileHandle(null); setFileLinked(false); setFileStatus("");
+  };
+
+  const loadFromFile = async () => {
+    if (!fileHandle) return;
+    let perm = await fileHandle.queryPermission({ mode:"readwrite" });
+    if (perm !== "granted") perm = await fileHandle.requestPermission({ mode:"readwrite" });
+    if (perm !== "granted") { setFileStatus("❌ Permission denied"); return; }
+    const data = await readProfileFile(fileHandle);
+    if (data) {
+      setForm(data);
+      await setProfile(data);
+      setFileStatus("✅ File se load ho gaya!");
+      setTimeout(() => setFileStatus("📁 Linked to file"), 2000);
+    } else setFileStatus("❌ File read failed");
+  };
+
+  // ── Stats ──────────────────────────────────────────────────────────────────
+  const weekDays       = getWeekDays();
   const totalHabitDays = weekDays.filter(d => habits.some(h => habitLogs[d]?.[h.id])).length;
-  const workoutStreak = getStreak(workoutLogs);
-  const goalsAvg = goals.length ? Math.round(goals.reduce((s,g)=>s+g.progress,0)/goals.length):0;
-  const lectureWeek = weekDays.reduce((s,d)=>s+lectures.filter(l=>lectureProgress[l.id]?.[d]?.done).length,0);
+  const workoutStreak  = getStreak(workoutLogs);
+  const goalsAvg       = goals.length ? Math.round(goals.reduce((s,g)=>s+g.progress,0)/goals.length) : 0;
+  const lectureWeek    = weekDays.reduce((s,d)=>s+lectures.filter(l=>lectureProgress[l.id]?.[d]?.done).length,0);
+
+  const AvatarPreview = ({ src, size=80 }) => {
+    if (!src) return <Icon d={icons.user} size={size*0.5} stroke="var(--text3)"/>;
+    if (src.startsWith("data:") || src.startsWith("http")) return <img src={src} alt="av" style={{width:"100%",height:"100%",objectFit:"cover"}}/>;
+    return <span style={{fontSize:size*0.4}}>{src}</span>;
+  };
+
   return (
-    <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
+    <div style={{display:"flex",flexDirection:"column",gap:20}}>
+
+      {/* ── Hero ── */}
       <div className="profile-hero fade-up">
-        <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleAvatar}/>
-        <div className="profile-avatar-lg" onClick={() => editing && fileRef.current.click()} style={{ cursor:editing?"pointer":"default" }}>
-          {(editing?form:profile).avatar ? <img src={(editing?form:profile).avatar} alt="avatar"/> : <Icon d={icons.user} size={40} stroke="var(--text3)"/>}
+        <div className="profile-avatar-lg" style={{cursor:editing?"pointer":"default",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}
+          onClick={() => editing && fileRef.current.click()}>
+          <AvatarPreview src={form.avatar || profile.avatar} size={80}/>
         </div>
-        <div style={{ fontFamily:"Syne",fontSize:26,fontWeight:800,marginBottom:4 }}>{profile.name||"Student"}</div>
-        <div style={{ color:"var(--text3)",fontSize:14,marginBottom:16 }}>Class {profile.class} {profile.stream} • {profile.target}</div>
-        {profile.school && <div style={{ fontSize:13,color:"var(--text2)",marginBottom:12 }}>🏫 {profile.school}</div>}
-        {profile.bio && <div style={{ fontSize:13,color:"var(--text3)",fontStyle:"italic",marginBottom:16,lineHeight:1.6,maxWidth:400,margin:"0 auto 16px" }}>"{profile.bio}"</div>}
-        <button className="btn btn-ghost btn-sm" onClick={() => { setForm(profile); setEditing(!editing); }} style={{ margin:"0 auto" }}>
-          <Icon d={icons.edit} size={14}/> {editing?"Cancel":"Edit Profile"}
-        </button>
+        <div style={{fontFamily:"Syne",fontSize:26,fontWeight:800,marginBottom:4}}>
+          {profile.name || currentUser?.displayName || "Student"}
+        </div>
+        <div style={{color:"var(--text3)",fontSize:14,marginBottom:8}}>
+          {[profile.class && `Class ${profile.class}`, profile.stream, profile.target].filter(Boolean).join(" • ")}
+        </div>
+        {profile.school && <div style={{fontSize:13,color:"var(--text2)",marginBottom:8}}>🏫 {profile.school}</div>}
+        {profile.bio && <div style={{fontSize:13,color:"var(--text3)",fontStyle:"italic",marginBottom:12,lineHeight:1.6,maxWidth:400,margin:"0 auto 12px"}}>"{profile.bio}"</div>}
+
+        {/* File link status */}
+        {fileStatus && <div style={{fontSize:11,color:"var(--green)",marginBottom:8,fontWeight:600}}>{fileStatus}</div>}
+
+        <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
+          <button className="btn btn-ghost btn-sm" onClick={() => { setForm({...profile}); setEditing(!editing); }}>
+            <Icon d={icons.edit} size={14}/> {editing ? "Cancel" : "Edit Profile"}
+          </button>
+          {!editing && FS_SUPPORTED && (
+            fileLinked
+              ? <>
+                  <button className="btn btn-ghost btn-sm" onClick={loadFromFile} title="File se reload karo">📂 Load from File</button>
+                  <button className="btn btn-ghost btn-sm" style={{color:"var(--red)"}} onClick={unlinkFile}>✕ Unlink</button>
+                </>
+              : <button className="btn btn-ghost btn-sm" onClick={linkFile} title="Profile ko ek file se link karo">📁 Link File</button>
+          )}
+        </div>
       </div>
+
+      {/* ── Edit Form ── */}
       {editing && (
-        <div className="card fade-up">
-          <div style={{ fontFamily:"Syne",fontWeight:700,fontSize:15,marginBottom:16 }}>Edit Profile</div>
-          <div style={{ display:"flex",alignItems:"center",gap:16,marginBottom:20 }}>
-            <div style={{ width:72,height:72,borderRadius:16,overflow:"hidden",background:"var(--bg4)",display:"flex",alignItems:"center",justifyContent:"center",border:"2px dashed var(--border2)",cursor:"pointer" }} onClick={() => fileRef.current.click()}>
-              {form.avatar ? <img src={form.avatar} alt="p" style={{ width:"100%",height:"100%",objectFit:"cover" }}/> : <Icon d={icons.camera} size={20} stroke="var(--text3)"/>}
+        <div className="card fade-up" style={{display:"flex",flexDirection:"column",gap:16}}>
+          <div style={{fontFamily:"Syne",fontWeight:700,fontSize:15}}>✏️ Edit Your Profile</div>
+
+          {/* Avatar editor */}
+          <div style={{background:"var(--bg3)",borderRadius:14,padding:14,border:"1px solid var(--border)"}}>
+            <div style={{fontSize:12,fontWeight:700,color:"var(--text3)",marginBottom:10,textTransform:"uppercase",letterSpacing:".5px"}}>Profile Picture</div>
+            <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:12}}>
+              <div style={{width:60,height:60,borderRadius:14,background:"var(--accentglow)",border:"2px solid var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
+                <AvatarPreview src={form.avatar} size={60}/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:600}}>{form.name || "Your Name"}</div>
+                <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>{currentUser?.role==="owner"?"👑 Owner":"🛡️ Admin"}</div>
+                {form.avatar && <button onClick={()=>setForm(f=>({...f,avatar:null}))} style={{marginTop:6,fontSize:10,color:"var(--red)",background:"none",border:"none",cursor:"pointer",padding:0,fontWeight:600}}>✕ Remove</button>}
+              </div>
             </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => fileRef.current.click()}><Icon d={icons.upload} size={13}/> Change Photo</button>
+            <div style={{display:"flex",gap:6,marginBottom:10}}>
+              {[{k:"emoji",l:"😀 Emoji"},{k:"upload",l:"📷 Upload"}].map(t=>(
+                <button key={t.k} onClick={()=>setAvatarTab(t.k)} style={{flex:1,padding:"6px",borderRadius:8,border:`1px solid ${avatarTab===t.k?"var(--accent)":"var(--border)"}`,background:avatarTab===t.k?"var(--accentglow)":"var(--bg4)",cursor:"pointer",color:avatarTab===t.k?"var(--accent2)":"var(--text3)",fontSize:11,fontWeight:600}}>
+                  {t.l}
+                </button>
+              ))}
+            </div>
+            {avatarTab==="emoji" && (
+              <div style={{display:"flex",flexWrap:"wrap",gap:4,maxHeight:96,overflowY:"auto",padding:4,borderRadius:10,background:"var(--bg4)",border:"1px solid var(--border)"}}>
+                {AVATAR_EMOJIS.map(em=>(
+                  <button key={em} onClick={()=>setForm(f=>({...f,avatar:em}))}
+                    style={{width:32,height:32,borderRadius:8,border:`1px solid ${form.avatar===em?"var(--accent)":"transparent"}`,background:form.avatar===em?"var(--accentglow)":"transparent",cursor:"pointer",fontSize:18,transition:"all .1s"}}>
+                    {em}
+                  </button>
+                ))}
+              </div>
+            )}
+            {avatarTab==="upload" && (
+              <div>
+                <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleImageUpload}/>
+                <button onClick={()=>fileRef.current.click()} style={{width:"100%",padding:"10px",borderRadius:10,border:"2px dashed var(--border2)",background:"var(--bg4)",cursor:"pointer",color:"var(--text2)",fontSize:12,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                  <Icon d={icons.upload} size={14} stroke="var(--text2)"/> Photo choose karo (max 2MB)
+                </button>
+              </div>
+            )}
           </div>
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:14 }}>
-            <div><label className="label">Name</label><input className="input" value={form.name||""} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
-            <div><label className="label">School</label><input className="input" value={form.school||""} onChange={e=>setForm(f=>({...f,school:e.target.value}))}/></div>
-            <div><label className="label">Class</label><select className="input" value={form.class||"12"} onChange={e=>setForm(f=>({...f,class:e.target.value}))}><option>11</option><option>12</option></select></div>
-            <div><label className="label">Stream</label><select className="input" value={form.stream||"PCB"} onChange={e=>setForm(f=>({...f,stream:e.target.value}))}><option>PCB</option><option>PCM</option><option>PCMB</option></select></div>
-            <div style={{ gridColumn:"span 2" }}><label className="label">Target Exam</label><select className="input" value={form.target||"NEET 2025"} onChange={e=>setForm(f=>({...f,target:e.target.value}))}><option>NEET 2025</option><option>NEET 2026</option><option>AIIMS</option><option>JEE Main</option><option>JEE Advanced</option><option>Boards Only</option></select></div>
-            <div style={{ gridColumn:"span 2" }}><label className="label">Bio / Motivation</label><textarea className="notes-area" style={{ minHeight:80 }} value={form.bio||""} onChange={e=>setForm(f=>({...f,bio:e.target.value}))}/></div>
+
+          {/* Profile fields */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div><label className="label">Name *</label><input className="input" value={form.name||""} placeholder="Tumhara naam" onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
+            <div><label className="label">School / Institute</label><input className="input" value={form.school||""} placeholder="School name" onChange={e=>setForm(f=>({...f,school:e.target.value}))}/></div>
+            <div><label className="label">Class</label>
+              <select className="input" value={form.class||"12"} onChange={e=>setForm(f=>({...f,class:e.target.value}))}>
+                <option>11</option><option>12</option><option>Dropper</option>
+              </select>
+            </div>
+            <div><label className="label">Stream</label>
+              <select className="input" value={form.stream||"PCB"} onChange={e=>setForm(f=>({...f,stream:e.target.value}))}>
+                <option>PCB</option><option>PCM</option><option>PCMB</option>
+              </select>
+            </div>
+            <div style={{gridColumn:"span 2"}}><label className="label">Target Exam</label>
+              <select className="input" value={form.target||"NEET 2026"} onChange={e=>setForm(f=>({...f,target:e.target.value}))}>
+                <option>NEET 2025</option><option>NEET 2026</option><option>AIIMS</option><option>JEE Main</option><option>JEE Advanced</option><option>Boards Only</option>
+              </select>
+            </div>
+            <div style={{gridColumn:"span 2"}}><label className="label">Bio / Motivation quote</label>
+              <textarea className="notes-area" style={{minHeight:72}} value={form.bio||""} placeholder="Apni motivation likho..." onChange={e=>setForm(f=>({...f,bio:e.target.value}))}/>
+            </div>
           </div>
-          <button className="btn btn-primary" style={{ marginTop:16 }} onClick={save}><Icon d={icons.check} size={14} stroke="#fff"/> Save Changes</button>
+
+          {/* File link option inside form */}
+          {FS_SUPPORTED && (
+            <div style={{padding:"10px 14px",borderRadius:10,border:"1px solid var(--border)",background:"var(--bg3)",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12,fontWeight:700,color:"var(--text2)"}}>📁 File System Sync</div>
+                <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>
+                  {fileLinked ? "Profile ek real file se linked hai. Save karne par file update hogi." : "Profile ko phone/PC pe ek .json file se link karo — automatic sync."}
+                </div>
+              </div>
+              {fileLinked
+                ? <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",flexShrink:0}} onClick={unlinkFile}>Unlink</button>
+                : <button className="btn btn-ghost btn-sm" style={{flexShrink:0}} onClick={linkFile}>Link File</button>
+              }
+            </div>
+          )}
+
+          {saveMsg && <div style={{padding:"8px 12px",background:"#10b98118",border:"1px solid #10b98140",borderRadius:8,fontSize:12,color:"var(--green)",textAlign:"center"}}>{saveMsg}</div>}
+          <div style={{display:"flex",gap:10}}>
+            <button className="btn btn-ghost" style={{flex:1,justifyContent:"center"}} onClick={()=>setEditing(false)}>Cancel</button>
+            <button className="btn btn-primary" style={{flex:2,justifyContent:"center"}} onClick={saveProfile} disabled={saving}>
+              {saving ? "Saving..." : <><Icon d={icons.check} size={14} stroke="#fff"/> Save Profile</>}
+            </button>
+          </div>
         </div>
       )}
-      <div className="grid-4 fade-up" style={{ animationDelay:".05s" }}>
+
+      {/* ── Stats ── */}
+      <div className="grid-4 fade-up" style={{animationDelay:".05s"}}>
         {[
-          { label:"Habit Days", value:totalHabitDays+"/7", color:"var(--green)", icon:icons.habits },
-          { label:"Workout Streak", value:workoutStreak+"d", color:"var(--red)", icon:icons.fire },
-          { label:"Lectures/Week", value:lectureWeek, color:"var(--blue)", icon:icons.lectures },
-          { label:"Goal Progress", value:goalsAvg+"%", color:"var(--accent2)", icon:icons.goals },
+          {label:"Habit Days",    value:totalHabitDays+"/7", color:"var(--green)",  icon:icons.habits},
+          {label:"Workout Streak",value:workoutStreak+"d",   color:"var(--red)",    icon:icons.fire},
+          {label:"Lectures/Week", value:lectureWeek,         color:"var(--blue)",   icon:icons.lectures},
+          {label:"Goal Progress", value:goalsAvg+"%",        color:"var(--accent2)",icon:icons.goals},
         ].map((s,i) => (
           <div key={i} className="stat-card">
-            <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:4 }}><Icon d={s.icon} size={16} stroke={s.color}/><span style={{ fontSize:10,color:"var(--text3)",textTransform:"uppercase",letterSpacing:".6px",fontWeight:600 }}>{s.label}</span></div>
-            <div className="stat-value" style={{ color:s.color,fontSize:22 }}>{s.value}</div>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+              <Icon d={s.icon} size={16} stroke={s.color}/>
+              <span style={{fontSize:10,color:"var(--text3)",textTransform:"uppercase",letterSpacing:".6px",fontWeight:600}}>{s.label}</span>
+            </div>
+            <div className="stat-value" style={{color:s.color,fontSize:22}}>{s.value}</div>
           </div>
         ))}
       </div>
-      <div className="card fade-up" style={{ animationDelay:".1s" }}>
+
+      {/* ── Goals ── */}
+      <div className="card fade-up" style={{animationDelay:".1s"}}>
         <div className="section-title"><Icon d={icons.goals} size={15} stroke="var(--accent2)"/> Goal Progress</div>
+        {goals.length === 0 && <div style={{color:"var(--text3)",fontSize:13,textAlign:"center",padding:"20px 0"}}>No goals yet. Add some from Goals page!</div>}
         {goals.map(g => (
-          <div key={g.id} style={{ display:"flex",alignItems:"center",gap:12,marginBottom:12 }}>
-            <span style={{ fontSize:20 }}>{g.emoji}</span>
-            <div style={{ flex:1,minWidth:0 }}>
-              <div style={{ fontSize:13,fontWeight:600,marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{g.title}</div>
-              <div className="progress-bar"><div className="progress-fill" style={{ width:`${g.progress}%`,background:"linear-gradient(90deg,var(--accent),var(--accent2))" }}/></div>
+          <div key={g.id} style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+            <span style={{fontSize:20}}>{g.emoji}</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:600,marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.title}</div>
+              <div className="progress-bar"><div className="progress-fill" style={{width:`${g.progress}%`,background:"linear-gradient(90deg,var(--accent),var(--accent2))"}}/></div>
             </div>
-            <div style={{ fontSize:12,fontWeight:700,color:"var(--accent2)",minWidth:32,textAlign:"right" }}>{g.progress}%</div>
+            <div style={{fontSize:12,fontWeight:700,color:"var(--accent2)",minWidth:32,textAlign:"right"}}>{g.progress}%</div>
           </div>
         ))}
       </div>
@@ -2251,12 +2665,9 @@ function WeeklyReportPage({ profile, habits, habitLogs, workoutLogs, lectureProg
 }
 
 // ─── SETTINGS PAGE ────────────────────────────────────────────────────────────
-function SettingsPage({ profile, setProfile, onLogout, theme, setTheme, allData, onImport }) {
-  const [form, setForm] = useState(profile);
-  useEffect(() => { setForm(profile); }, [profile]);
+function SettingsPage({ currentUser, profile, setProfile, onLogout, theme, setTheme, allData, onImport }) {
   const [importError, setImportError] = useState("");
   const [importOk, setImportOk] = useState(false);
-  const fileRef = useRef();
   const importRef = useRef();
 
   // Track last export date
@@ -2265,13 +2676,6 @@ function SettingsPage({ profile, setProfile, onLogout, theme, setTheme, allData,
     ? Math.floor((Date.now() - new Date(lastExport).getTime()) / 864e5)
     : null;
   const showBackupWarning = daysSinceExport === null || daysSinceExport >= 7;
-
-  const handleAvatar = (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setForm(f => ({ ...f, avatar:ev.target.result }));
-    reader.readAsDataURL(file);
-  };
 
   const exportData = () => {
     const data = JSON.stringify(allData, null, 2);
@@ -2298,32 +2702,39 @@ function SettingsPage({ profile, setProfile, onLogout, theme, setTheme, allData,
     e.target.value = "";
   };
 
+  // Avatar display helper
+  const av = profile?.avatar;
+  const AvatarThumb = () => {
+    if (!av) return <Icon d={icons.user} size={22} stroke="var(--text3)"/>;
+    if (av.startsWith("data:") || av.startsWith("http")) return <img src={av} alt="av" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:"inherit"}}/>;
+    return <span style={{fontSize:22}}>{av}</span>;
+  };
+
   return (
     <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
       <div className="section-title"><Icon d={icons.settings} size={16} stroke="var(--text2)"/> Settings</div>
 
-      {/* Profile */}
-      <div className="card fade-up">
-        <div style={{ fontFamily:"Syne",fontSize:15,fontWeight:700,marginBottom:16 }}>Profile</div>
-        <div style={{ display:"flex",alignItems:"center",gap:20,marginBottom:20 }}>
-          <div className="avatar-upload" onClick={() => fileRef.current.click()} style={{ width:80,height:80,borderRadius:16,margin:0 }}>
-            {form.avatar ? <img src={form.avatar} alt="profile"/> : <Icon d={icons.camera} size={20} stroke="var(--text3)"/>}
+      {/* My Profile — redirect card */}
+      <div className="card fade-up" style={{background:"linear-gradient(135deg,var(--accentglow),var(--bg2))",border:"1px solid #7c6fff30"}}>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          <div style={{width:52,height:52,borderRadius:14,background:"var(--accentglow)",border:"2px solid var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>
+            <AvatarThumb/>
           </div>
-          <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleAvatar}/>
-          <div>
-            <div style={{ fontFamily:"Syne",fontWeight:700,fontSize:16 }}>{form.name}</div>
-            <div style={{ fontSize:13,color:"var(--text3)" }}>Class {form.class} {form.stream} • {form.target}</div>
-            <button className="btn btn-ghost btn-sm" style={{ marginTop:8 }} onClick={() => fileRef.current.click()}><Icon d={icons.upload} size={13}/> Change Photo</button>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:"Syne",fontWeight:800,fontSize:16}}>{profile?.name || currentUser?.displayName || "Student"}</div>
+            <div style={{fontSize:12,color:"var(--text3)",marginTop:2}}>
+              {[profile?.school, profile?.class && `Class ${profile.class}`, profile?.stream, profile?.target].filter(Boolean).join(" • ") || "Profile setup nahi hua yet"}
+            </div>
           </div>
+          <a href="#profile" onClick={e=>{e.preventDefault(); document.querySelector('[data-page="profile"]')?.click();}}
+            className="btn btn-ghost btn-sm" style={{flexShrink:0}}>
+            <Icon d={icons.edit} size={13}/> Edit
+          </a>
         </div>
-        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:14 }}>
-          <div><label className="label">Name</label><input className="input" value={form.name||""} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
-          <div><label className="label">School</label><input className="input" value={form.school||""} onChange={e=>setForm(f=>({...f,school:e.target.value}))}/></div>
-          <div><label className="label">Class</label><select className="input" value={form.class||"12"} onChange={e=>setForm(f=>({...f,class:e.target.value}))}><option>11</option><option>12</option></select></div>
-          <div><label className="label">Stream</label><select className="input" value={form.stream||"PCB"} onChange={e=>setForm(f=>({...f,stream:e.target.value}))}><option>PCB</option><option>PCM</option><option>PCMB</option></select></div>
-          <div style={{ gridColumn:"span 2" }}><label className="label">Target Exam</label><select className="input" value={form.target||"NEET 2025"} onChange={e=>setForm(f=>({...f,target:e.target.value}))}><option>NEET 2025</option><option>NEET 2026</option><option>AIIMS</option><option>JEE Main</option><option>JEE Advanced</option><option>Boards Only</option></select></div>
+        <div style={{marginTop:12,padding:"9px 12px",background:"var(--bg3)",borderRadius:10,fontSize:12,color:"var(--text3)",display:"flex",alignItems:"center",gap:8}}>
+          <span>💡</span>
+          <span>Profile edit karne ke liye <strong style={{color:"var(--accent2)"}}>Profile page</strong> pe jao — har user ka profile alag-alag save hota hai.</span>
         </div>
-        <button className="btn btn-primary" style={{ marginTop:16 }} onClick={() => setProfile(form)}>Save Changes</button>
       </div>
 
       {/* Themes */}
@@ -2687,8 +3098,12 @@ function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [showCredModal, setShowCredModal] = useState(false);
+  const [userAvatar, setUserAvatar] = useState(null); // per-user avatar (loaded from IDB)
+  const [userProfile, setUserProfile] = useState({}); // per-user full profile (IDB)
+  const [profileLoading, setProfileLoading] = useState(false);
+  // "profile" is kept as a shared fallback for owner's onboarding data & legacy compat
   const [onboarded, setOnboarded] = useState(() => storage.get("onboarded",false));
-  const [profile, setProfile] = useState(() => storage.get("profile",{}));
+  const [profile, setProfileLegacy] = useState(() => storage.get("profile",{}));
   const [page, setPage] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => storage.get("sidebarCollapsed",false)); // desktop
@@ -2715,6 +3130,17 @@ function App() {
     window.addEventListener("resize",fn); return () => window.removeEventListener("resize",fn);
   },[]);
 
+  // Load per-user profile (incl. avatar) from IndexedDB whenever login changes
+  useEffect(() => {
+    if (!currentUser?.id) { setUserAvatar(null); setUserProfile({}); return; }
+    setProfileLoading(true);
+    getUserProfile(currentUser.id, (p) => {
+      setUserProfile(p || {});
+      setUserAvatar((p && p.avatar) || null);
+      setProfileLoading(false);
+    });
+  },[currentUser]);
+
   useEffect(() => { storage.set("habits",habits); },[habits]);
   useEffect(() => { storage.set("habitLogs",habitLogs); },[habitLogs]);
   useEffect(() => { storage.set("lectures",lectures); },[lectures]);
@@ -2726,12 +3152,33 @@ function App() {
   useEffect(() => { storage.set("flashcards",flashcards); },[flashcards]);
   useEffect(() => { storage.set("focusLogs",focusLogs); },[focusLogs]);
   useEffect(() => { storage.set("profile",profile); },[profile]);
+
+  // Unified setProfile — saves to IndexedDB (per-user) + legacy localStorage
+  const setProfile = (data) => {
+    setProfileLegacy(data); // legacy (owner onboarding, WeeklyReport compat)
+    if (currentUser?.id) {
+      const merged = { ...userProfile, ...data };
+      setUserProfile(merged);
+      setUserAvatar(merged.avatar || null);
+      saveUserProfile(currentUser.id, merged);
+    }
+  };
   useEffect(() => { storage.set("theme",theme); },[theme]);
   useEffect(() => { storage.set("sidebarCollapsed",sidebarCollapsed); },[sidebarCollapsed]);
 
   const handleThemeChange = (t) => { setTheme(t); };
 
-  const handleOnboardComplete = (data) => { setProfile(data); setOnboarded(true); storage.set("onboarded",true); };
+  const handleOnboardComplete = (data) => {
+    setProfileLegacy(data);
+    storage.set("onboarded",true);
+    setOnboarded(true);
+    if (currentUser?.id) {
+      const merged = { ...userProfile, ...data };
+      setUserProfile(merged);
+      setUserAvatar(merged.avatar || null);
+      saveUserProfile(currentUser.id, merged);
+    }
+  };
   const handleLogout = () => {
     // Preserve auth and sessions — only reset data
     const authBackup = storage.get("studyos_auth", null);
@@ -2740,7 +3187,7 @@ function App() {
     if (authBackup) storage.set("studyos_auth", authBackup);
     if (sessBackup) storage.set("studyos_sessions", sessBackup);
     storage.set("onboarded", false);
-    setOnboarded(false); setProfile({});
+    setOnboarded(false); setProfileLegacy({}); setUserProfile({}); setUserAvatar(null);
     setHabits(INITIAL_HABITS); setHabitLogs({}); setLectures(INITIAL_LECTURES);
     setLectureProgress({}); setNotes({}); setExercises(INITIAL_WORKOUTS);
     setWorkoutLogs({}); setGoals(INITIAL_GOALS); setFlashcards([]); setFocusLogs({}); setTheme("dark_purple");
@@ -2851,11 +3298,16 @@ function App() {
           </nav>
           <div className="sidebar-footer">
             <div className="profile-mini" onClick={() => navigateTo("profile")}>
-              <div className="profile-avatar">
-                {profile.avatar ? <img src={profile.avatar} alt="profile"/> : <Icon d={icons.user} size={18} stroke="var(--text3)"/>}
+              <div className="profile-avatar" style={{overflow:"hidden"}}>
+                {userAvatar
+                  ? (userAvatar.startsWith("data:") || userAvatar.startsWith("http")
+                      ? <img src={userAvatar} alt="av" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:"inherit"}}/>
+                      : <span style={{fontSize:18}}>{userAvatar}</span>)
+                  : <Icon d={icons.user} size={18} stroke="var(--text3)"/>
+                }
               </div>
               <div className="profile-info">
-                <div className="profile-name">{currentUser?.displayName || profile.name||"Student"}</div>
+                <div className="profile-name">{userProfile?.name || currentUser?.displayName || "Student"}</div>
                 <div className="profile-sub">{currentUser?.role==="owner"?"👑 Owner":"🛡️ Admin"}</div>
               </div>
             </div>
@@ -2912,7 +3364,7 @@ function App() {
               </div>
             ) : (
               <>
-            {page==="home" && <HomePage profile={profile} habits={habits} habitLogs={habitLogs} setHabitLogs={setHabitLogs} lectures={lectures} lectureProgress={lectureProgress} workoutLogs={workoutLogs} goals={goals} xp={xp} onNavigate={id=>setPage(id)}/>}
+            {page==="home" && <HomePage profile={userProfile} habits={habits} habitLogs={habitLogs} setHabitLogs={setHabitLogs} lectures={lectures} lectureProgress={lectureProgress} workoutLogs={workoutLogs} goals={goals} xp={xp} onNavigate={id=>setPage(id)}/>}
             {page==="schedule" && <SchedulePage/>}
             {page==="habits" && <HabitsPage habits={habits} setHabits={setHabits} habitLogs={habitLogs} setHabitLogs={setHabitLogs}/>}
             {page==="lectures" && <LecturesPage lectures={lectures} setLectures={setLectures} lectureProgress={lectureProgress} setLectureProgress={setLectureProgress} notes={notes} setNotes={setNotes}/>}
@@ -2922,10 +3374,10 @@ function App() {
             {page==="analytics" && <AnalyticsPage habitLogs={habitLogs} habits={habits} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} focusLogs={focusLogs} xp={xp}/>}
             {page==="focus" && <FocusPage focusLogs={focusLogs} setFocusLogs={setFocusLogs}/>}
             {page==="revision" && <RevisionPage flashcards={flashcards} setFlashcards={setFlashcards}/>}
-            {page==="profile" && <ProfilePage profile={profile} setProfile={setProfile} habitLogs={habitLogs} habits={habits} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} goals={goals} xp={xp}/>}
-            {page==="report" && <WeeklyReportPage profile={profile} habits={habits} habitLogs={habitLogs} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} goals={goals}/>}
+            {page==="profile" && <ProfilePage currentUser={currentUser} profile={userProfile} setProfile={setProfile} habitLogs={habitLogs} habits={habits} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} goals={goals} xp={xp}/>}
+            {page==="report" && <WeeklyReportPage profile={userProfile} habits={habits} habitLogs={habitLogs} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} goals={goals}/>}
             {page==="admin" && currentUser?.role==="owner" && <AdminPage onSessionLogout={handleSessionLogout} onFullLogout={handleLogout} allData={allData} onImport={handleImport}/>}
-            {page==="settings" && <SettingsPage profile={profile} setProfile={setProfile} onLogout={handleLogout} theme={theme} setTheme={handleThemeChange} allData={allData} onImport={handleImport}/>}
+            {page==="settings" && <SettingsPage currentUser={currentUser} profile={userProfile} setProfile={setProfile} onLogout={handleLogout} theme={theme} setTheme={handleThemeChange} allData={allData} onImport={handleImport}/>}
               </>
             )}
           </div>
@@ -2942,7 +3394,7 @@ function App() {
           ))}
         </div>
       </div>
-      {showCredModal && currentUser && <ChangeCredentialsModal currentUser={currentUser} onClose={()=>setShowCredModal(false)}/>}
+      {showCredModal && currentUser && <ChangeCredentialsModal currentUser={currentUser} onClose={()=>setShowCredModal(false)} onAvatarChange={(av)=>setUserAvatar(av)}/>}
     </>
   );
 }
