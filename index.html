@@ -159,6 +159,9 @@ const icons = {
   star: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
   whatsapp: "M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l5.07-1.35A9.96 9.96 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z",
   copy: "M8 8H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2 M8 8V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2",
+  alarm: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 6v6l4 2 M4.22 4.22l1.42 1.42 M18.36 4.22l1.42-1.42",
+  alarmOff: "M8.56 2.9A7 7 0 0 1 19 9v4m-2 4H3a2 2 0 0 0 2 2h10 M2 2l20 20",
+  snooze: "M5 3h14 M5 21h14 M12 3v4 M12 17v4 M5 12h14",
 };
 
 // ─── THEMES ──────────────────────────────────────────────────────────────────
@@ -344,6 +347,7 @@ const ALL_PERMISSIONS = [
   { key:"revision",   label:"Revision Lab", icon:"star"      },
   { key:"report",     label:"Weekly Report",icon:"report"    },
   { key:"settings",   label:"Settings",     icon:"settings"  },
+  { key:"alarm",      label:"Alarm",        icon:"alarm"     },
 ];
 const MAX_ADMINS = 10;
 const MAX_OWNER_LOGINS_PER_DAY = 10;
@@ -3000,6 +3004,597 @@ function RevisionPage({flashcards,setFlashcards}){
   );
 }
 
+// ─── ALARM PAGE ───────────────────────────────────────────────────────────────
+// CAPTCHA chars pool
+const CAPTCHA_ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+const CAPTCHA_DIGITS = "0123456789";
+const CAPTCHA_SPECIAL = "@#₹&£€$π";
+
+function generateCaptcha() {
+  // 4 alpha + 2 digit + 3 special = 9 chars, then shuffle
+  let chars = [];
+  for (let i=0;i<4;i++) chars.push(CAPTCHA_ALPHA[Math.floor(Math.random()*CAPTCHA_ALPHA.length)]);
+  for (let i=0;i<2;i++) chars.push(CAPTCHA_DIGITS[Math.floor(Math.random()*CAPTCHA_DIGITS.length)]);
+  for (let i=0;i<3;i++) chars.push(CAPTCHA_SPECIAL[Math.floor(Math.random()*CAPTCHA_SPECIAL.length)]);
+  // shuffle
+  for (let i=chars.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [chars[i],chars[j]]=[chars[j],chars[i]]; }
+  return chars.join("");
+}
+
+// ── Audio Engine ──────────────────────────────────────────────────────────────
+const AlarmAudio = (() => {
+  let ctx = null;
+  let nodes = [];
+  let customUrl = null;
+  let customAudio = null;
+  let ringing = false;
+
+  const getCtx = () => {
+    if (!ctx || ctx.state === "closed") ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === "suspended") ctx.resume();
+    return ctx;
+  };
+
+  const stop = () => {
+    ringing = false;
+    nodes.forEach(n => { try { n.stop && n.stop(); n.disconnect && n.disconnect(); } catch{} });
+    nodes = [];
+    if (customAudio) { customAudio.pause(); customAudio.currentTime = 0; }
+  };
+
+  // Gentle: soft piano + birds feel — sine waves fading in
+  const playGentle = () => {
+    stop(); ringing = true;
+    const c = getCtx();
+    const freqs = [261.63, 329.63, 392, 523.25]; // C4 E4 G4 C5 chord
+    const playChord = () => {
+      if (!ringing) return;
+      freqs.forEach((f,i) => {
+        const osc = c.createOscillator();
+        const g = c.createGain();
+        osc.type = "sine";
+        osc.frequency.value = f;
+        g.gain.setValueAtTime(0, c.currentTime);
+        g.gain.linearRampToValueAtTime(0.08, c.currentTime + 0.5 + i*0.1);
+        g.gain.linearRampToValueAtTime(0, c.currentTime + 2.5);
+        osc.connect(g); g.connect(c.destination);
+        osc.start(c.currentTime + i*0.08);
+        osc.stop(c.currentTime + 2.8);
+        nodes.push(osc);
+      });
+      // Also add bird chirp feel: random high freq bursts
+      for (let b=0;b<3;b++) {
+        const osc = c.createOscillator();
+        const g = c.createGain();
+        osc.type = "sine";
+        osc.frequency.value = 2000 + Math.random()*1500;
+        g.gain.setValueAtTime(0, c.currentTime + b*0.3);
+        g.gain.linearRampToValueAtTime(0.04, c.currentTime + b*0.3 + 0.05);
+        g.gain.linearRampToValueAtTime(0, c.currentTime + b*0.3 + 0.2);
+        osc.connect(g); g.connect(c.destination);
+        osc.start(c.currentTime + b*0.3);
+        osc.stop(c.currentTime + b*0.3 + 0.3);
+        nodes.push(osc);
+      }
+    };
+    playChord();
+    const interval = setInterval(() => { if (!ringing) { clearInterval(interval); return; } playChord(); }, 3200);
+    nodes._interval = interval;
+  };
+
+  // Standard: classic digital beep
+  const playStandard = () => {
+    stop(); ringing = true;
+    const c = getCtx();
+    const beep = () => {
+      if (!ringing) return;
+      [0, 0.18, 0.36].forEach(delay => {
+        const osc = c.createOscillator();
+        const g = c.createGain();
+        osc.type = "square";
+        osc.frequency.value = 880;
+        g.gain.setValueAtTime(0.15, c.currentTime + delay);
+        g.gain.setValueAtTime(0, c.currentTime + delay + 0.14);
+        osc.connect(g); g.connect(c.destination);
+        osc.start(c.currentTime + delay);
+        osc.stop(c.currentTime + delay + 0.15);
+        nodes.push(osc);
+      });
+    };
+    beep();
+    const interval = setInterval(() => { if (!ringing) { clearInterval(interval); return; } beep(); }, 1200);
+    nodes._interval = interval;
+  };
+
+  // Loud/Irritating: high pitch rapid fire
+  const playLoud = () => {
+    stop(); ringing = true;
+    const c = getCtx();
+    const annoying = () => {
+      if (!ringing) return;
+      const freqSeq = [1200, 1600, 1000, 1800, 900, 2000];
+      freqSeq.forEach((f, i) => {
+        const osc = c.createOscillator();
+        const g = c.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.value = f;
+        g.gain.setValueAtTime(0.25, c.currentTime + i*0.08);
+        g.gain.setValueAtTime(0, c.currentTime + i*0.08 + 0.07);
+        osc.connect(g); g.connect(c.destination);
+        osc.start(c.currentTime + i*0.08);
+        osc.stop(c.currentTime + i*0.08 + 0.08);
+        nodes.push(osc);
+      });
+    };
+    annoying();
+    const interval = setInterval(() => { if (!ringing) { clearInterval(interval); return; } annoying(); }, 700);
+    nodes._interval = interval;
+  };
+
+  // Siren / Urgent: sweep up & down
+  const playSiren = () => {
+    stop(); ringing = true;
+    const c = getCtx();
+    const siren = () => {
+      if (!ringing) return;
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(400, c.currentTime);
+      osc.frequency.linearRampToValueAtTime(1600, c.currentTime + 0.6);
+      osc.frequency.linearRampToValueAtTime(400, c.currentTime + 1.2);
+      g.gain.setValueAtTime(0.3, c.currentTime);
+      g.gain.linearRampToValueAtTime(0, c.currentTime + 1.3);
+      osc.connect(g); g.connect(c.destination);
+      osc.start(c.currentTime);
+      osc.stop(c.currentTime + 1.3);
+      nodes.push(osc);
+    };
+    siren();
+    const interval = setInterval(() => { if (!ringing) { clearInterval(interval); return; } siren(); }, 1500);
+    nodes._interval = interval;
+  };
+
+  // Custom: play uploaded audio on loop
+  const playCustom = (dataUrl) => {
+    stop(); ringing = true;
+    try {
+      // Convert base64 dataUrl → Blob → Object URL (more reliable on mobile)
+      let audioSrc = dataUrl;
+      if (dataUrl.startsWith("data:")) {
+        const [header, b64] = dataUrl.split(",");
+        const mime = header.match(/:(.*?);/)[1];
+        const binary = atob(b64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: mime });
+        audioSrc = URL.createObjectURL(blob);
+      }
+      const audio = new Audio();
+      audio.src = audioSrc;
+      audio.loop = true;
+      audio.volume = 0.9;
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => { console.warn("Custom audio play failed:", err); });
+      }
+      customAudio = audio;
+    } catch(e) {
+      console.warn("Custom audio error:", e);
+    }
+  };
+
+  return { stop, playGentle, playStandard, playLoud, playSiren, playCustom, isRinging: () => ringing };
+})();
+
+const ALARM_TYPES = [
+  { id:"gentle",   label:"Gentle / Soft",      emoji:"🌅", desc:"Birds & piano — nice morning wake",    color:"#10b981" },
+  { id:"standard", label:"Standard Beep",       emoji:"⏰", desc:"Classic digital tone — no drama",     color:"#3b82f6" },
+  { id:"loud",     label:"Loud / Irritating",   emoji:"😤", desc:"Sharp & annoying — heavy sleepers",   color:"#f97316" },
+  { id:"siren",    label:"Urgent / Siren",      emoji:"🚨", desc:"Emergency-like — high intensity",     color:"#ef4444" },
+  { id:"custom",   label:"Custom Audio",        emoji:"🎵", desc:"Upload your own sound file",          color:"#a78bfa" },
+];
+
+function AlarmPage() {
+  const [alarms, setAlarms] = useState(() => storage.get("studyos_alarms", []));
+  const [showAdd, setShowAdd] = useState(false);
+  const [ringData, setRingData] = useState(null); // { alarm } when ringing
+  const [captcha, setCaptcha] = useState("");
+  const [captchaInput, setCaptchaInput] = useState("");
+  const [captchaErr, setCaptchaErr] = useState(false);
+  const [snoozeCount, setSnoozeCount] = useState(0);
+  const [dismissed, setDismissed] = useState(false); // brief flash after dismiss
+  const tickRef = useRef(null);
+  const customFileRef = useRef();
+
+  // Form state
+  const blankForm = { time:"07:00", label:"", type:"standard", days:[], enabled:true, customAudio:null, customName:"" };
+  const [form, setForm] = useState(blankForm);
+  const [testing, setTesting] = useState(false); // test preview playing
+
+  useEffect(() => { storage.set("studyos_alarms", alarms); }, [alarms]);
+
+  // ── Tick every 10 seconds to check alarms ──
+  useEffect(() => {
+    const check = () => {
+      if (AlarmAudio.isRinging()) return; // already ringing
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2,"0");
+      const mm = String(now.getMinutes()).padStart(2,"0");
+      const dayIdx = now.getDay(); // 0=Sun
+      const timeStr = `${hh}:${mm}`;
+      const todayKey = now.toDateString();
+      const triggered = storage.get("studyos_alarm_triggered", {});
+
+      alarms.forEach(al => {
+        if (!al.enabled) return;
+        if (al.time !== timeStr) return;
+        // Check day
+        if (al.days && al.days.length > 0 && !al.days.includes(dayIdx)) return;
+        // Deduplicate: only ring once per alarm per day
+        const key = `${al.id}_${todayKey}`;
+        if (triggered[key]) return;
+        // Mark triggered
+        triggered[key] = true;
+        storage.set("studyos_alarm_triggered", triggered);
+        // Ring!
+        const newCaptcha = generateCaptcha();
+        setCaptcha(newCaptcha);
+        setCaptchaInput("");
+        setCaptchaErr(false);
+        setSnoozeCount(0);
+        setRingData({ alarm: al });
+        // Play sound
+        playAlarmSound(al);
+      });
+    };
+    check();
+    tickRef.current = setInterval(check, 10000);
+    return () => clearInterval(tickRef.current);
+  }, [alarms]);
+
+  const playAlarmSound = (al) => {
+    if (al.type === "gentle")   AlarmAudio.playGentle();
+    else if (al.type === "loud") AlarmAudio.playLoud();
+    else if (al.type === "siren") AlarmAudio.playSiren();
+    else if (al.type === "custom" && al.customAudio) AlarmAudio.playCustom(al.customAudio);
+    else AlarmAudio.playStandard();
+  };
+
+  // Dismiss: validate CAPTCHA first
+  const handleDismiss = () => {
+    if (captchaInput !== captcha) {
+      setCaptchaErr(true);
+      // Shake and regenerate
+      setTimeout(() => { setCaptcha(generateCaptcha()); setCaptchaInput(""); setCaptchaErr(false); }, 900);
+      return;
+    }
+    AlarmAudio.stop();
+    setRingData(null);
+    setDismissed(true);
+    setTimeout(() => setDismissed(false), 2000);
+  };
+
+  // Snooze: only allowed if CAPTCHA solved
+  const handleSnooze = () => {
+    if (captchaInput !== captcha) {
+      setCaptchaErr(true);
+      setTimeout(() => { setCaptcha(generateCaptcha()); setCaptchaInput(""); setCaptchaErr(false); }, 900);
+      return;
+    }
+    AlarmAudio.stop();
+    const snoozeMins = 5;
+    const newCount = snoozeCount + 1;
+    setSnoozeCount(newCount);
+    // Re-ring after 5 mins
+    const alarmCopy = { ...ringData.alarm };
+    setRingData(null);
+    setTimeout(() => {
+      const nc = generateCaptcha();
+      setCaptcha(nc); setCaptchaInput(""); setCaptchaErr(false);
+      setRingData({ alarm: alarmCopy, snoozed: newCount });
+      playAlarmSound(alarmCopy);
+    }, snoozeMins * 60 * 1000);
+  };
+
+  // Custom audio upload
+  const handleCustomFile = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    if (!file.type.startsWith("audio/")) { alert("Sirf audio file upload karo!"); return; }
+    if (file.size > 5*1024*1024) { alert("File 5MB se chhoti honi chahiye."); return; }
+    const reader = new FileReader();
+    reader.onload = ev => setForm(f => ({ ...f, customAudio: ev.target.result, customName: file.name }));
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const testSound = () => {
+    if (testing) { AlarmAudio.stop(); setTesting(false); return; }
+    if (form.type === "custom" && !form.customAudio) return;
+    setTesting(true);
+    playAlarmSound({ type: form.type, customAudio: form.customAudio });
+    setTimeout(() => { AlarmAudio.stop(); setTesting(false); }, 4000);
+  };
+
+  const saveAlarm = () => {
+    if (!form.time) return;
+    AlarmAudio.stop(); setTesting(false);
+    const newAlarm = { ...form, id: Date.now().toString(), enabled: true };
+    setAlarms(prev => [...prev, newAlarm]);
+    setForm(blankForm);
+    setShowAdd(false);
+  };
+
+  const toggleAlarm = (id) => setAlarms(prev => prev.map(a => a.id===id ? {...a, enabled:!a.enabled} : a));
+  const deleteAlarm = (id) => setAlarms(prev => prev.filter(a => a.id!==id));
+
+  const DAYS_LABEL = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  const typeInfo = (id) => ALARM_TYPES.find(t=>t.id===id) || ALARM_TYPES[1];
+
+  // ── Ringing Modal ──
+  const RingingModal = () => {
+    if (!ringData) return null;
+    const ti = typeInfo(ringData.alarm.type);
+    return (
+      <div style={{position:"fixed",inset:0,zIndex:9998,background:"#00000095",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+        <div style={{
+          background:"var(--bg2)",border:`2px solid ${ti.color}`,borderRadius:24,padding:28,
+          maxWidth:360,width:"100%",textAlign:"center",
+          boxShadow:`0 0 60px ${ti.color}60, 0 0 120px ${ti.color}20`,
+          animation:"alarmPulse 1s ease-in-out infinite alternate"
+        }}>
+          <div style={{fontSize:64,marginBottom:8,animation:"alarmBounce .5s ease-in-out infinite alternate"}}>{ti.emoji}</div>
+          <div style={{fontFamily:"Syne",fontSize:22,fontWeight:800,color:ti.color,marginBottom:4}}>
+            {ringData.alarm.label || "Alarm!"}
+          </div>
+          {ringData.snoozed && <div style={{fontSize:12,color:"var(--text3)",marginBottom:4}}>Snoozed {ringData.snoozed}x</div>}
+          <div style={{fontSize:36,fontFamily:"Syne",fontWeight:800,color:"var(--text)",marginBottom:4}}>
+            {new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
+          </div>
+          <div style={{fontSize:12,color:"var(--text3)",marginBottom:20}}>{ti.label}</div>
+
+          {/* CAPTCHA Box */}
+          <div style={{background:"var(--bg3)",border:`1px solid ${captchaErr?"#ef4444":"var(--border)"}`,borderRadius:14,padding:16,marginBottom:16}}>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",marginBottom:8,textTransform:"uppercase",letterSpacing:".5px"}}>
+              🔐 CAPTCHA solve karo — tab hi band hoga
+            </div>
+            <div style={{
+              fontFamily:"monospace",fontSize:28,fontWeight:800,letterSpacing:8,
+              color:"var(--accent2)",marginBottom:12,
+              background:"var(--bg4)",borderRadius:10,padding:"10px 16px",
+              userSelect:"none",textDecoration:"line-through 2px var(--border2)",
+              filter:"blur(0px)",
+              transform:"skewX(-3deg)",
+              display:"inline-block"
+            }}>
+              {captcha}
+            </div>
+            <input
+              value={captchaInput}
+              onChange={e=>{setCaptchaInput(e.target.value);setCaptchaErr(false);}}
+              onKeyDown={e=>e.key==="Enter"&&handleDismiss()}
+              placeholder="Yahan type karo..."
+              style={{
+                width:"100%",padding:"10px 14px",borderRadius:10,boxSizing:"border-box",
+                border:`1.5px solid ${captchaErr?"#ef4444":captchaInput===captcha&&captchaInput?"#10b981":"var(--border2)"}`,
+                background:"var(--bg)",color:"var(--text)",fontFamily:"monospace",fontSize:18,
+                fontWeight:700,letterSpacing:4,outline:"none",textAlign:"center",
+                transition:"border-color .2s"
+              }}
+              autoFocus
+            />
+            {captchaErr && <div style={{fontSize:11,color:"#ef4444",marginTop:6,fontWeight:700}}>❌ Galat! Dobara try karo...</div>}
+            {captchaInput===captcha&&captchaInput && <div style={{fontSize:11,color:"#10b981",marginTop:6,fontWeight:700}}>✅ Sahi hai!</div>}
+          </div>
+
+          <div style={{display:"flex",gap:10}}>
+            <button onClick={handleSnooze}
+              style={{flex:1,padding:"12px",borderRadius:12,border:"1px solid var(--border2)",background:"var(--bg3)",cursor:"pointer",color:"var(--text2)",fontFamily:"Syne",fontWeight:700,fontSize:13,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+              <span style={{fontSize:20}}>😴</span>
+              <span>Snooze 5m</span>
+              <span style={{fontSize:10,color:"var(--text3)"}}>CAPTCHA chahiye</span>
+            </button>
+            <button onClick={handleDismiss}
+              style={{flex:1,padding:"12px",borderRadius:12,border:`1px solid ${ti.color}60`,background:ti.color+"22",cursor:"pointer",color:ti.color,fontFamily:"Syne",fontWeight:700,fontSize:13,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+              <span style={{fontSize:20}}>✅</span>
+              <span>Band Karo</span>
+              <span style={{fontSize:10,opacity:.7}}>CAPTCHA chahiye</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:20,maxWidth:600,margin:"0 auto"}}>
+      <style>{`
+        @keyframes alarmPulse{from{box-shadow:0 0 40px var(--accentglow)}to{box-shadow:0 0 80px #ef444480}}
+        @keyframes alarmBounce{from{transform:translateY(0)}to{transform:translateY(-8px)}}
+      `}</style>
+
+      {/* Dismissed flash */}
+      {dismissed && (
+        <div style={{position:"fixed",top:24,left:"50%",transform:"translateX(-50%)",background:"#10b981",color:"#fff",padding:"12px 24px",borderRadius:12,fontFamily:"Syne",fontWeight:700,fontSize:15,zIndex:9999,boxShadow:"0 4px 20px #10b98140"}}>
+          ✅ Alarm band ho gaya! Good morning 🌅
+        </div>
+      )}
+
+      <RingingModal/>
+
+      {/* Header */}
+      <div className="card fade-up" style={{padding:"20px 22px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+        <div>
+          <div style={{fontFamily:"Syne",fontSize:20,fontWeight:800}}>🚨 Alarm Center</div>
+          <div style={{fontSize:12,color:"var(--text3)",marginTop:3}}>
+            {alarms.filter(a=>a.enabled).length} active · CAPTCHA-locked dismissal
+          </div>
+        </div>
+        <button className="btn btn-primary" onClick={()=>setShowAdd(true)} style={{gap:6}}>
+          <Icon d={icons.plus} size={16}/> Naya Alarm
+        </button>
+      </div>
+
+      {/* Alarm Type Guide */}
+      <div className="card fade-up" style={{padding:"16px 18px",animationDelay:".04s"}}>
+        <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",marginBottom:12,textTransform:"uppercase",letterSpacing:".5px"}}>Alarm Types</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {ALARM_TYPES.map(t=>(
+            <div key={t.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:10,background:"var(--bg3)",border:`1px solid ${t.color}30`}}>
+              <span style={{fontSize:22,flexShrink:0}}>{t.emoji}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:t.color}}>{t.label}</div>
+                <div style={{fontSize:11,color:"var(--text3)"}}>{t.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Alarm List */}
+      {alarms.length === 0 ? (
+        <div className="card" style={{textAlign:"center",padding:"40px 20px",animationDelay:".08s"}}>
+          <div style={{fontSize:52,marginBottom:12}}>⏰</div>
+          <div style={{fontFamily:"Syne",fontSize:16,fontWeight:700,marginBottom:6}}>Koi alarm set nahi hai</div>
+          <div style={{fontSize:13,color:"var(--text3)"}}>Upar "+ Naya Alarm" pe click karo</div>
+        </div>
+      ) : (
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {alarms.map((al,i)=>{
+            const ti = typeInfo(al.type);
+            return (
+              <div key={al.id} className="card fade-up" style={{padding:"16px 18px",animationDelay:`${i*.04}s`,opacity:al.enabled?1:.55,border:`1px solid ${al.enabled?ti.color+"40":"var(--border)"}`}}>
+                <div style={{display:"flex",alignItems:"center",gap:12}}>
+                  <div style={{fontSize:28}}>{ti.emoji}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                      <span style={{fontFamily:"Syne",fontSize:22,fontWeight:800,color:al.enabled?ti.color:"var(--text3)"}}>{al.time}</span>
+                      {al.label && <span style={{fontSize:13,fontWeight:600,color:"var(--text2)"}}>{al.label}</span>}
+                    </div>
+                    <div style={{fontSize:11,color:"var(--text3)",marginTop:3,display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+                      <span style={{padding:"1px 8px",borderRadius:99,background:ti.color+"20",color:ti.color,fontWeight:600,fontSize:10}}>{ti.label}</span>
+                      {al.days&&al.days.length>0
+                        ? al.days.map(d=><span key={d} style={{fontSize:10,padding:"1px 6px",borderRadius:6,background:"var(--bg4)",border:"1px solid var(--border)"}}>{DAYS_LABEL[d]}</span>)
+                        : <span style={{fontSize:10,color:"var(--text3)"}}>Aaj sirf</span>
+                      }
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    {/* Toggle */}
+                    <div onClick={()=>toggleAlarm(al.id)} style={{
+                      width:40,height:22,borderRadius:11,background:al.enabled?ti.color:"var(--bg4)",
+                      border:`1px solid ${al.enabled?ti.color:"var(--border)"}`,cursor:"pointer",position:"relative",transition:"background .2s,border .2s",flexShrink:0
+                    }}>
+                      <div style={{width:18,height:18,borderRadius:"50%",background:"#fff",position:"absolute",top:1,left:al.enabled?20:1,transition:"left .2s",boxShadow:"0 1px 4px #0004"}}/>
+                    </div>
+                    <button className="btn btn-icon btn-danger btn-sm" onClick={()=>deleteAlarm(al.id)}>
+                      <Icon d={icons.trash} size={13} stroke="var(--red)"/>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add Alarm Modal */}
+      {showAdd && (
+        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowAdd(false)}>
+          <div className="modal" style={{maxWidth:420}}>
+            <div className="modal-title">⏰ Naya Alarm Set Karo</div>
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              {/* Time */}
+              <div>
+                <label className="label">⏰ Time</label>
+                <input type="time" className="input" value={form.time} onChange={e=>setForm(f=>({...f,time:e.target.value}))}
+                  style={{fontFamily:"Syne",fontSize:22,fontWeight:800,letterSpacing:2}}/>
+              </div>
+              {/* Label */}
+              <div>
+                <label className="label">🏷️ Label (optional)</label>
+                <input className="input" placeholder="e.g. Morning Study, School Bus..." value={form.label} onChange={e=>setForm(f=>({...f,label:e.target.value}))}/>
+              </div>
+              {/* Type */}
+              <div>
+                <label className="label">🔊 Alarm Type</label>
+                <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4}}>
+                    {ALARM_TYPES.map(t=>(
+                    <button key={t.id} onClick={()=>{AlarmAudio.stop();setTesting(false);setForm(f=>({...f,type:t.id}));}}
+                      style={{padding:"10px 14px",borderRadius:10,border:`2px solid ${form.type===t.id?t.color:"var(--border)"}`,background:form.type===t.id?t.color+"18":"var(--bg3)",cursor:"pointer",display:"flex",alignItems:"center",gap:10,textAlign:"left",transition:"all .15s"}}>
+                      <span style={{fontSize:22,flexShrink:0}}>{t.emoji}</span>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:13,fontWeight:700,color:form.type===t.id?t.color:"var(--text)"}}>{t.label}</div>
+                        <div style={{fontSize:11,color:"var(--text3)"}}>{t.desc}</div>
+                      </div>
+                      {form.type===t.id && <div style={{width:8,height:8,borderRadius:"50%",background:t.color,flexShrink:0}}/>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* 🔊 Test Sound Button */}
+              <button onClick={testSound}
+                disabled={form.type==="custom" && !form.customAudio}
+                style={{
+                  width:"100%",padding:"11px",borderRadius:12,
+                  border:`2px solid ${testing?"#ef4444":"var(--accent)"}`,
+                  background:testing?"#ef444418":"var(--accentglow)",
+                  cursor:"pointer",color:testing?"#ef4444":"var(--accent2)",
+                  fontFamily:"Syne",fontWeight:700,fontSize:14,
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+                  transition:"all .2s",
+                  opacity: form.type==="custom"&&!form.customAudio ? 0.4 : 1
+                }}>
+                {testing
+                  ? <><span style={{fontSize:18,animation:"alarmBounce .4s ease-in-out infinite alternate"}}>🔊</span> Chal raha hai... (Stop)</>
+                  : <><span style={{fontSize:18}}>▶️</span> Test Sound (4 sec preview)</>
+                }
+              </button>
+
+              {/* Custom audio upload */}
+              {form.type==="custom" && (
+                <div>
+                  <label className="label">🎵 Audio File Upload Karo</label>
+                  <input ref={customFileRef} type="file" accept="audio/*" style={{display:"none"}} onChange={handleCustomFile}/>
+                  <button onClick={()=>customFileRef.current.click()}
+                    style={{width:"100%",padding:"10px",borderRadius:10,border:"2px dashed var(--border2)",background:"var(--bg4)",cursor:"pointer",color:"var(--text2)",fontSize:13,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                    <Icon d={icons.upload} size={14}/> {form.customName || "Audio file choose karo (max 5MB)"}
+                  </button>
+                  <div style={{fontSize:10,color:"var(--text3)",marginTop:4}}>MP3, WAV, OGG, M4A supported</div>
+                </div>
+              )}
+              {/* Days */}
+              <div>
+                <label className="label">📅 Repeat Days (blank = aaj sirf)</label>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:4}}>
+                  {DAYS_LABEL.map((d,i)=>(
+                    <button key={i} onClick={()=>setForm(f=>({...f,days:f.days.includes(i)?f.days.filter(x=>x!==i):[...f.days,i]}))}
+                      style={{padding:"6px 10px",borderRadius:8,border:`1.5px solid ${form.days.includes(i)?"var(--accent)":"var(--border)"}`,background:form.days.includes(i)?"var(--accentglow)":"var(--bg3)",cursor:"pointer",color:form.days.includes(i)?"var(--accent2)":"var(--text3)",fontSize:12,fontWeight:600,transition:"all .15s"}}>
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{background:"#f97316" + "18",border:"1px solid #f9731640",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#f97316",fontWeight:600,lineHeight:1.6}}>
+                🔐 Yaad raho: CAPTCHA (4 alpha + 2 digit + 3 special) solve kiye bina alarm band nahi hoga. Na dismiss, na snooze!
+              </div>
+            </div>
+            <div style={{display:"flex",gap:10,marginTop:20}}>
+              <button className="btn btn-ghost" style={{flex:1,justifyContent:"center"}} onClick={()=>{setShowAdd(false);setForm(blankForm);AlarmAudio.stop();setTesting(false);}}>Cancel</button>
+              <button className="btn btn-primary" style={{flex:2,justifyContent:"center"}} onClick={saveAlarm}
+                disabled={form.type==="custom"&&!form.customAudio}>
+                ⏰ Alarm Set Karo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -3145,6 +3740,7 @@ function App() {
     { id:"report",   label:"Weekly Report",icon:"report"   },
     { id:"admin",    label:"Admin Manager",icon:"profile",  ownerOnly:true },
     { id:"settings", label:"Settings",    icon:"settings"  },
+    { id:"alarm",    label:"Alarm",        icon:"alarm"     },
   ];
   // Owner sees all; Admin sees only permitted pages + always-show pages
   const navItems = ALL_NAV.filter(item =>
@@ -3152,7 +3748,7 @@ function App() {
       ? true
       : !item.ownerOnly && (item.alwaysShow || hasPermission(currentUser, item.id))
   );
-  const pageTitles = { home:"Dashboard",schedule:"Schedule",habits:"Habits",lectures:"Lectures",workout:"Workout",goals:"Goals",notes:"Notes",analytics:"Analytics",profile:"Profile",focus:"Focus Mode",revision:"Revision Lab",report:"Weekly Report",admin:"Admin Manager",settings:"Settings" };
+  const pageTitles = { home:"Dashboard",schedule:"Schedule",habits:"Habits",lectures:"Lectures",workout:"Workout",goals:"Goals",notes:"Notes",analytics:"Analytics",profile:"Profile",focus:"Focus Mode",revision:"Revision Lab",report:"Weekly Report",admin:"Admin Manager",settings:"Settings",alarm:"⏰ Alarm" };
 
   const navigateTo = (id) => {
     // Prevent admin from navigating to pages they don't have access to
@@ -3285,6 +3881,7 @@ function App() {
             {page==="report" && <WeeklyReportPage profile={userProfile} habits={habits} habitLogs={habitLogs} workoutLogs={workoutLogs} lectureProgress={lectureProgress} lectures={lectures} goals={goals}/>}
             {page==="admin" && currentUser?.role==="owner" && <AdminPage onSessionLogout={handleSessionLogout} onFullLogout={handleLogout} allData={allData} onImport={handleImport}/>}
             {page==="settings" && <SettingsPage currentUser={currentUser} profile={userProfile} setProfile={setProfile} onLogout={handleLogout} theme={theme} setTheme={handleThemeChange} allData={allData} onImport={handleImport}/>}
+            {page==="alarm" && <AlarmPage/>}
               </>
             )}
           </div>
