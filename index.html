@@ -81,13 +81,19 @@
     window._appReady = function() { clearTimeout(_appRenderTimeout); };
   </script>
 
-  <!-- Register Service Worker (safe — error ignore hoga) -->
+  <!-- Service Worker: only register if sw.js exists (avoids 404 warning) -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
-        navigator.serviceWorker.register('sw.js')
-          .then(function(reg){ console.log('StudyOS SW registered:', reg.scope); })
-          .catch(function(err){ console.log('SW registration skipped (file missing):', err.message); });
+        fetch('sw.js', { method: 'HEAD' })
+          .then(function(res) {
+            if (res.ok) {
+              navigator.serviceWorker.register('sw.js')
+                .then(function(reg){ console.log('StudyOS SW registered:', reg.scope); })
+                .catch(function(err){ console.log('SW error:', err.message); });
+            }
+          })
+          .catch(function(){});
       });
     }
   </script>
@@ -160,6 +166,7 @@ const icons = {
   whatsapp: "M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l5.07-1.35A9.96 9.96 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z",
   copy: "M8 8H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2 M8 8V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2",
   alarm: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 6v6l4 2 M4.22 4.22l1.42 1.42 M18.36 4.22l1.42-1.42",
+  calendar: "M8 2v4 M16 2v4 M3 10h18 M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6z M8 14h.01 M12 14h.01 M16 14h.01 M8 18h.01 M12 18h.01",
   alarmOff: "M8.56 2.9A7 7 0 0 1 19 9v4m-2 4H3a2 2 0 0 0 2 2h10 M2 2l20 20",
   snooze: "M5 3h14 M5 21h14 M12 3v4 M12 17v4 M5 12h14",
 };
@@ -172,6 +179,7 @@ const THEMES = {
     "--border":"#ffffff0f","--border2":"#ffffff18",
     "--text":"#f0f0f5","--text2":"#9191a8","--text3":"#5a5a72",
     "--accent":"#7c6fff","--accent2":"#a78bfa","--accentglow":"#7c6fff40",
+    "--pink":"#ec4899","--green":"#10b981","--red":"#ef4444",
     "--sidebar-bg":"#111118","--topbar-bg":"#111118",
   },
   light: {
@@ -180,6 +188,7 @@ const THEMES = {
     "--border":"#e0e0e8","--border2":"#ccccda",
     "--text":"#1a1a2e","--text2":"#44445a","--text3":"#8888a0",
     "--accent":"#7c6fff","--accent2":"#5b48f0","--accentglow":"#7c6fff25",
+    "--pink":"#db2777","--green":"#059669","--red":"#dc2626",
     "--sidebar-bg":"#ffffff","--topbar-bg":"#ffffff",
   },
   ocean: {
@@ -188,6 +197,7 @@ const THEMES = {
     "--border":"#1e3a5f","--border2":"#254d7a",
     "--text":"#e0f0ff","--text2":"#7ab0d4","--text3":"#4a7299",
     "--accent":"#38bdf8","--accent2":"#7dd3fc","--accentglow":"#38bdf840",
+    "--pink":"#f472b6","--green":"#34d399","--red":"#f87171",
     "--sidebar-bg":"#0a1628","--topbar-bg":"#0a1628",
   },
   forest: {
@@ -196,6 +206,7 @@ const THEMES = {
     "--border":"#1a4028","--border2":"#235535",
     "--text":"#e0f5ea","--text2":"#6dba8a","--text3":"#3d7a55",
     "--accent":"#22c55e","--accent2":"#4ade80","--accentglow":"#22c55e40",
+    "--pink":"#f9a8d4","--green":"#86efac","--red":"#fca5a5",
     "--sidebar-bg":"#091a10","--topbar-bg":"#091a10",
   },
   sunset: {
@@ -204,6 +215,7 @@ const THEMES = {
     "--border":"#3d2a10","--border2":"#523815",
     "--text":"#fff0e0","--text2":"#c4924a","--text3":"#8a6030",
     "--accent":"#f97316","--accent2":"#fb923c","--accentglow":"#f9731640",
+    "--pink":"#f472b6","--green":"#34d399","--red":"#f87171",
     "--sidebar-bg":"#1a1008","--topbar-bg":"#1a1008",
   },
   rose: {
@@ -212,6 +224,7 @@ const THEMES = {
     "--border":"#f0c0c8","--border2":"#e8a8b2",
     "--text":"#2d1020","--text2":"#6d3048","--text3":"#b06080",
     "--accent":"#e11d48","--accent2":"#f43f5e","--accentglow":"#e11d4825",
+    "--pink":"#be123c","--green":"#059669","--red":"#dc2626",
     "--sidebar-bg":"#ffffff","--topbar-bg":"#ffffff",
   },
 };
@@ -229,8 +242,8 @@ const RANKS = [
 ];
 const XP_VALS = { habit:10, lecture:50, workout:30 };
 // Add cyberpunk+nordic themes
-THEMES.cyberpunk = { name:"Cyberpunk",emoji:"⚡","--bg":"#08000f","--bg2":"#0d0018","--bg3":"#130022","--bg4":"#1a002e","--border":"#ff00ff18","--border2":"#ff00ff30","--text":"#f0f0ff","--text2":"#cc88ff","--text3":"#8844aa","--accent":"#ff00ff","--accent2":"#00ffff","--accentglow":"#ff00ff50","--sidebar-bg":"#0d0018","--topbar-bg":"#0d0018" };
-THEMES.nordic = { name:"Nordic Frost",emoji:"❄️","--bg":"#1a1f2e","--bg2":"#222838","--bg3":"#2a3348","--bg4":"#333f58","--border":"#3d4f6a","--border2":"#4a6080","--text":"#eceff4","--text2":"#aab4c8","--text3":"#6a7d99","--accent":"#88c0d0","--accent2":"#81a1c1","--accentglow":"#88c0d040","--sidebar-bg":"#222838","--topbar-bg":"#222838" };
+THEMES.cyberpunk = { name:"Cyberpunk",emoji:"⚡","--bg":"#08000f","--bg2":"#0d0018","--bg3":"#130022","--bg4":"#1a002e","--border":"#ff00ff18","--border2":"#ff00ff30","--text":"#f0f0ff","--text2":"#cc88ff","--text3":"#8844aa","--accent":"#ff00ff","--accent2":"#00ffff","--accentglow":"#ff00ff50","--pink":"#ff00ff","--green":"#00ffaa","--red":"#ff4466","--sidebar-bg":"#0d0018","--topbar-bg":"#0d0018" };
+THEMES.nordic = { name:"Nordic Frost",emoji:"❄️","--bg":"#1a1f2e","--bg2":"#222838","--bg3":"#2a3348","--bg4":"#333f58","--border":"#3d4f6a","--border2":"#4a6080","--text":"#eceff4","--text2":"#aab4c8","--text3":"#6a7d99","--accent":"#88c0d0","--accent2":"#81a1c1","--accentglow":"#88c0d040","--pink":"#b48ead","--green":"#a3be8c","--red":"#bf616a","--sidebar-bg":"#222838","--topbar-bg":"#222838" };
 const getRank=(xp)=>{ let r=RANKS[0]; for(const rk of RANKS){if(xp>=rk.minXP)r=rk;else break;} return r; };
 const getNextRank=(xp)=>{ for(const r of RANKS){if(xp<r.minXP)return r;} return null; };
 const computeXP=(habitLogs,habits,workoutLogs,lectureProgress,lectures)=>{
@@ -350,28 +363,37 @@ const ALL_PERMISSIONS = [
   { key:"alarm",      label:"Alarm",        icon:"alarm"     },
 ];
 const MAX_ADMINS = 10;
-const MAX_OWNER_LOGINS_PER_DAY = 10;
 
 const DEFAULT_AUTH = {
-  owner: { username:"owner", password:"owner123", role:"owner" },
+  owner: { username:"owner", password: btoa("owner123"), role:"owner" },
   admins: [] // Array of { id, username, password, displayName, permissions:[], active:true }
 };
 
-const getAuth   = () => storage.get("studyos_auth", DEFAULT_AUTH);
-const setAuth   = (d) => storage.set("studyos_auth", d);
+const _enc = (s) => { try { return btoa(unescape(encodeURIComponent(s))); } catch { return s; } };
+const _dec = (s) => { try { return decodeURIComponent(escape(atob(s))); } catch { return s; } };
+// Checks if a string is already base64-encoded
+const _isEncoded = (s) => { try { return btoa(atob(s)) === s; } catch { return false; } };
+const getAuth = () => {
+  const raw = storage.get("studyos_auth", DEFAULT_AUTH);
+  // Decode passwords for runtime use (handle both old plain-text and new encoded)
+  return {
+    ...raw,
+    owner: { ...raw.owner, password: _isEncoded(raw.owner?.password||"") ? _dec(raw.owner.password) : (raw.owner?.password||"") },
+    admins: (raw.admins || []).map(a => ({ ...a, password: _isEncoded(a.password||"") ? _dec(a.password) : (a.password||"") }))
+  };
+};
+const setAuth = (d) => {
+  // Encode passwords before storing
+  const toStore = {
+    ...d,
+    owner: { ...d.owner, password: _enc(d.owner?.password || "") },
+    admins: (d.admins || []).map(a => ({ ...a, password: _enc(a.password || "") }))
+  };
+  storage.set("studyos_auth", toStore);
+};
 const getSessions = () => storage.get("studyos_sessions", {});
 const setSessions = (s) => storage.set("studyos_sessions", s);
 
-function getOwnerLoginsToday() {
-  const todayKey = new Date().toISOString().split("T")[0];
-  return getSessions()[todayKey] || 0;
-}
-function recordOwnerLogin() {
-  const s = getSessions();
-  const todayKey = new Date().toISOString().split("T")[0];
-  s[todayKey] = (s[todayKey] || 0) + 1;
-  setSessions(s);
-}
 // Check if admin has a permission (owner always has all)
 function hasPermission(currentUser, page) {
   if (!currentUser) return false;
@@ -396,11 +418,6 @@ function LoginScreen({ onLogin }) {
       const auth = getAuth();
       // Owner check
       if (username === auth.owner.username && password === auth.owner.password) {
-        if (getOwnerLoginsToday() >= MAX_OWNER_LOGINS_PER_DAY) {
-          setError(`Owner login limit reached! Only ${MAX_OWNER_LOGINS_PER_DAY} logins allowed for today. Please try again tomorrow. 🔒`);
-          setLoading(false); return;
-        }
-        recordOwnerLogin();
         onLogin({ role:"owner", username:auth.owner.username, id:"owner", permissions: ALL_PERMISSIONS.map(p=>p.key) });
         return;
       }
@@ -439,7 +456,7 @@ function LoginScreen({ onLogin }) {
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",padding:"32px 24px",boxSizing:"border-box"}}>
       <div style={{width:"100%",maxWidth:420,animation:"fadeUp .5s cubic-bezier(.16,1,.3,1)",paddingBottom:24}}>
         <div style={{textAlign:"center",marginBottom:32}}>
-          <div style={{width:72,height:72,borderRadius:20,background:"linear-gradient(135deg,var(--accent),var(--pink))",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",boxShadow:"0 8px 32px var(--accentglow)"}}>
+          <div style={{width:72,height:72,borderRadius:20,background:"linear-gradient(135deg,var(--accent),var(--accent2))",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",boxShadow:"0 8px 32px var(--accentglow)"}}>
             <Icon d={icons.brain} size={30} stroke="#fff"/>
           </div>
           <div style={{fontFamily:"Syne",fontSize:26,fontWeight:800,marginBottom:4}}>StudyOS</div>
@@ -3595,10 +3612,500 @@ function AlarmPage() {
   );
 }
 
+// ─── MONTHLY PLANNER PAGE ─────────────────────────────────────────────────────
+function MonthlyPlannerPage() {
+  const STORAGE_KEY = "studyos_monthly_planner_v1";
+
+  // All sessions data — initial default content
+  const DEFAULT_WEEKS = [
+    {
+      title: "Week 1 — Warm Up",
+      range: "May 1 – 4",
+      days: [
+        { date:"2025-05-01", name:"Thu", num:1, sessions:[
+          { id:"w1-th1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Current Electricity" },
+          { id:"w1-th2", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Reproduction in Organisms" },
+        ]},
+        { date:"2025-05-02", name:"Fri", num:2, sessions:[
+          { id:"w1-f1", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Solutions" },
+          { id:"w1-f2", type:"s-hin", emoji:"📜", subject:"Hindi", defaultText:"Bazar Darshan" },
+        ]},
+        { date:"2025-05-03", name:"Sat", num:3, weekend:true, sessions:[
+          { id:"w1-s1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Dual Nature of Matter" },
+          { id:"w1-s2", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"Sapta review" },
+          { id:"w1-s3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
+        ]},
+        { date:"2025-05-04", name:"Sun", num:4, weekend:true, sessions:[
+          { id:"w1-u1", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Sexual Reproduction in Plants" },
+          { id:"w1-u2", type:"s-eng", emoji:"✍️", subject:"English", defaultText:"Reading + Writing" },
+          { id:"w1-u3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
+        ]},
+      ]
+    },
+    {
+      title: "Week 2 — Build Momentum",
+      range: "May 5 – 11",
+      days: [
+        { date:"2025-05-05", name:"Mon", num:5, sessions:[
+          { id:"w2-m1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Atoms & Nuclei" },
+          { id:"w2-m2", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Human Reproduction" },
+          { id:"w2-m3", type:"s-eng", emoji:"✍️", subject:"English", defaultText:"Flamingo: Lost Spring" },
+        ]},
+        { date:"2025-05-06", name:"Tue", num:6, sessions:[
+          { id:"w2-t1", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Electrochemistry" },
+          { id:"w2-t2", type:"s-hin", emoji:"📜", subject:"Hindi", defaultText:"Aroh: Kavya Khand" },
+          { id:"w2-t3", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"11th: Cell Division" },
+        ]},
+        { date:"2025-05-07", name:"Wed", num:7, sessions:[
+          { id:"w2-w1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Semiconductors" },
+          { id:"w2-w2", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Genetics: Mendelian" },
+          { id:"w2-w3", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"Weekly revision" },
+        ]},
+        { date:"2025-05-08", name:"Thu", num:8, sessions:[
+          { id:"w2-th1", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Chemical Kinetics" },
+          { id:"w2-th2", type:"s-eng", emoji:"✍️", subject:"English", defaultText:"Vistas: Tiger King" },
+          { id:"w2-th3", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"11th: Thermodynamics" },
+        ]},
+        { date:"2025-05-09", name:"Fri", num:9, sessions:[
+          { id:"w2-f1", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Molecular Basis of Inheritance" },
+          { id:"w2-f2", type:"s-hin", emoji:"📜", subject:"Hindi", defaultText:"Vitan: Rajasthan ki Rajat Boondein" },
+          { id:"w2-f3", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"11th Chem: Equilibrium" },
+        ]},
+        { date:"2025-05-10", name:"Sat", num:10, weekend:true, sessions:[
+          { id:"w2-s1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Optics revision" },
+          { id:"w2-s2", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Surface Chemistry" },
+          { id:"w2-s3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
+        ]},
+        { date:"2025-05-11", name:"Sun", num:11, weekend:true, sessions:[
+          { id:"w2-u1", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Evolution" },
+          { id:"w2-u2", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"11th Catch-up" },
+          { id:"w2-u3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
+        ]},
+      ]
+    },
+    {
+      title: "Week 3 — Deep Grind",
+      range: "May 12 – 18",
+      days: [
+        { date:"2025-05-12", name:"Mon", num:12, sessions:[
+          { id:"w3-m1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Communication Systems" },
+          { id:"w3-m2", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Biotechnology" },
+          { id:"w3-m3", type:"s-eng", emoji:"✍️", subject:"English", defaultText:"Interview Writing" },
+        ]},
+        { date:"2025-05-13", name:"Tue", num:13, sessions:[
+          { id:"w3-t1", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"d & f Block" },
+          { id:"w3-t2", type:"s-hin", emoji:"📜", subject:"Hindi", defaultText:"Patrachar Lekhan" },
+          { id:"w3-t3", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Organisms & Env." },
+        ]},
+        { date:"2025-05-14", name:"Wed", num:14, sessions:[
+          { id:"w3-w1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Ray Optics" },
+          { id:"w3-w2", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Environmental Issues" },
+          { id:"w3-w3", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"PYQ Practice" },
+        ]},
+        { date:"2025-05-15", name:"Thu", num:15, sessions:[
+          { id:"w3-th1", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Coordination Compounds" },
+          { id:"w3-th2", type:"s-eng", emoji:"✍️", subject:"English", defaultText:"Flamingo: Indigo" },
+          { id:"w3-th3", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"11th: Waves" },
+        ]},
+        { date:"2025-05-16", name:"Fri", num:16, sessions:[
+          { id:"w3-f1", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Bio MCQ sprint" },
+          { id:"w3-f2", type:"s-hin", emoji:"📜", subject:"Hindi", defaultText:"Kavita: Saroj Smriti" },
+          { id:"w3-f3", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Haloalkanes" },
+        ]},
+        { date:"2025-05-17", name:"Sat", num:17, weekend:true, sessions:[
+          { id:"w3-s1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Wave Optics" },
+          { id:"w3-s2", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Ecology MCQ" },
+          { id:"w3-s3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
+        ]},
+        { date:"2025-05-18", name:"Sun", num:18, weekend:true, sessions:[
+          { id:"w3-u1", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Biomolecules" },
+          { id:"w3-u2", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"11th Catch-up" },
+          { id:"w3-u3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
+        ]},
+      ]
+    },
+    {
+      title: "Week 4 — Peak Performance",
+      range: "May 19 – 25",
+      days: [
+        { date:"2025-05-19", name:"Mon", num:19, sessions:[
+          { id:"w4-m1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Magnetism" },
+          { id:"w4-m2", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Bio: Human Health" },
+          { id:"w4-m3", type:"s-eng", emoji:"✍️", subject:"English", defaultText:"English: Letters" },
+        ]},
+        { date:"2025-05-20", name:"Tue", num:20, sessions:[
+          { id:"w4-t1", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"p-Block Elements" },
+          { id:"w4-t2", type:"s-hin", emoji:"📜", subject:"Hindi", defaultText:"Patra Lekhan" },
+          { id:"w4-t3", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"11th Bio: Cell" },
+        ]},
+        { date:"2025-05-21", name:"Wed", num:21, sessions:[
+          { id:"w4-w1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"EMI & AC Circuits" },
+          { id:"w4-w2", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Bio: Ecosystem" },
+          { id:"w4-w3", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"Formula Sheets" },
+        ]},
+        { date:"2025-05-22", name:"Thu", num:22, sessions:[
+          { id:"w4-th1", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Polymers" },
+          { id:"w4-th2", type:"s-eng", emoji:"✍️", subject:"English", defaultText:"English: Prose" },
+          { id:"w4-th3", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"11th: Thermo" },
+        ]},
+        { date:"2025-05-23", name:"Fri", num:23, sessions:[
+          { id:"w4-f1", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Full Mock: Biology" },
+          { id:"w4-f2", type:"s-hin", emoji:"📜", subject:"Hindi", defaultText:"Hindi: Summary" },
+          { id:"w4-f3", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"11th Chem: Recap" },
+        ]},
+        { date:"2025-05-24", name:"Sat", num:24, weekend:true, sessions:[
+          { id:"w4-s1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Optics & Modern" },
+          { id:"w4-s2", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Chem Revision" },
+          { id:"w4-s3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
+        ]},
+        { date:"2025-05-25", name:"Sun", num:25, weekend:true, sessions:[
+          { id:"w4-u1", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Biodiversity" },
+          { id:"w4-u2", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"11th Catch-up" },
+          { id:"w4-u3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
+        ]},
+      ]
+    },
+    {
+      title: "Week 5 — Grand Finish",
+      range: "May 26 – 31",
+      days: [
+        { date:"2025-05-26", name:"Mon", num:26, sessions:[
+          { id:"w5-m1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Physics: Full Revision" },
+          { id:"w5-m2", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Chem: Full Revision" },
+        ]},
+        { date:"2025-05-27", name:"Tue", num:27, sessions:[
+          { id:"w5-t1", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Bio: Grand Revision" },
+          { id:"w5-t2", type:"s-hin", emoji:"📜", subject:"Hindi", defaultText:"Hindi: Final Prep" },
+        ]},
+        { date:"2025-05-28", name:"Wed", num:28, sessions:[
+          { id:"w5-w1", type:"s-eng", emoji:"✍️", subject:"English", defaultText:"English: Final Rev." },
+          { id:"w5-w2", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"All PYQs" },
+        ]},
+        { date:"2025-05-29", name:"Thu", num:29, sessions:[
+          { id:"w5-th1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Mock: PCB Full" },
+          { id:"w5-th2", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"Analyse Mistakes" },
+        ]},
+        { date:"2025-05-30", name:"Fri", num:30, sessions:[
+          { id:"w5-f1", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"Last Revision" },
+          { id:"w5-f2", type:"s-free", emoji:"😌", subject:"Free", defaultText:"Relax + Rest" },
+        ]},
+        { date:"2025-05-31", name:"Sat", num:31, weekend:true, sessions:[
+          { id:"w5-s1", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"Month Summary" },
+          { id:"w5-s2", type:"s-free", emoji:"🎉", subject:"Free", defaultText:"Mahina Complete!" },
+          { id:"w5-s3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
+        ]},
+      ]
+    },
+  ];
+
+  const SUBJECT_COLORS = {
+    "s-phy": { border:"#c0392b", bg:"rgba(192,57,43,0.1)", text:"#c0392b" },
+    "s-che": { border:"#1a6b3c", bg:"rgba(26,107,60,0.1)", text:"#1a6b3c" },
+    "s-bio": { border:"#1d4e8f", bg:"rgba(29,78,143,0.1)", text:"#1d4e8f" },
+    "s-hin": { border:"#8b4513", bg:"rgba(139,69,19,0.1)", text:"#8b4513" },
+    "s-eng": { border:"#5b2d8e", bg:"rgba(91,45,142,0.1)", text:"#5b2d8e" },
+    "s-rev": { border:"#b8860b", bg:"rgba(184,134,11,0.1)", text:"#b8860b" },
+    "s-mov": { border:"#d4356a", bg:"rgba(212,53,106,0.12)", text:"#d4356a" },
+    "s-free":{ border:"#2e7d6b", bg:"rgba(46,125,107,0.1)", text:"#2e7d6b" },
+  };
+
+  const [done, setDone] = useState({});
+  const [customText, setCustomText] = useState({});
+  const [editModal, setEditModal] = useState(null); // { id, currentText, type, subject, emoji }
+  const [editValue, setEditValue] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [pressTimer, setPressTimer] = useState(null);
+
+  // Load from localStorage
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      if (saved.done) setDone(saved.done);
+      if (saved.customText) setCustomText(saved.customText);
+    } catch(e) {}
+  }, []);
+
+  const save = (newDone, newCustom) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ done: newDone, customText: newCustom }));
+    } catch(e) {}
+  };
+
+  const toggleDone = (id) => {
+    const nd = { ...done, [id]: !done[id] };
+    setDone(nd);
+    save(nd, customText);
+  };
+
+  const openEdit = (sess) => {
+    setEditModal(sess);
+    setEditValue(customText[sess.id] || "");
+  };
+
+  const saveEdit = () => {
+    if (!editModal) return;
+    const nc = { ...customText, [editModal.id]: editValue.trim() || "" };
+    setCustomText(nc);
+    save(done, nc);
+    setEditModal(null);
+  };
+
+  // Long press handler
+  const handlePressStart = (sess) => {
+    const t = setTimeout(() => openEdit(sess), 500);
+    setPressTimer(t);
+  };
+  const handlePressEnd = () => {
+    if (pressTimer) { clearTimeout(pressTimer); setPressTimer(null); }
+  };
+
+  // Progress calculation
+  const allSessions = DEFAULT_WEEKS.flatMap(w => w.days.flatMap(d => d.sessions));
+  const totalDone = allSessions.filter(s => done[s.id]).length;
+
+  const subjectCounts = {};
+  allSessions.forEach(s => {
+    if (!subjectCounts[s.type]) subjectCounts[s.type] = { total:0, done:0, label:s.subject, emoji:s.emoji };
+    subjectCounts[s.type].total++;
+    if (done[s.id]) subjectCounts[s.type].done++;
+  });
+
+  // Today highlight
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+
+  const FILTERS = [
+    { key:"all", label:"🗓 All" },
+    { key:"s-phy", label:"⚡ Physics" },
+    { key:"s-che", label:"🧪 Chemistry" },
+    { key:"s-bio", label:"🧬 Biology" },
+    { key:"s-hin", label:"📜 Hindi" },
+    { key:"s-eng", label:"✍️ English" },
+    { key:"s-rev", label:"🔄 Revision" },
+    { key:"s-mov", label:"🎬 Movie" },
+  ];
+
+  const sStyle = {
+    position:"relative", padding:"5px 7px 5px 10px", borderRadius:3,
+    fontSize:12, fontWeight:600, cursor:"pointer", userSelect:"none",
+    display:"flex", alignItems:"flex-start", gap:6,
+    transition:"opacity 0.2s, filter 0.2s",
+    borderLeft:"3px solid", marginBottom:3,
+  };
+
+  return (
+    <div style={{ maxWidth:1000, margin:"0 auto", padding:"0 0 40px" }}>
+      {/* Header */}
+      <div style={{ marginBottom:16 }}>
+        <div style={{ fontSize:10, letterSpacing:4, color:"var(--text3)", textTransform:"uppercase", marginBottom:4 }}>
+          Academic Monthly Planner — May 2025
+        </div>
+        <div style={{ fontFamily:"Syne,sans-serif", fontSize:22, fontWeight:800, color:"var(--text)", marginBottom:2 }}>
+          Mera PCB Plan 📅
+        </div>
+        <div style={{ fontSize:12, color:"var(--text3)" }}>
+          Physics · Chemistry · Biology · Hindi · English · Weekend 🎬 Movie Nights
+        </div>
+        <div style={{ fontSize:11, color:"var(--text3)", marginTop:6, background:"var(--bg3)", border:"1px solid var(--border)", borderRadius:8, padding:"6px 12px", display:"inline-flex", alignItems:"center", gap:6 }}>
+          ✏️ <strong>Tip:</strong> Kisi bhi session ko <strong>long press</strong> karo (ya double-click) → apna chapter / movie name likhо!
+        </div>
+      </div>
+
+      {/* Progress bars */}
+      <div style={{ background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:12, padding:"16px 18px", marginBottom:16 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, fontSize:11, letterSpacing:2, color:"var(--text3)", textTransform:"uppercase" }}>
+          <span>📊 Monthly Progress</span>
+          <span style={{ background:"var(--accent)", color:"#fff", padding:"2px 10px", borderRadius:99, fontSize:10, fontWeight:700 }}>
+            {totalDone} / {allSessions.length} done
+          </span>
+        </div>
+        {Object.entries(subjectCounts).map(([type, info]) => (
+          <div key={type} style={{ display:"grid", gridTemplateColumns:"100px 1fr 50px", alignItems:"center", gap:10, marginBottom:7 }}>
+            <span style={{ fontSize:10, color:"var(--text3)", letterSpacing:1 }}>{info.emoji} {info.label}</span>
+            <div style={{ height:6, background:"var(--border)", borderRadius:3, overflow:"hidden" }}>
+              <div style={{ height:"100%", width:`${info.total>0?(info.done/info.total*100):0}%`, background: SUBJECT_COLORS[type]?.border || "var(--accent)", borderRadius:3, transition:"width 0.5s" }}/>
+            </div>
+            <span style={{ fontSize:10, color:"var(--text3)", textAlign:"right" }}>{info.done}/{info.total}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter pills */}
+      <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:16 }}>
+        {FILTERS.map(f => (
+          <button key={f.key} onClick={()=>setFilter(f.key)} style={{
+            padding:"4px 12px", borderRadius:4, fontSize:10, fontWeight:700, letterSpacing:1.5,
+            border:`1.5px solid ${f.key==="all" ? "var(--accent)" : (SUBJECT_COLORS[f.key]?.border||"var(--border)")}`,
+            background: filter===f.key ? (f.key==="all" ? "var(--accent)" : (SUBJECT_COLORS[f.key]?.border||"var(--accent)")) : "transparent",
+            color: filter===f.key ? "#fff" : (f.key==="all" ? "var(--accent)" : (SUBJECT_COLORS[f.key]?.text||"var(--text3)")),
+            cursor:"pointer", transition:"all 0.15s", opacity: filter!=="all" && filter!==f.key && f.key!=="all" ? 0.45 : 1,
+          }}>{f.label}</button>
+        ))}
+        <button onClick={()=>{
+          if (!window.confirm("Sab progress reset karna hai? Pakka?")) return;
+          setDone({}); save({}, customText);
+        }} style={{ marginLeft:"auto", padding:"4px 12px", borderRadius:4, fontSize:10, fontWeight:700, letterSpacing:1.5, border:"1.5px solid var(--border)", background:"transparent", color:"var(--text3)", cursor:"pointer" }}>
+          🔄 Reset
+        </button>
+      </div>
+
+      {/* Calendar weeks */}
+      {DEFAULT_WEEKS.map(week => (
+        <div key={week.title} style={{ background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:12, overflow:"hidden", marginBottom:14, boxShadow:"0 2px 12px rgba(0,0,0,0.08)" }}>
+          <div style={{ background:"var(--bg4)", borderBottom:"1px solid var(--border)", padding:"10px 18px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <span style={{ fontFamily:"Syne,sans-serif", fontSize:13, fontWeight:700, color:"var(--text)" }}>{week.title}</span>
+            <span style={{ fontSize:11, color:"var(--text3)" }}>{week.range}</span>
+          </div>
+
+          {/* Desktop grid */}
+          <div style={{ display:"grid", gridTemplateColumns:`repeat(${week.days.length},1fr)`, borderTop:"1px solid var(--border)" }} className="planner-desktop">
+            {week.days.map(day => {
+              const isToday = day.date === todayStr;
+              const filteredSessions = filter==="all" ? day.sessions : day.sessions.filter(s=>s.type===filter);
+              return (
+                <div key={day.date} style={{
+                  borderRight:"1px solid var(--border)", minHeight:130, padding:0,
+                  outline: isToday ? "2px solid var(--accent)" : "none",
+                  outlineOffset: -2,
+                  background: day.weekend ? "rgba(212,53,106,0.03)" : "transparent",
+                }}>
+                  <div style={{ padding:"4px 6px 2px", borderBottom:"1px solid var(--border)", background:"rgba(0,0,0,0.02)", textAlign:"center" }}>
+                    <div style={{ fontSize:9, letterSpacing:1.5, color: day.weekend ? "#d4356a" : "var(--text3)", textTransform:"uppercase" }}>{day.name}</div>
+                    <div style={{ fontFamily:"Syne,sans-serif", fontSize:20, fontWeight:700, color: isToday ? "var(--accent)" : (day.weekend ? "#d4356a" : "var(--text)"), lineHeight:1.1 }}>
+                      {day.num}{isToday && <span style={{ display:"inline-block",width:5,height:5,background:"var(--accent)",borderRadius:"50%",marginLeft:3,verticalAlign:"middle" }}/>}
+                    </div>
+                  </div>
+                  <div style={{ padding:5 }}>
+                    {filteredSessions.map(sess => {
+                      const col = SUBJECT_COLORS[sess.type] || SUBJECT_COLORS["s-rev"];
+                      const isDone = done[sess.id];
+                      const label = customText[sess.id] || sess.defaultText;
+                      return (
+                        <div
+                          key={sess.id}
+                          style={{ ...sStyle, borderColor:col.border, background:col.bg, color:col.text, opacity: isDone ? 0.4 : 1, textDecoration: isDone ? "line-through" : "none" }}
+                          onClick={()=>toggleDone(sess.id)}
+                          onDoubleClick={(e)=>{ e.preventDefault(); openEdit(sess); }}
+                          onTouchStart={()=>handlePressStart(sess)}
+                          onTouchEnd={handlePressEnd}
+                          onTouchMove={handlePressEnd}
+                          title="Click: done/undone | Double-click: edit"
+                        >
+                          <span style={{ flexShrink:0, width:11, height:11, border:`1.5px solid ${col.border}`, borderRadius:2, display:"flex", alignItems:"center", justifyContent:"center", marginTop:1, background: isDone ? col.border : "transparent", fontSize:7, color:"#fff", fontWeight:900 }}>
+                            {isDone ? "✓" : ""}
+                          </span>
+                          <span style={{ flex:1, fontSize:8.5, lineHeight:1.3 }}>{sess.emoji} {label}</span>
+                          <span onClick={(e)=>{e.stopPropagation();openEdit(sess);}} style={{ flexShrink:0, fontSize:9, opacity:0.5, cursor:"pointer", paddingTop:1 }} title="Edit name">✏️</span>
+                        </div>
+                      );
+                    })}
+                    {filteredSessions.length === 0 && filter !== "all" && (
+                      <div style={{ fontSize:9, color:"var(--text3)", padding:"4px 2px", opacity:0.5 }}>—</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Mobile card list */}
+          <div className="planner-mobile" style={{ padding:10, display:"none", flexDirection:"column", gap:8 }}>
+            {week.days.map(day => {
+              const isToday = day.date === todayStr;
+              const filteredSessions = filter==="all" ? day.sessions : day.sessions.filter(s=>s.type===filter);
+              if (filteredSessions.length===0 && filter!=="all") return null;
+              return (
+                <div key={day.date} style={{ border:"1px solid var(--border)", borderRadius:8, overflow:"hidden" }}>
+                  <div style={{ padding:"8px 12px", background: isToday ? "rgba(124,111,255,0.1)" : (day.weekend ? "rgba(212,53,106,0.06)" : "var(--bg3)"), borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", gap:10, borderLeft: isToday ? "3px solid var(--accent)" : "none" }}>
+                    <span style={{ fontFamily:"Syne,sans-serif", fontSize:22, fontWeight:700, color: day.weekend?"#d4356a":"var(--text)" }}>{day.num}</span>
+                    <span style={{ fontSize:10, letterSpacing:2, color:"var(--text3)", textTransform:"uppercase" }}>{day.name}</span>
+                    {isToday && <span style={{ marginLeft:"auto", fontSize:9, background:"var(--accent)", color:"#fff", padding:"2px 8px", borderRadius:99, fontWeight:700 }}>TODAY</span>}
+                  </div>
+                  <div style={{ padding:8 }}>
+                    {filteredSessions.map(sess => {
+                      const col = SUBJECT_COLORS[sess.type] || SUBJECT_COLORS["s-rev"];
+                      const isDone = done[sess.id];
+                      const label = customText[sess.id] || sess.defaultText;
+                      return (
+                        <div
+                          key={sess.id}
+                          style={{ ...sStyle, borderColor:col.border, background:col.bg, color:col.text, fontSize:12, padding:"7px 10px", opacity: isDone ? 0.4 : 1, textDecoration: isDone ? "line-through" : "none" }}
+                          onClick={()=>toggleDone(sess.id)}
+                          onDoubleClick={(e)=>{ e.preventDefault(); openEdit(sess); }}
+                          onTouchStart={()=>handlePressStart(sess)}
+                          onTouchEnd={handlePressEnd}
+                          onTouchMove={handlePressEnd}
+                        >
+                          <span style={{ flexShrink:0, width:13, height:13, border:`1.5px solid ${col.border}`, borderRadius:2, display:"flex", alignItems:"center", justifyContent:"center", background: isDone ? col.border : "transparent", fontSize:8, color:"#fff", fontWeight:900 }}>
+                            {isDone ? "✓" : ""}
+                          </span>
+                          <span style={{ flex:1 }}>{sess.emoji} {label}</span>
+                          <span onClick={(e)=>{e.stopPropagation();openEdit(sess);}} style={{ flexShrink:0, fontSize:12, opacity:0.5, cursor:"pointer" }} title="Edit">✏️</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      {/* Edit Modal */}
+      {editModal && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={()=>setEditModal(null)}>
+          <div style={{ background:"var(--bg2)", border:"1px solid var(--border2)", borderRadius:16, padding:24, width:"100%", maxWidth:380, boxShadow:"0 20px 60px rgba(0,0,0,0.4)" }} onClick={e=>e.stopPropagation()}>
+            <div style={{ marginBottom:16 }}>
+              <div style={{ fontSize:10, letterSpacing:3, color:"var(--text3)", textTransform:"uppercase", marginBottom:4 }}>Session Edit</div>
+              <div style={{ fontFamily:"Syne,sans-serif", fontSize:16, fontWeight:800, color:"var(--text)" }}>
+                {editModal.emoji} {editModal.subject} Session
+              </div>
+              <div style={{ fontSize:12, color:"var(--text3)", marginTop:2 }}>Default: "{editModal.defaultText}"</div>
+            </div>
+            <div style={{ marginBottom:6, fontSize:11, color:"var(--text2)", fontWeight:600 }}>
+              Apna topic/chapter/movie name likhо:
+            </div>
+            <input
+              autoFocus
+              type="text"
+              value={editValue}
+              onChange={e=>setEditValue(e.target.value)}
+              onKeyDown={e=>{ if(e.key==="Enter") saveEdit(); if(e.key==="Escape") setEditModal(null); }}
+              placeholder={`e.g. ${editModal.subject==="Movie" ? "Interstellar, 3 Idiots..." : editModal.defaultText}`}
+              style={{ width:"100%", padding:"10px 14px", borderRadius:10, border:"1.5px solid var(--border2)", background:"var(--bg3)", color:"var(--text)", fontSize:14, outline:"none", fontFamily:"inherit", marginBottom:14 }}
+            />
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={saveEdit} style={{ flex:1, padding:"10px", borderRadius:10, background:"var(--accent)", color:"#fff", border:"none", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"inherit" }}>
+                ✅ Save
+              </button>
+              <button onClick={()=>{ const nc={...customText}; delete nc[editModal.id]; setCustomText(nc); save(done,nc); setEditModal(null); }} style={{ padding:"10px 14px", borderRadius:10, background:"var(--bg4)", color:"var(--text3)", border:"1px solid var(--border)", fontWeight:600, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+                Reset
+              </button>
+              <button onClick={()=>setEditModal(null)} style={{ padding:"10px 14px", borderRadius:10, background:"var(--bg4)", color:"var(--text3)", border:"1px solid var(--border)", fontWeight:600, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+                Cancel
+              </button>
+            </div>
+            <div style={{ marginTop:10, fontSize:10, color:"var(--text3)", textAlign:"center" }}>Enter = Save · Esc = Cancel</div>
+          </div>
+        </div>
+      )}
+
+      {/* Responsive CSS */}
+      <style>{`
+        @media (max-width: 640px) {
+          .planner-desktop { display: none !important; }
+          .planner-mobile { display: flex !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 function App() {
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [loggedIn, setLoggedIn] = useState(() => storage.get("studyos_loggedIn", false));
+  const [currentUser, setCurrentUser] = useState(() => storage.get("studyos_currentUser", null));
   const [showCredModal, setShowCredModal] = useState(false);
   const [userAvatar, setUserAvatar] = useState(null); // per-user avatar (loaded from IDB)
   const [userProfile, setUserProfile] = useState({}); // per-user full profile (IDB)
@@ -3693,9 +4200,13 @@ function App() {
     setHabits(INITIAL_HABITS); setHabitLogs({}); setLectures(INITIAL_LECTURES);
     setLectureProgress({}); setNotes({}); setExercises(INITIAL_WORKOUTS);
     setWorkoutLogs({}); setGoals(INITIAL_GOALS); setFlashcards([]); setFocusLogs({}); setTheme("dark_purple");
+    storage.set("studyos_loggedIn", false); storage.set("studyos_currentUser", null);
     setLoggedIn(false); setCurrentUser(null);
   };
-  const handleSessionLogout = () => { setLoggedIn(false); setCurrentUser(null); };
+  const handleSessionLogout = () => {
+    storage.set("studyos_loggedIn", false); storage.set("studyos_currentUser", null);
+    setLoggedIn(false); setCurrentUser(null);
+  };
 
   const allData = {
     _version: 3,
@@ -3728,6 +4239,7 @@ function App() {
   const ALL_NAV = [
     { id:"home",     label:"Dashboard",   icon:"home",     alwaysShow:true },
     { id:"schedule", label:"Schedule",    icon:"schedule"  },
+    { id:"planner",  label:"Monthly Plan", icon:"calendar"  },
     { id:"habits",   label:"Habits",      icon:"habits"    },
     { id:"lectures", label:"Lectures",    icon:"lectures"  },
     { id:"workout",  label:"Workout",     icon:"workout"   },
@@ -3748,7 +4260,7 @@ function App() {
       ? true
       : !item.ownerOnly && (item.alwaysShow || hasPermission(currentUser, item.id))
   );
-  const pageTitles = { home:"Dashboard",schedule:"Schedule",habits:"Habits",lectures:"Lectures",workout:"Workout",goals:"Goals",notes:"Notes",analytics:"Analytics",profile:"Profile",focus:"Focus Mode",revision:"Revision Lab",report:"Weekly Report",admin:"Admin Manager",settings:"Settings",alarm:"⏰ Alarm" };
+  const pageTitles = { home:"Dashboard",schedule:"Schedule",planner:"Monthly Planner",habits:"Habits",lectures:"Lectures",workout:"Workout",goals:"Goals",notes:"Notes",analytics:"Analytics",profile:"Profile",focus:"Focus Mode",revision:"Revision Lab",report:"Weekly Report",admin:"Admin Manager",settings:"Settings",alarm:"⏰ Alarm" };
 
   const navigateTo = (id) => {
     // Prevent admin from navigating to pages they don't have access to
@@ -3756,7 +4268,8 @@ function App() {
     setPage(id); setSidebarOpen(false);
   };
 
-  if (!loggedIn) return <><style>{getCSS(theme)}</style><LoginScreen onLogin={(user)=>{setLoggedIn(true);setCurrentUser(user);}}/></>;
+  if (!loggedIn) return <><style>{getCSS(theme)}</style><LoginScreen onLogin={(user)=>{ storage.set("studyos_loggedIn",true); storage.set("studyos_currentUser",user); setLoggedIn(true); setCurrentUser(user); }}/>
+  </>;
   if (!onboarded) return <><style>{getCSS(theme)}</style><Onboarding onComplete={handleOnboardComplete}/></>;
   const mobileNav = [
     {id:"home",label:"Home",icon:"home"},
@@ -3844,7 +4357,7 @@ function App() {
               <div className="page-title">{pageTitles[page]}</div>
             </div>
             <div className="topbar-right">
-              <div className="topbar-date" style={{ display:window.innerWidth<480?"none":"flex" }}>{todayLabel()}</div>
+              <div className="topbar-date" style={{ display:isMobile?"none":"flex" }}>{todayLabel()}</div>
               <div className="streak-badge" style={{ fontSize:12,padding:"4px 10px" }}>
                 <Icon d={icons.fire} size={13} stroke="var(--red)" fill="var(--red)"/> {getStreak(workoutLogs)}d
               </div>
@@ -3869,6 +4382,7 @@ function App() {
               <>
             {page==="home" && <HomePage profile={userProfile} habits={habits} habitLogs={habitLogs} setHabitLogs={setHabitLogs} lectures={lectures} lectureProgress={lectureProgress} workoutLogs={workoutLogs} goals={goals} xp={xp} onNavigate={id=>setPage(id)}/>}
             {page==="schedule" && <SchedulePage/>}
+            {page==="planner" && <MonthlyPlannerPage/>}
             {page==="habits" && <HabitsPage habits={habits} setHabits={setHabits} habitLogs={habitLogs} setHabitLogs={setHabitLogs}/>}
             {page==="lectures" && <LecturesPage lectures={lectures} setLectures={setLectures} lectureProgress={lectureProgress} setLectureProgress={setLectureProgress} notes={notes} setNotes={setNotes}/>}
             {page==="workout" && <WorkoutPage exercises={exercises} setExercises={setExercises} workoutLogs={workoutLogs} setWorkoutLogs={setWorkoutLogs}/>}
