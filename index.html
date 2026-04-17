@@ -364,30 +364,82 @@ const ALL_PERMISSIONS = [
 ];
 const MAX_ADMINS = 10;
 
+// ─── KEY-BASED LOGIN SYSTEM ───────────────────────────────────────────────────
+// Keys are stored as SHA-256 hashes — original keys are NEVER in source code.
+// Source code dekhne wale ko sirf hashes milenge, actual keys nahi.
+// Login ke waqt user ki key hash hoti hai, phir compare hoti hai.
+const KEY_USERS = {
+  "b860c94e7f82e2e729e5810bdce3c02872d4b5d40fb6766a95a328b508bf5764": { username: "user1",  role: "owner", displayName: "User 1 👑" },
+  "872b1fc171e275b60d438f3b1a50f2619b682ee8e95e695f75e07be6c1a686a6": { username: "user2",  role: "admin", displayName: "User 2"    },
+  "c8f1012950ae0b94457613d7161abc6b332642113a2d9f6f15f0e50302da1336": { username: "user3",  role: "admin", displayName: "User 3"    },
+  "1a90cda9e8d911dee78041226a9def9c1e0973d851a75fcff37d5d31e7d09105": { username: "user4",  role: "admin", displayName: "User 4"    },
+  "66d368637906368f0c24a3122c54a2c5da2853c6ffff3ca084319cadf48e6e69": { username: "user5",  role: "admin", displayName: "User 5"    },
+  "0ca219ff0a8e58df8bec25927f5c06326078d8ec473db4ec70454a959d9c5b42": { username: "user6",  role: "admin", displayName: "User 6"    },
+  "3378f8ca5f22ecb4c29914a708ba80cea61fa7ca84844a422b71d7d00426affe": { username: "user7",  role: "admin", displayName: "User 7"    },
+  "a6a591ac8b096d64432ce202bddfc79162e88071e523f3b5a26e0ed72aeca0aa": { username: "user8",  role: "admin", displayName: "User 8"    },
+  "98da735420470130715422fcc947436a4d65c7ac657a46673e6b7e63f7d5a584": { username: "user9",  role: "admin", displayName: "User 9"    },
+  "c553492944cc081b271bab13018def370abfc3e505dae44dad5f1b1f15a78130": { username: "user10", role: "admin", displayName: "User 10"   },
+  "9d9452b2c564d9eb8590c9d3a4955a0355a54fd3112b4342a3f654974e0e5168": { username: "user11", role: "admin", displayName: "User 11"   },
+  "c7d218f463e374b060bba12ee3c8a0c374e4271b2cdc85e3b0f37267c8b1bbeb": { username: "user12", role: "admin", displayName: "User 12"   },
+  "bf084b77402a6408a441b329608fea70db38136fcc289f8cb4be32ef867733eb": { username: "user13", role: "admin", displayName: "User 13"   },
+};
+
+// SHA-256 hash function — browser's built-in Web Crypto API use karta hai
+async function hashKey(raw) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw.trim().toUpperCase()));
+  return [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
 const DEFAULT_AUTH = {
   owner: { username:"owner", password: btoa("owner123"), role:"owner" },
-  admins: [] // Array of { id, username, password, displayName, permissions:[], active:true }
+  admins: [],
+  keyUsers: Object.entries(KEY_USERS)
+    .filter(([,u]) => u.role !== "owner")
+    .map(([hash, u]) => ({
+      id: "key_" + hash.slice(0,12).toUpperCase(),
+      hash,
+      username: u.username,
+      displayName: u.displayName,
+      role: "key",
+      permissions: [],
+      active: true,
+    }))
 };
 
 const _enc = (s) => { try { return btoa(unescape(encodeURIComponent(s))); } catch { return s; } };
 const _dec = (s) => { try { return decodeURIComponent(escape(atob(s))); } catch { return s; } };
-// Checks if a string is already base64-encoded
 const _isEncoded = (s) => { try { return btoa(atob(s)) === s; } catch { return false; } };
 const getAuth = () => {
   const raw = storage.get("studyos_auth", DEFAULT_AUTH);
-  // Decode passwords for runtime use (handle both old plain-text and new encoded)
+  // Merge stored keyUsers with KEY_USERS — naye keys auto-add ho jayenge
+  const storedKeyUsers = raw.keyUsers || [];
+  const mergedKeyUsers = Object.entries(KEY_USERS)
+    .filter(([,u]) => u.role !== "owner")
+    .map(([hash, u]) => {
+      const stored = storedKeyUsers.find(k => k.hash === hash);
+      return stored ? stored : {
+        id: "key_" + hash.slice(0,12).toUpperCase(),
+        hash,
+        username: u.username,
+        displayName: u.displayName,
+        role: "key",
+        permissions: [],
+        active: true,
+      };
+    });
   return {
     ...raw,
     owner: { ...raw.owner, password: _isEncoded(raw.owner?.password||"") ? _dec(raw.owner.password) : (raw.owner?.password||"") },
-    admins: (raw.admins || []).map(a => ({ ...a, password: _isEncoded(a.password||"") ? _dec(a.password) : (a.password||"") }))
+    admins: (raw.admins || []).map(a => ({ ...a, password: _isEncoded(a.password||"") ? _dec(a.password) : (a.password||"") })),
+    keyUsers: mergedKeyUsers,
   };
 };
 const setAuth = (d) => {
-  // Encode passwords before storing
   const toStore = {
     ...d,
     owner: { ...d.owner, password: _enc(d.owner?.password || "") },
-    admins: (d.admins || []).map(a => ({ ...a, password: _enc(a.password || "") }))
+    admins: (d.admins || []).map(a => ({ ...a, password: _enc(a.password || "") })),
+    keyUsers: d.keyUsers || [],
   };
   storage.set("studyos_auth", toStore);
 };
@@ -400,37 +452,53 @@ function hasPermission(currentUser, page) {
   if (currentUser.role === "owner") return true;
   return (currentUser.permissions || []).includes(page);
 }
+// Key user ka displayName admin manager ke stored data se sync karo
+function getKeyUserDisplayName(currentUser) {
+  if (currentUser.role !== "key") return currentUser.displayName;
+  const stored = (getAuth().keyUsers || []).find(k => k.hash === currentUser.hash);
+  return stored?.displayName || currentUser.displayName;
+}
 
-// ─── LOGIN SCREEN ─────────────────────────────────────────────────────────────
+// ─── LOGIN SCREEN (KEY-BASED) ─────────────────────────────────────────────────
 function LoginScreen({ onLogin }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [key, setKey]           = useState("");
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
-  const [showPass, setShowPass] = useState(false);
+  const [showKey, setShowKey]   = useState(false);
   const [importMsg, setImportMsg] = useState("");
   const [importErr, setImportErr] = useState("");
   const importRef = useRef();
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setError(""); setLoading(true);
-    setTimeout(() => {
-      const auth = getAuth();
-      // Owner check
-      if (username === auth.owner.username && password === auth.owner.password) {
-        onLogin({ role:"owner", username:auth.owner.username, id:"owner", permissions: ALL_PERMISSIONS.map(p=>p.key) });
+    try {
+      const hashed = await hashKey(key);
+      const found = KEY_USERS[hashed];
+      if (found) {
+        const userId = "key_" + hashed.slice(0, 12).toUpperCase();
+        if (found.role === "owner") {
+          onLogin({ role:"owner", username:found.username, displayName:found.displayName, id:userId, permissions: ALL_PERMISSIONS.map(p=>p.key) });
+        } else {
+          // studyos_auth se is user ki permissions load karo
+          const auth = getAuth();
+          const storedUser = (auth.keyUsers || []).find(k => k.hash === hashed);
+          const perms = storedUser ? (storedUser.permissions || []) : [];
+          const active = storedUser ? storedUser.active !== false : true;
+          if (!active) {
+            setError("Tumhara access disabled hai. Owner se contact karo. 🚫");
+            setKey(""); setLoading(false); return;
+          }
+          onLogin({ role:"key", username:found.username, displayName: storedUser?.displayName || found.displayName, id:userId, permissions: perms, hash: hashed });
+        }
         return;
       }
-      // Admin check
-      const admin = (auth.admins||[]).find(a => a.active && a.username === username && a.password === password);
-      if (admin) {
-        onLogin({ role:"admin", username:admin.username, displayName:admin.displayName, id:admin.id, permissions:admin.permissions||[] });
-        return;
-      }
-      setError("Incorrect username or password. Please try again. ❌");
-      setPassword("");
+      setError("Galat key hai! Dobara check karo. 🔑❌");
+      setKey("");
       setLoading(false);
-    }, 600);
+    } catch {
+      setError("Kuch gadbad ho gayi, dobara try karo.");
+      setLoading(false);
+    }
   };
 
   const handleImportBackup = (e) => {
@@ -460,27 +528,29 @@ function LoginScreen({ onLogin }) {
             <Icon d={icons.brain} size={30} stroke="#fff"/>
           </div>
           <div style={{fontFamily:"Syne",fontSize:26,fontWeight:800,marginBottom:4}}>StudyOS</div>
-          <div style={{color:"var(--text3)",fontSize:13}}>Command Center — Secure Access</div>
+          <div style={{color:"var(--text3)",fontSize:13}}>Command Center — Key Access Only</div>
         </div>
         <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:20,padding:28}}>
-          <div style={{fontFamily:"Syne",fontSize:16,fontWeight:700,marginBottom:18}}>🔐 Login</div>
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            <div>
-              <label className="label">Username</label>
-              <input className="input" placeholder="Enter username" value={username}
-                onChange={e=>{setUsername(e.target.value);setError("");}}
-                onKeyDown={e=>e.key==="Enter"&&handleLogin()}/>
-            </div>
-            <div>
-              <label className="label">Password</label>
-              <div style={{position:"relative"}}>
-                <input className="input" type={showPass?"text":"password"} placeholder="Enter password"
-                  value={password} onChange={e=>{setPassword(e.target.value);setError("");}}
-                  onKeyDown={e=>e.key==="Enter"&&handleLogin()} style={{paddingRight:44}}/>
-                <button onClick={()=>setShowPass(s=>!s)} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--text3)",fontSize:16}}>
-                  {showPass?"🙈":"👁️"}
-                </button>
-              </div>
+          <div style={{fontFamily:"Syne",fontSize:16,fontWeight:700,marginBottom:6}}>🔑 Apni Key Daalo</div>
+          <div style={{fontSize:12,color:"var(--text3)",marginBottom:18,lineHeight:1.6}}>
+            Tumhare paas ek unique key 🗝️ hogi — woh daalo aur enter karo. Username aur password ki zaroorat nahi!
+          </div>
+          <div>
+            <label className="label">Access Key</label>
+            <div style={{position:"relative"}}>
+              <input
+                className="input"
+                type={showKey ? "text" : "password"}
+                placeholder=""
+                value={key}
+                onChange={e=>{setKey(e.target.value.toUpperCase());setError("");}}
+                onKeyDown={e=>e.key==="Enter"&&handleLogin()}
+                style={{paddingRight:44,fontFamily:"monospace",fontSize:14,letterSpacing:2}}
+                autoComplete="off"
+              />
+              <button onClick={()=>setShowKey(s=>!s)} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--text3)",fontSize:16}}>
+                {showKey?"🙈":"👁️"}
+              </button>
             </div>
           </div>
           {error && (
@@ -488,10 +558,13 @@ function LoginScreen({ onLogin }) {
               {error}
             </div>
           )}
-          <button className="btn btn-primary" onClick={handleLogin} disabled={loading||!username||!password}
+          <button className="btn btn-primary" onClick={handleLogin} disabled={loading||!key.trim()}
             style={{width:"100%",justifyContent:"center",marginTop:18,padding:14,fontSize:15,fontWeight:700}}>
-            {loading?<><div style={{width:16,height:16,border:"2px solid #fff4",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin .6s linear infinite"}}/> Verifying...</>:"🚀 Login"}
+            {loading?<><div style={{width:16,height:16,border:"2px solid #fff4",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin .6s linear infinite"}}/> Verifying...</>:"🚀 Enter StudyOS"}
           </button>
+          <div style={{marginTop:14,padding:"10px 14px",background:"var(--bg3)",borderRadius:10,fontSize:11,color:"var(--text3)",textAlign:"center",lineHeight:1.6}}>
+            🔒 Har key ek specific user se linked hai.<br/>Key bhool gayi? Owner se maango.
+          </div>
         </div>
 
         {/* ── Optional Import Section ── */}
@@ -681,8 +754,10 @@ function AdminAvatar({ userId }) {
 // ─── ADMIN MANAGER (Owner Only) ───────────────────────────────────────────────
 function AdminPage({ onSessionLogout, onFullLogout, allData, onImport }) {
   const [admins, setAdmins]       = useState(() => getAuth().admins || []);
+  const [keyUsers, setKeyUsers]   = useState(() => getAuth().keyUsers || []);
   const [view, setView]           = useState("list");
   const [editTarget, setEditTarget] = useState(null);
+  const [editType, setEditType]   = useState("admin"); // "admin" | "key"
   const [form, setForm]           = useState({ username:"", displayName:"", password:"", confirmPass:"", permissions:[] });
   const [error, setError]         = useState("");
   const [success, setSuccess]     = useState("");
@@ -717,11 +792,13 @@ function AdminPage({ onSessionLogout, onFullLogout, allData, onImport }) {
     e.target.value = "";
   };
 
-  const saveAuth = (newAdmins) => {
+  const saveAuth = (newAdmins, newKeyUsers) => {
     const auth = getAuth();
-    auth.admins = newAdmins;
+    auth.admins = newAdmins !== undefined ? newAdmins : auth.admins;
+    if (newKeyUsers !== undefined) auth.keyUsers = newKeyUsers;
     setAuth(auth);
-    setAdmins(newAdmins);
+    if (newAdmins !== undefined) setAdmins(newAdmins);
+    if (newKeyUsers !== undefined) setKeyUsers(newKeyUsers);
   };
 
   const togglePerm = (key) => {
@@ -732,14 +809,41 @@ function AdminPage({ onSessionLogout, onFullLogout, allData, onImport }) {
   };
 
   const openAdd = () => {
+    setEditType("admin");
     setForm({ username:"", displayName:"", password:"", confirmPass:"", permissions:[] });
     setError(""); setView("add");
   };
 
   const openEdit = (admin) => {
     setEditTarget(admin);
+    setEditType("admin");
     setForm({ username:admin.username, displayName:admin.displayName||"", password:"", confirmPass:"", permissions:[...(admin.permissions||[])] });
     setError(""); setView("edit");
+  };
+
+  const openEditKeyUser = (ku) => {
+    setEditTarget(ku);
+    setEditType("key");
+    setForm({ username:ku.username, displayName:ku.displayName||"", password:"", confirmPass:"", permissions:[...(ku.permissions||[])] });
+    setError(""); setView("edit");
+  };
+
+  const updateKeyUser = () => {
+    setError("");
+    const auth = getAuth();
+    const newKeyUsers = (auth.keyUsers||[]).map(k => k.id===editTarget.id ? {
+      ...k,
+      displayName: form.displayName.trim() || k.displayName,
+      permissions: form.permissions,
+    } : k);
+    saveAuth(undefined, newKeyUsers);
+    setSuccess(`"${form.displayName||editTarget.displayName}" updated!`);
+    setTimeout(()=>{setSuccess("");setView("list");},1500);
+  };
+
+  const toggleActiveKeyUser = (ku) => {
+    const newKeyUsers = (getAuth().keyUsers||[]).map(k=>k.id===ku.id?{...k,active:!k.active}:k);
+    saveAuth(undefined, newKeyUsers);
   };
 
   const addAdmin = () => {
@@ -762,7 +866,7 @@ function AdminPage({ onSessionLogout, onFullLogout, allData, onImport }) {
       createdAt: new Date().toISOString()
     };
     const newAdmins = [...(auth.admins||[]), newAdmin];
-    saveAuth(newAdmins);
+    saveAuth(newAdmins, undefined);
     setSuccess(`Admin "${newAdmin.displayName}" added successfully!`);
     setTimeout(()=>{setSuccess("");setView("list");},1500);
   };
@@ -782,20 +886,20 @@ function AdminPage({ onSessionLogout, onFullLogout, allData, onImport }) {
       permissions: form.permissions,
       ...(form.password?{password:form.password}:{})
     } : a);
-    saveAuth(newAdmins);
+    saveAuth(newAdmins, undefined);
     setSuccess(`Admin "${form.displayName||form.username}" updated successfully!`);
     setTimeout(()=>{setSuccess("");setView("list");},1500);
   };
 
   const toggleActive = (admin) => {
     const newAdmins = (getAuth().admins||[]).map(a=>a.id===admin.id?{...a,active:!a.active}:a);
-    saveAuth(newAdmins);
+    saveAuth(newAdmins, undefined);
   };
 
   const removeAdmin = (admin) => {
     if(!window.confirm(`Are you sure you want to permanently delete "${admin.displayName||admin.username}"?`)) return;
     const newAdmins = (getAuth().admins||[]).filter(a=>a.id!==admin.id);
-    saveAuth(newAdmins);
+    saveAuth(newAdmins, undefined);
   };
 
   const permColor = "#7c6fff";
@@ -843,9 +947,9 @@ function AdminPage({ onSessionLogout, onFullLogout, allData, onImport }) {
       {view==="list" && (
         <div className="grid-3 fade-up">
           {[
-            {label:"Total Admins", value:admins.length+"/"+MAX_ADMINS, color:"var(--accent2)"},
-            {label:"Active", value:admins.filter(a=>a.active).length, color:"var(--green)"},
-            {label:"Disabled", value:admins.filter(a=>!a.active).length, color:"var(--red)"},
+            {label:"Password Admins", value:admins.length+"/"+MAX_ADMINS, color:"var(--accent2)"},
+            {label:"Key Users Active", value:keyUsers.filter(k=>k.active).length+"/"+keyUsers.length, color:"var(--green)"},
+            {label:"Disabled", value:[...admins,...keyUsers].filter(a=>!a.active).length, color:"var(--red)"},
           ].map((s,i)=>(
             <div key={i} className="stat-card">
               <div style={{fontSize:11,color:"var(--text3)",textTransform:"uppercase",letterSpacing:".6px",fontWeight:600,marginBottom:6}}>{s.label}</div>
@@ -932,23 +1036,84 @@ function AdminPage({ onSessionLogout, onFullLogout, allData, onImport }) {
               </button>
             </>
           )}
+
+          {/* ── KEY-BASED USERS SECTION ── */}
+          <div style={{marginTop:8}}>
+            <div style={{fontFamily:"Syne",fontWeight:700,fontSize:15,marginBottom:12,display:"flex",alignItems:"center",gap:8}}>
+              🔑 Key-Based Users
+              <span style={{fontSize:11,padding:"2px 10px",borderRadius:99,background:"#7c6fff20",color:"#a78bfa",fontWeight:600}}>{keyUsers.length} users</span>
+            </div>
+            {keyUsers.map(ku=>(
+              <div key={ku.id} className="card fade-up" style={{marginBottom:10,border:`1px solid ${ku.active?"#7c6fff25":"#ef444420"}`,background:ku.active?"var(--bg2)":"#ef444406"}}>
+                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
+                  <div style={{width:40,height:40,borderRadius:11,background:ku.active?"#7c6fff20":"#ef444415",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0,border:`1px solid ${ku.active?"#7c6fff40":"#ef444430"}`}}>
+                    🔑
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontFamily:"Syne",fontWeight:700,fontSize:15,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                      {ku.displayName}
+                      {!ku.active && <span style={{fontSize:10,padding:"2px 10px",borderRadius:99,background:"#ef444420",color:"var(--red)",fontWeight:600}}>Disabled</span>}
+                    </div>
+                    <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>@{ku.username} • Key User</div>
+                  </div>
+                </div>
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:11,color:"var(--text3)",fontWeight:600,textTransform:"uppercase",letterSpacing:".5px",marginBottom:6}}>
+                    Permissions ({(ku.permissions||[]).length}/{ALL_PERMISSIONS.length})
+                  </div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                    {(ku.permissions||[]).length===0
+                      ? <span style={{fontSize:12,color:"var(--red)",fontWeight:600}}>No permissions assigned</span>
+                      : ALL_PERMISSIONS.map(p=>{
+                          const has=(ku.permissions||[]).includes(p.key);
+                          return (
+                            <span key={p.key} style={{
+                              fontSize:11,padding:"3px 10px",borderRadius:99,fontWeight:600,
+                              background:has?permColor+"20":"var(--bg4)",
+                              color:has?permColor:"var(--text3)",
+                              border:`1px solid ${has?permColor+"40":"var(--border)"}`,
+                              opacity:has?1:0.5
+                            }}>{p.label}</span>
+                          );
+                        })
+                    }
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <button className="btn btn-ghost btn-sm" style={{flex:1,justifyContent:"center"}} onClick={()=>openEditKeyUser(ku)}>
+                    <Icon d={icons.edit} size={13}/> Edit
+                  </button>
+                  <button onClick={()=>toggleActiveKeyUser(ku)} className="btn btn-sm" style={{flex:1,justifyContent:"center",background:ku.active?"#ef444415":"#10b98115",color:ku.active?"var(--red)":"var(--green)",border:`1px solid ${ku.active?"#ef444430":"#10b98130"}`}}>
+                    {ku.active?"Disable":"Enable"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {/* ADD / EDIT FORM */}
       {(view==="add"||view==="edit") && (
         <div className="card fade-up" style={{display:"flex",flexDirection:"column",gap:16}}>
-          <div style={{fontFamily:"Syne",fontSize:17,fontWeight:700}}>
-            {view==="add"?"Add New Admin":"Edit Admin"}
+          <div style={{fontFamily:"Syne",fontSize:17,fontWeight:700,display:"flex",alignItems:"center",gap:8}}>
+            {editType==="key"?"🔑":"🛡️"} {view==="add"?"Add New Admin": editType==="key"?"Edit Key User":"Edit Admin"}
           </div>
+          {editType==="key" && (
+            <div style={{padding:"8px 12px",background:"#7c6fff12",border:"1px solid #7c6fff30",borderRadius:10,fontSize:12,color:"#a78bfa"}}>
+              Key user hai — sirf Display Name aur Permissions edit ho sakti hain. Key change nahi hoti.
+            </div>
+          )}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
             <div><label className="label">Display Name</label><input className="input" placeholder="e.g. Rahul" value={form.displayName} onChange={e=>setForm(f=>({...f,displayName:e.target.value}))}/></div>
-            <div><label className="label">Username *</label><input className="input" placeholder="login username" value={form.username} onChange={e=>setForm(f=>({...f,username:e.target.value}))}/></div>
+            {editType!=="key" && <div><label className="label">Username *</label><input className="input" placeholder="login username" value={form.username} onChange={e=>setForm(f=>({...f,username:e.target.value}))}/></div>}
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <div><label className="label">{view==="add"?"Password *":"New Password (optional)"}</label><input className="input" type="password" placeholder="password..." value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}/></div>
-            <div><label className="label">Confirm Password</label><input className="input" type="password" placeholder="confirm..." value={form.confirmPass} onChange={e=>setForm(f=>({...f,confirmPass:e.target.value}))}/></div>
-          </div>
+          {editType!=="key" && (
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div><label className="label">{view==="add"?"Password *":"New Password (optional)"}</label><input className="input" type="password" placeholder="password..." value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}/></div>
+              <div><label className="label">Confirm Password</label><input className="input" type="password" placeholder="confirm..." value={form.confirmPass} onChange={e=>setForm(f=>({...f,confirmPass:e.target.value}))}/></div>
+            </div>
+          )}
           <div>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
               <label className="label" style={{margin:0}}>Permissions — {form.permissions.length}/{ALL_PERMISSIONS.length} pages</label>
@@ -976,7 +1141,7 @@ function AdminPage({ onSessionLogout, onFullLogout, allData, onImport }) {
           {error && <div style={{padding:"10px 14px",background:"#ef444418",border:"1px solid #ef444440",borderRadius:10,fontSize:13,color:"var(--red)"}}>⚠️ {error}</div>}
           <div style={{display:"flex",gap:10}}>
             <button className="btn btn-ghost" style={{flex:1,justifyContent:"center"}} onClick={()=>{setView("list");setError("");}}>Cancel</button>
-            <button className="btn btn-primary" style={{flex:2,justifyContent:"center"}} onClick={view==="add"?addAdmin:updateAdmin}>
+            <button className="btn btn-primary" style={{flex:2,justifyContent:"center"}} onClick={view==="add"?addAdmin:(editType==="key"?updateKeyUser:updateAdmin)}>
               {view==="add"?"Add Admin":"Save Changes"}
             </button>
           </div>
@@ -1089,8 +1254,9 @@ const getCSS = (theme) => {
   .sidebar.collapsed{width:72px;min-width:72px}
   /* Mobile: sidebar slides off-screen */
   @media(max-width:768px){
-    .sidebar{position:fixed;left:0;top:0;height:100vh;z-index:50;transform:translateX(-100%)}
+    .sidebar{position:fixed;left:0;top:0;height:100%;height:100dvh;z-index:50;transform:translateX(-100%)}
     .sidebar.mobile-open{transform:translateX(0)}
+    .sidebar.mobile-open .sidebar-nav{overflow-y:auto;-webkit-overflow-scrolling:touch;max-height:calc(100dvh - 130px)}
     .sidebar.collapsed{width:var(--sidebar);min-width:var(--sidebar)}
     .sidebar.collapsed .sidebar-title{opacity:1}
     .sidebar.collapsed .nav-label{opacity:1}
@@ -1103,7 +1269,10 @@ const getCSS = (theme) => {
   .sidebar-close-btn{display:none;cursor:pointer;color:var(--text3);padding:4px;border-radius:6px;transition:color .2s;flex-shrink:0}
   .sidebar-close-btn:hover{color:var(--text)}
   @media(max-width:768px){.sidebar-close-btn{display:flex}}
-  .sidebar-nav{flex:1;overflow-y:auto;padding:12px 8px;display:flex;flex-direction:column;gap:2px}
+  .sidebar-nav{flex:1;overflow-y:auto;padding:12px 8px;display:flex;flex-direction:column;gap:0}
+  .nav-group{display:flex;flex-direction:column;gap:2px;margin-bottom:4px}
+  .nav-group-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);padding:10px 12px 4px;opacity:.6;white-space:nowrap;overflow:hidden;transition:opacity .2s}
+  .collapsed .nav-group-label{opacity:0;height:0;padding:0;overflow:hidden}
   .nav-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:all .2s;color:var(--text3);font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;position:relative;}
   .nav-item:hover{background:var(--bg3);color:var(--text2)}
   .nav-item.active{background:var(--accentglow);color:var(--accent2)}
@@ -3612,211 +3781,82 @@ function AlarmPage() {
   );
 }
 
-// ─── MONTHLY PLANNER PAGE ─────────────────────────────────────────────────────
+// ─── MONTHLY PLANNER PAGE (DYNAMIC) ──────────────────────────────────────────
 function MonthlyPlannerPage() {
-  const STORAGE_KEY = "studyos_monthly_planner_v1";
+  const STORAGE_KEY = "studyos_monthly_planner_v2";
 
-  // All sessions data — initial default content
-  const DEFAULT_WEEKS = [
-    {
-      title: "Week 1 — Warm Up",
-      range: "May 1 – 4",
-      days: [
-        { date:"2025-05-01", name:"Thu", num:1, sessions:[
-          { id:"w1-th1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Current Electricity" },
-          { id:"w1-th2", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Reproduction in Organisms" },
-        ]},
-        { date:"2025-05-02", name:"Fri", num:2, sessions:[
-          { id:"w1-f1", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Solutions" },
-          { id:"w1-f2", type:"s-hin", emoji:"📜", subject:"Hindi", defaultText:"Bazar Darshan" },
-        ]},
-        { date:"2025-05-03", name:"Sat", num:3, weekend:true, sessions:[
-          { id:"w1-s1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Dual Nature of Matter" },
-          { id:"w1-s2", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"Sapta review" },
-          { id:"w1-s3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
-        ]},
-        { date:"2025-05-04", name:"Sun", num:4, weekend:true, sessions:[
-          { id:"w1-u1", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Sexual Reproduction in Plants" },
-          { id:"w1-u2", type:"s-eng", emoji:"✍️", subject:"English", defaultText:"Reading + Writing" },
-          { id:"w1-u3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
-        ]},
-      ]
-    },
-    {
-      title: "Week 2 — Build Momentum",
-      range: "May 5 – 11",
-      days: [
-        { date:"2025-05-05", name:"Mon", num:5, sessions:[
-          { id:"w2-m1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Atoms & Nuclei" },
-          { id:"w2-m2", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Human Reproduction" },
-          { id:"w2-m3", type:"s-eng", emoji:"✍️", subject:"English", defaultText:"Flamingo: Lost Spring" },
-        ]},
-        { date:"2025-05-06", name:"Tue", num:6, sessions:[
-          { id:"w2-t1", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Electrochemistry" },
-          { id:"w2-t2", type:"s-hin", emoji:"📜", subject:"Hindi", defaultText:"Aroh: Kavya Khand" },
-          { id:"w2-t3", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"11th: Cell Division" },
-        ]},
-        { date:"2025-05-07", name:"Wed", num:7, sessions:[
-          { id:"w2-w1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Semiconductors" },
-          { id:"w2-w2", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Genetics: Mendelian" },
-          { id:"w2-w3", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"Weekly revision" },
-        ]},
-        { date:"2025-05-08", name:"Thu", num:8, sessions:[
-          { id:"w2-th1", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Chemical Kinetics" },
-          { id:"w2-th2", type:"s-eng", emoji:"✍️", subject:"English", defaultText:"Vistas: Tiger King" },
-          { id:"w2-th3", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"11th: Thermodynamics" },
-        ]},
-        { date:"2025-05-09", name:"Fri", num:9, sessions:[
-          { id:"w2-f1", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Molecular Basis of Inheritance" },
-          { id:"w2-f2", type:"s-hin", emoji:"📜", subject:"Hindi", defaultText:"Vitan: Rajasthan ki Rajat Boondein" },
-          { id:"w2-f3", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"11th Chem: Equilibrium" },
-        ]},
-        { date:"2025-05-10", name:"Sat", num:10, weekend:true, sessions:[
-          { id:"w2-s1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Optics revision" },
-          { id:"w2-s2", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Surface Chemistry" },
-          { id:"w2-s3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
-        ]},
-        { date:"2025-05-11", name:"Sun", num:11, weekend:true, sessions:[
-          { id:"w2-u1", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Evolution" },
-          { id:"w2-u2", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"11th Catch-up" },
-          { id:"w2-u3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
-        ]},
-      ]
-    },
-    {
-      title: "Week 3 — Deep Grind",
-      range: "May 12 – 18",
-      days: [
-        { date:"2025-05-12", name:"Mon", num:12, sessions:[
-          { id:"w3-m1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Communication Systems" },
-          { id:"w3-m2", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Biotechnology" },
-          { id:"w3-m3", type:"s-eng", emoji:"✍️", subject:"English", defaultText:"Interview Writing" },
-        ]},
-        { date:"2025-05-13", name:"Tue", num:13, sessions:[
-          { id:"w3-t1", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"d & f Block" },
-          { id:"w3-t2", type:"s-hin", emoji:"📜", subject:"Hindi", defaultText:"Patrachar Lekhan" },
-          { id:"w3-t3", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Organisms & Env." },
-        ]},
-        { date:"2025-05-14", name:"Wed", num:14, sessions:[
-          { id:"w3-w1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Ray Optics" },
-          { id:"w3-w2", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Environmental Issues" },
-          { id:"w3-w3", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"PYQ Practice" },
-        ]},
-        { date:"2025-05-15", name:"Thu", num:15, sessions:[
-          { id:"w3-th1", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Coordination Compounds" },
-          { id:"w3-th2", type:"s-eng", emoji:"✍️", subject:"English", defaultText:"Flamingo: Indigo" },
-          { id:"w3-th3", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"11th: Waves" },
-        ]},
-        { date:"2025-05-16", name:"Fri", num:16, sessions:[
-          { id:"w3-f1", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Bio MCQ sprint" },
-          { id:"w3-f2", type:"s-hin", emoji:"📜", subject:"Hindi", defaultText:"Kavita: Saroj Smriti" },
-          { id:"w3-f3", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Haloalkanes" },
-        ]},
-        { date:"2025-05-17", name:"Sat", num:17, weekend:true, sessions:[
-          { id:"w3-s1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Wave Optics" },
-          { id:"w3-s2", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Ecology MCQ" },
-          { id:"w3-s3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
-        ]},
-        { date:"2025-05-18", name:"Sun", num:18, weekend:true, sessions:[
-          { id:"w3-u1", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Biomolecules" },
-          { id:"w3-u2", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"11th Catch-up" },
-          { id:"w3-u3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
-        ]},
-      ]
-    },
-    {
-      title: "Week 4 — Peak Performance",
-      range: "May 19 – 25",
-      days: [
-        { date:"2025-05-19", name:"Mon", num:19, sessions:[
-          { id:"w4-m1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Magnetism" },
-          { id:"w4-m2", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Bio: Human Health" },
-          { id:"w4-m3", type:"s-eng", emoji:"✍️", subject:"English", defaultText:"English: Letters" },
-        ]},
-        { date:"2025-05-20", name:"Tue", num:20, sessions:[
-          { id:"w4-t1", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"p-Block Elements" },
-          { id:"w4-t2", type:"s-hin", emoji:"📜", subject:"Hindi", defaultText:"Patra Lekhan" },
-          { id:"w4-t3", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"11th Bio: Cell" },
-        ]},
-        { date:"2025-05-21", name:"Wed", num:21, sessions:[
-          { id:"w4-w1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"EMI & AC Circuits" },
-          { id:"w4-w2", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Bio: Ecosystem" },
-          { id:"w4-w3", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"Formula Sheets" },
-        ]},
-        { date:"2025-05-22", name:"Thu", num:22, sessions:[
-          { id:"w4-th1", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Polymers" },
-          { id:"w4-th2", type:"s-eng", emoji:"✍️", subject:"English", defaultText:"English: Prose" },
-          { id:"w4-th3", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"11th: Thermo" },
-        ]},
-        { date:"2025-05-23", name:"Fri", num:23, sessions:[
-          { id:"w4-f1", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Full Mock: Biology" },
-          { id:"w4-f2", type:"s-hin", emoji:"📜", subject:"Hindi", defaultText:"Hindi: Summary" },
-          { id:"w4-f3", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"11th Chem: Recap" },
-        ]},
-        { date:"2025-05-24", name:"Sat", num:24, weekend:true, sessions:[
-          { id:"w4-s1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Optics & Modern" },
-          { id:"w4-s2", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Chem Revision" },
-          { id:"w4-s3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
-        ]},
-        { date:"2025-05-25", name:"Sun", num:25, weekend:true, sessions:[
-          { id:"w4-u1", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Biodiversity" },
-          { id:"w4-u2", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"11th Catch-up" },
-          { id:"w4-u3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
-        ]},
-      ]
-    },
-    {
-      title: "Week 5 — Grand Finish",
-      range: "May 26 – 31",
-      days: [
-        { date:"2025-05-26", name:"Mon", num:26, sessions:[
-          { id:"w5-m1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Physics: Full Revision" },
-          { id:"w5-m2", type:"s-che", emoji:"🧪", subject:"Chemistry", defaultText:"Chem: Full Revision" },
-        ]},
-        { date:"2025-05-27", name:"Tue", num:27, sessions:[
-          { id:"w5-t1", type:"s-bio", emoji:"🧬", subject:"Biology", defaultText:"Bio: Grand Revision" },
-          { id:"w5-t2", type:"s-hin", emoji:"📜", subject:"Hindi", defaultText:"Hindi: Final Prep" },
-        ]},
-        { date:"2025-05-28", name:"Wed", num:28, sessions:[
-          { id:"w5-w1", type:"s-eng", emoji:"✍️", subject:"English", defaultText:"English: Final Rev." },
-          { id:"w5-w2", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"All PYQs" },
-        ]},
-        { date:"2025-05-29", name:"Thu", num:29, sessions:[
-          { id:"w5-th1", type:"s-phy", emoji:"⚡", subject:"Physics", defaultText:"Mock: PCB Full" },
-          { id:"w5-th2", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"Analyse Mistakes" },
-        ]},
-        { date:"2025-05-30", name:"Fri", num:30, sessions:[
-          { id:"w5-f1", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"Last Revision" },
-          { id:"w5-f2", type:"s-free", emoji:"😌", subject:"Free", defaultText:"Relax + Rest" },
-        ]},
-        { date:"2025-05-31", name:"Sat", num:31, weekend:true, sessions:[
-          { id:"w5-s1", type:"s-rev", emoji:"🔄", subject:"Revision", defaultText:"Month Summary" },
-          { id:"w5-s2", type:"s-free", emoji:"🎉", subject:"Free", defaultText:"Mahina Complete!" },
-          { id:"w5-s3", type:"s-mov", emoji:"🎬", subject:"Movie", defaultText:"Movie Night!" },
-        ]},
-      ]
-    },
-  ];
+  const MONTHS_EN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
   const SUBJECT_COLORS = {
-    "s-phy": { border:"#c0392b", bg:"rgba(192,57,43,0.1)", text:"#c0392b" },
-    "s-che": { border:"#1a6b3c", bg:"rgba(26,107,60,0.1)", text:"#1a6b3c" },
-    "s-bio": { border:"#1d4e8f", bg:"rgba(29,78,143,0.1)", text:"#1d4e8f" },
-    "s-hin": { border:"#8b4513", bg:"rgba(139,69,19,0.1)", text:"#8b4513" },
-    "s-eng": { border:"#5b2d8e", bg:"rgba(91,45,142,0.1)", text:"#5b2d8e" },
-    "s-rev": { border:"#b8860b", bg:"rgba(184,134,11,0.1)", text:"#b8860b" },
-    "s-mov": { border:"#d4356a", bg:"rgba(212,53,106,0.12)", text:"#d4356a" },
-    "s-free":{ border:"#2e7d6b", bg:"rgba(46,125,107,0.1)", text:"#2e7d6b" },
+    "s-phy": { border:"#c0392b", bg:"rgba(192,57,43,0.1)", text:"#c0392b", label:"Physics",   emoji:"⚡" },
+    "s-che": { border:"#1a6b3c", bg:"rgba(26,107,60,0.1)",  text:"#1a6b3c", label:"Chemistry", emoji:"🧪" },
+    "s-bio": { border:"#1d4e8f", bg:"rgba(29,78,143,0.1)",  text:"#1d4e8f", label:"Biology",   emoji:"🧬" },
+    "s-hin": { border:"#8b4513", bg:"rgba(139,69,19,0.1)",  text:"#8b4513", label:"Hindi",     emoji:"📜" },
+    "s-eng": { border:"#5b2d8e", bg:"rgba(91,45,142,0.1)",  text:"#5b2d8e", label:"English",   emoji:"✍️" },
+    "s-rev": { border:"#b8860b", bg:"rgba(184,134,11,0.1)", text:"#b8860b", label:"Revision",  emoji:"🔄" },
+    "s-mov": { border:"#d4356a", bg:"rgba(212,53,106,0.12)",text:"#d4356a", label:"Movie",     emoji:"🎬" },
+    "s-free":{ border:"#2e7d6b", bg:"rgba(46,125,107,0.1)", text:"#2e7d6b", label:"Free",      emoji:"😌" },
   };
 
-  const [done, setDone] = useState({});
+  const WEEKDAY_TEMPLATES = [
+    [ // Pattern A
+      [{t:"s-phy",l:"Physics: Current Electricity"},{t:"s-bio",l:"Biology: Reproduction"},{t:"s-hin",l:"Hindi: Gadya"}],
+      [{t:"s-che",l:"Chemistry: Solutions"},{t:"s-eng",l:"English: Writing"},{t:"s-bio",l:"11th Bio: Cell"}],
+      [{t:"s-phy",l:"Physics: Semiconductors"},{t:"s-bio",l:"Genetics: Mendelian"},{t:"s-rev",l:"Weekly Revision"}],
+      [{t:"s-che",l:"Chemistry: Kinetics"},{t:"s-eng",l:"English: Grammar"},{t:"s-phy",l:"11th: Thermodynamics"}],
+      [{t:"s-bio",l:"Biology: Molecular Inheritance"},{t:"s-hin",l:"Hindi: Kavya"},{t:"s-che",l:"11th Chem: Equilibrium"}],
+    ],
+    [ // Pattern B
+      [{t:"s-phy",l:"Ray Optics"},{t:"s-bio",l:"Biotechnology"},{t:"s-eng",l:"Interview Writing"}],
+      [{t:"s-che",l:"d & f Block Elements"},{t:"s-hin",l:"Patra Lekhan"},{t:"s-bio",l:"Organisms & Env."}],
+      [{t:"s-phy",l:"Wave Optics"},{t:"s-bio",l:"Environmental Issues"},{t:"s-rev",l:"PYQ Practice"}],
+      [{t:"s-che",l:"Coordination Compounds"},{t:"s-eng",l:"Flamingo: Indigo"},{t:"s-phy",l:"11th: Waves"}],
+      [{t:"s-bio",l:"Bio MCQ Sprint"},{t:"s-hin",l:"Kavita: Saroj Smriti"},{t:"s-che",l:"Haloalkanes"}],
+    ],
+    [ // Pattern C
+      [{t:"s-phy",l:"Magnetism"},{t:"s-bio",l:"Human Health"},{t:"s-eng",l:"English: Letters"}],
+      [{t:"s-che",l:"p-Block Elements"},{t:"s-hin",l:"Hindi: Sahitya"},{t:"s-bio",l:"11th Bio: Cell Division"}],
+      [{t:"s-phy",l:"EMI & AC Circuits"},{t:"s-bio",l:"Ecosystem"},{t:"s-rev",l:"Formula Sheets"}],
+      [{t:"s-che",l:"Polymers & Biomolecules"},{t:"s-eng",l:"English: Prose"},{t:"s-phy",l:"11th: Newton Laws"}],
+      [{t:"s-bio",l:"Biodiversity"},{t:"s-hin",l:"Hindi: Summary"},{t:"s-che",l:"11th Chem: Recap"}],
+    ],
+    [ // Pattern D - Grand Finish
+      [{t:"s-phy",l:"Physics: Full Revision"},{t:"s-che",l:"Chemistry: Full Revision"}],
+      [{t:"s-bio",l:"Biology: Grand Revision"},{t:"s-hin",l:"Hindi: Final Prep"}],
+      [{t:"s-eng",l:"English: Final Revision"},{t:"s-rev",l:"All PYQs"}],
+      [{t:"s-phy",l:"Mock Test: PCB Full"},{t:"s-rev",l:"Analyse Mistakes"}],
+      [{t:"s-rev",l:"Last Revision"},{t:"s-free",l:"Relax + Rest"}],
+    ],
+  ];
+
+  const WEEKEND_SAT_TMPL = [
+    [{t:"s-phy",l:"Physics Mock Test"},{t:"s-che",l:"Chemistry Revision"},{t:"s-mov",l:"Movie Night! 🎬"}],
+    [{t:"s-phy",l:"Physics: Full Revision"},{t:"s-bio",l:"Biology PYQ Practice"},{t:"s-mov",l:"Movie Night! 🎬"}],
+    [{t:"s-bio",l:"Biology Diagrams"},{t:"s-rev",l:"Notes Review"},{t:"s-mov",l:"Movie Night! 🎬"}],
+    [{t:"s-rev",l:"Month Summary"},{t:"s-free",l:"Mahina Complete! 🎉"},{t:"s-mov",l:"Movie Night! 🎬"}],
+  ];
+  const WEEKEND_SUN_TMPL = [
+    [{t:"s-bio",l:"Bio: Full Chapter"},{t:"s-rev",l:"Weak Topics"},{t:"s-mov",l:"Movie Night! 🎬"}],
+    [{t:"s-che",l:"11th Chem: Concepts"},{t:"s-rev",l:"All Subjects Revision"},{t:"s-mov",l:"Movie Night! 🎬"}],
+    [{t:"s-bio",l:"Biology Revision"},{t:"s-free",l:"Recharge 😌"},{t:"s-mov",l:"Movie Night! 🎬"}],
+    [{t:"s-rev",l:"Final Revision"},{t:"s-free",l:"Rest Day 😴"},{t:"s-mov",l:"Movie Night! 🎬"}],
+  ];
+
+  const now = new Date();
+  const [curYear, setCurYear]   = useState(now.getFullYear());
+  const [curMonth, setCurMonth] = useState(now.getMonth());
+
+  // customText: key = "YYYY-MM-DD-slotIdx", value = edited text
+  // done: same key pattern
   const [customText, setCustomText] = useState({});
-  const [editModal, setEditModal] = useState(null); // { id, currentText, type, subject, emoji }
-  const [editValue, setEditValue] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [done, setDone]             = useState({});
+  const [editModal, setEditModal]   = useState(null); // {key, defaultText, type, emoji, label}
+  const [editValue, setEditValue]   = useState("");
+  const [filter, setFilter]         = useState("all");
   const [pressTimer, setPressTimer] = useState(null);
 
-  // Load from localStorage
+  // Persist to localStorage
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
@@ -3825,268 +3865,293 @@ function MonthlyPlannerPage() {
     } catch(e) {}
   }, []);
 
-  const save = (newDone, newCustom) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ done: newDone, customText: newCustom }));
-    } catch(e) {}
+  const persist = (nd, nc) => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({done:nd, customText:nc})); } catch(e) {}
   };
 
-  const toggleDone = (id) => {
-    const nd = { ...done, [id]: !done[id] };
-    setDone(nd);
-    save(nd, customText);
+  const toggleDone = (key) => {
+    const nd = {...done, [key]: !done[key]};
+    setDone(nd); persist(nd, customText);
   };
 
-  const openEdit = (sess) => {
-    setEditModal(sess);
-    setEditValue(customText[sess.id] || "");
-  };
-
+  const openEdit = (info) => { setEditModal(info); setEditValue(customText[info.key] || ""); };
   const saveEdit = () => {
     if (!editModal) return;
-    const nc = { ...customText, [editModal.id]: editValue.trim() || "" };
-    setCustomText(nc);
-    save(done, nc);
-    setEditModal(null);
+    const nc = {...customText, [editModal.key]: editValue.trim() || ""};
+    setCustomText(nc); persist(done, nc); setEditModal(null);
+  };
+  const resetEdit = () => {
+    if (!editModal) return;
+    const nc = {...customText}; delete nc[editModal.key];
+    setCustomText(nc); persist(done, nc); setEditModal(null);
   };
 
-  // Long press handler
-  const handlePressStart = (sess) => {
-    const t = setTimeout(() => openEdit(sess), 500);
-    setPressTimer(t);
-  };
-  const handlePressEnd = () => {
-    if (pressTimer) { clearTimeout(pressTimer); setPressTimer(null); }
+  const handlePressStart = (info) => { const t = setTimeout(()=>openEdit(info),500); setPressTimer(t); };
+  const handlePressEnd = () => { if(pressTimer){clearTimeout(pressTimer);setPressTimer(null);} };
+
+  const prevMonth = () => { let m=curMonth-1,y=curYear; if(m<0){m=11;y--;} setCurMonth(m);setCurYear(y); };
+  const nextMonth = () => { let m=curMonth+1,y=curYear; if(m>11){m=0;y++;} setCurMonth(m);setCurYear(y); };
+
+  // Build calendar cells
+  const firstDay   = new Date(curYear, curMonth, 1).getDay();
+  const daysInMonth = new Date(curYear, curMonth+1, 0).getDate();
+  const todayStr   = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+
+  // Generate sessions for a given cell
+  const getSessions = (dateStr, colIdx, weekIdx) => {
+    const isSat = colIdx === 6;
+    const isSun = colIdx === 0;
+    const patIdx = weekIdx % 4;
+    const wdIdx  = colIdx - 1; // Mon=0..Fri=4
+    if (isSat) return WEEKEND_SAT_TMPL[patIdx].map((s,i) => ({...s, key:`${dateStr}-${i}`, defaultText:s.l}));
+    if (isSun) return WEEKEND_SUN_TMPL[patIdx].map((s,i) => ({...s, key:`${dateStr}-${i}`, defaultText:s.l}));
+    const pat = WEEKDAY_TEMPLATES[patIdx];
+    return (pat[wdIdx] || []).map((s,i) => ({...s, key:`${dateStr}-${i}`, defaultText:s.l}));
   };
 
-  // Progress calculation
-  const allSessions = DEFAULT_WEEKS.flatMap(w => w.days.flatMap(d => d.sessions));
-  const totalDone = allSessions.filter(s => done[s.id]).length;
+  // Build weeks array
+  const cells = [];
+  for(let i=0;i<firstDay;i++) cells.push(null);
+  for(let d=1;d<=daysInMonth;d++) cells.push(d);
+  while(cells.length%7!==0) cells.push(null);
+  const weeks = [];
+  for(let i=0;i<cells.length;i+=7) weeks.push(cells.slice(i,i+7));
 
-  const subjectCounts = {};
-  allSessions.forEach(s => {
-    if (!subjectCounts[s.type]) subjectCounts[s.type] = { total:0, done:0, label:s.subject, emoji:s.emoji };
-    subjectCounts[s.type].total++;
-    if (done[s.id]) subjectCounts[s.type].done++;
+  // Stats
+  let totalSess=0, totalDone=0;
+  const subjectStats={};
+  weeks.forEach((week,wi) => {
+    week.forEach((day,ci) => {
+      if(!day) return;
+      const mm = String(curMonth+1).padStart(2,"0");
+      const dd = String(day).padStart(2,"0");
+      const ds = `${curYear}-${mm}-${dd}`;
+      getSessions(ds,ci,wi).forEach(s => {
+        if(filter==="all"||s.t===filter){ totalSess++; if(done[s.key])totalDone++; }
+        if(!subjectStats[s.t]) subjectStats[s.t]={total:0,done:0};
+        subjectStats[s.t].total++;
+        if(done[s.key]) subjectStats[s.t].done++;
+      });
+    });
   });
 
-  // Today highlight
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
-
   const FILTERS = [
-    { key:"all", label:"🗓 All" },
-    { key:"s-phy", label:"⚡ Physics" },
-    { key:"s-che", label:"🧪 Chemistry" },
-    { key:"s-bio", label:"🧬 Biology" },
-    { key:"s-hin", label:"📜 Hindi" },
-    { key:"s-eng", label:"✍️ English" },
-    { key:"s-rev", label:"🔄 Revision" },
-    { key:"s-mov", label:"🎬 Movie" },
+    {key:"all",label:"🗓 All"},
+    {key:"s-phy",label:"⚡ Physics"},{key:"s-che",label:"🧪 Chemistry"},{key:"s-bio",label:"🧬 Biology"},
+    {key:"s-hin",label:"📜 Hindi"},{key:"s-eng",label:"✍️ English"},{key:"s-rev",label:"🔄 Revision"},{key:"s-mov",label:"🎬 Movie"},
   ];
 
   const sStyle = {
-    position:"relative", padding:"5px 7px 5px 10px", borderRadius:3,
-    fontSize:12, fontWeight:600, cursor:"pointer", userSelect:"none",
-    display:"flex", alignItems:"flex-start", gap:6,
-    transition:"opacity 0.2s, filter 0.2s",
-    borderLeft:"3px solid", marginBottom:3,
+    position:"relative",padding:"5px 7px 5px 9px",borderRadius:3,
+    fontSize:11,fontWeight:600,cursor:"pointer",userSelect:"none",
+    display:"flex",alignItems:"flex-start",gap:6,transition:"opacity 0.2s",
+    borderLeft:"3px solid",marginBottom:3,
   };
 
   return (
-    <div style={{ maxWidth:1000, margin:"0 auto", padding:"0 0 40px" }}>
+    <div style={{maxWidth:1000,margin:"0 auto",padding:"0 0 40px"}}>
+
       {/* Header */}
-      <div style={{ marginBottom:16 }}>
-        <div style={{ fontSize:10, letterSpacing:4, color:"var(--text3)", textTransform:"uppercase", marginBottom:4 }}>
-          Academic Monthly Planner — May 2025
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:10,letterSpacing:4,color:"var(--text3)",textTransform:"uppercase",marginBottom:4}}>
+          PCB Monthly Planner
         </div>
-        <div style={{ fontFamily:"Syne,sans-serif", fontSize:22, fontWeight:800, color:"var(--text)", marginBottom:2 }}>
+        <div style={{fontFamily:"Syne,sans-serif",fontSize:22,fontWeight:800,color:"var(--text)",marginBottom:2}}>
           Mera PCB Plan 📅
         </div>
-        <div style={{ fontSize:12, color:"var(--text3)" }}>
+        <div style={{fontSize:12,color:"var(--text3)"}}>
           Physics · Chemistry · Biology · Hindi · English · Weekend 🎬 Movie Nights
         </div>
-        <div style={{ fontSize:11, color:"var(--text3)", marginTop:6, background:"var(--bg3)", border:"1px solid var(--border)", borderRadius:8, padding:"6px 12px", display:"inline-flex", alignItems:"center", gap:6 }}>
-          ✏️ <strong>Tip:</strong> Kisi bhi session ko <strong>long press</strong> karo (ya double-click) → apna chapter / movie name likhо!
+        <div style={{fontSize:11,color:"var(--text3)",marginTop:8,background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:8,padding:"7px 12px",display:"inline-flex",alignItems:"center",gap:6}}>
+          ✏️ <strong>Edit:</strong> Kisi bhi session ke <strong>✏️ button</strong> pe click karo → apna chapter / movie name likhо!
         </div>
       </div>
 
-      {/* Progress bars */}
-      <div style={{ background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:12, padding:"16px 18px", marginBottom:16 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, fontSize:11, letterSpacing:2, color:"var(--text3)", textTransform:"uppercase" }}>
-          <span>📊 Monthly Progress</span>
-          <span style={{ background:"var(--accent)", color:"#fff", padding:"2px 10px", borderRadius:99, fontSize:10, fontWeight:700 }}>
-            {totalDone} / {allSessions.length} done
-          </span>
-        </div>
-        {Object.entries(subjectCounts).map(([type, info]) => (
-          <div key={type} style={{ display:"grid", gridTemplateColumns:"100px 1fr 50px", alignItems:"center", gap:10, marginBottom:7 }}>
-            <span style={{ fontSize:10, color:"var(--text3)", letterSpacing:1 }}>{info.emoji} {info.label}</span>
-            <div style={{ height:6, background:"var(--border)", borderRadius:3, overflow:"hidden" }}>
-              <div style={{ height:"100%", width:`${info.total>0?(info.done/info.total*100):0}%`, background: SUBJECT_COLORS[type]?.border || "var(--accent)", borderRadius:3, transition:"width 0.5s" }}/>
-            </div>
-            <span style={{ fontSize:10, color:"var(--text3)", textAlign:"right" }}>{info.done}/{info.total}</span>
+      {/* Month Navigator */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:"12px 16px"}}>
+        <button onClick={prevMonth} style={{width:36,height:36,borderRadius:8,border:"1px solid var(--border)",background:"var(--bg3)",color:"var(--text2)",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}} title="Previous Month">‹</button>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontFamily:"Syne",fontSize:20,fontWeight:800,color:"var(--text)"}}>{MONTHS_EN[curMonth]} {curYear}</div>
+          <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>
+            <select value={curMonth} onChange={e=>setCurMonth(+e.target.value)} style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",color:"var(--text2)",fontSize:11,marginRight:6,cursor:"pointer"}}>
+              {MONTHS_EN.map((m,i)=><option key={i} value={i}>{m}</option>)}
+            </select>
+            <select value={curYear} onChange={e=>setCurYear(+e.target.value)} style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:6,padding:"2px 6px",color:"var(--text2)",fontSize:11,cursor:"pointer"}}>
+              {[2024,2025,2026,2027,2028].map(y=><option key={y} value={y}>{y}</option>)}
+            </select>
           </div>
-        ))}
+        </div>
+        <button onClick={nextMonth} style={{width:36,height:36,borderRadius:8,border:"1px solid var(--border)",background:"var(--bg3)",color:"var(--text2)",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}} title="Next Month">›</button>
       </div>
 
-      {/* Filter pills */}
-      <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:16 }}>
-        {FILTERS.map(f => (
+      {/* Progress */}
+      <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:12,padding:"14px 16px",marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,fontSize:11,letterSpacing:2,color:"var(--text3)",textTransform:"uppercase"}}>
+          <span>📊 {MONTHS_EN[curMonth]} Progress</span>
+          <span style={{background:"var(--accent)",color:"#fff",padding:"2px 10px",borderRadius:99,fontSize:10,fontWeight:700}}>{totalDone} / {totalSess} done</span>
+        </div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          {Object.entries(subjectStats).map(([type,info])=>{
+            const col=SUBJECT_COLORS[type];
+            const pct=info.total>0?Math.round(info.done/info.total*100):0;
+            return (
+              <div key={type} style={{flex:"1 1 140px",minWidth:120}}>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--text3)",marginBottom:3}}>
+                  <span>{col?.emoji} {col?.label}</span><span>{info.done}/{info.total}</span>
+                </div>
+                <div style={{height:5,background:"var(--bg4)",borderRadius:3,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${pct}%`,background:col?.border||"var(--accent)",borderRadius:3,transition:"width .5s"}}/>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:14}}>
+        {FILTERS.map(f=>(
           <button key={f.key} onClick={()=>setFilter(f.key)} style={{
-            padding:"4px 12px", borderRadius:4, fontSize:10, fontWeight:700, letterSpacing:1.5,
-            border:`1.5px solid ${f.key==="all" ? "var(--accent)" : (SUBJECT_COLORS[f.key]?.border||"var(--border)")}`,
-            background: filter===f.key ? (f.key==="all" ? "var(--accent)" : (SUBJECT_COLORS[f.key]?.border||"var(--accent)")) : "transparent",
-            color: filter===f.key ? "#fff" : (f.key==="all" ? "var(--accent)" : (SUBJECT_COLORS[f.key]?.text||"var(--text3)")),
-            cursor:"pointer", transition:"all 0.15s", opacity: filter!=="all" && filter!==f.key && f.key!=="all" ? 0.45 : 1,
+            padding:"4px 11px",borderRadius:4,fontSize:10,fontWeight:700,letterSpacing:1.2,
+            border:`1.5px solid ${f.key==="all"?"var(--accent)":(SUBJECT_COLORS[f.key]?.border||"var(--border)")}`,
+            background:filter===f.key?(f.key==="all"?"var(--accent)":(SUBJECT_COLORS[f.key]?.border||"var(--accent)")):"transparent",
+            color:filter===f.key?"#fff":(f.key==="all"?"var(--accent)":(SUBJECT_COLORS[f.key]?.text||"var(--text3)")),
+            cursor:"pointer",transition:"all .15s",
           }}>{f.label}</button>
         ))}
-        <button onClick={()=>{
-          if (!window.confirm("Sab progress reset karna hai? Pakka?")) return;
-          setDone({}); save({}, customText);
-        }} style={{ marginLeft:"auto", padding:"4px 12px", borderRadius:4, fontSize:10, fontWeight:700, letterSpacing:1.5, border:"1.5px solid var(--border)", background:"transparent", color:"var(--text3)", cursor:"pointer" }}>
+        <button onClick={()=>{if(!window.confirm("Sab progress reset karna hai?"))return;setDone({});persist({},customText);}}
+          style={{marginLeft:"auto",padding:"4px 11px",borderRadius:4,fontSize:10,fontWeight:700,border:"1.5px solid var(--border)",background:"transparent",color:"var(--text3)",cursor:"pointer"}}>
           🔄 Reset
         </button>
       </div>
 
-      {/* Calendar weeks */}
-      {DEFAULT_WEEKS.map(week => (
-        <div key={week.title} style={{ background:"var(--bg2)", border:"1px solid var(--border)", borderRadius:12, overflow:"hidden", marginBottom:14, boxShadow:"0 2px 12px rgba(0,0,0,0.08)" }}>
-          <div style={{ background:"var(--bg4)", borderBottom:"1px solid var(--border)", padding:"10px 18px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <span style={{ fontFamily:"Syne,sans-serif", fontSize:13, fontWeight:700, color:"var(--text)" }}>{week.title}</span>
-            <span style={{ fontSize:11, color:"var(--text3)" }}>{week.range}</span>
-          </div>
+      {/* Day names header */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",marginBottom:4}}>
+        {DAY_NAMES.map((d,i)=>(
+          <div key={d} style={{textAlign:"center",padding:"6px 4px",fontSize:9,letterSpacing:1.5,color:i===0||i===6?"#d4356a":"var(--text3)",textTransform:"uppercase",fontWeight:600}}>{d}</div>
+        ))}
+      </div>
 
-          {/* Desktop grid */}
-          <div style={{ display:"grid", gridTemplateColumns:`repeat(${week.days.length},1fr)`, borderTop:"1px solid var(--border)" }} className="planner-desktop">
-            {week.days.map(day => {
-              const isToday = day.date === todayStr;
-              const filteredSessions = filter==="all" ? day.sessions : day.sessions.filter(s=>s.type===filter);
-              return (
-                <div key={day.date} style={{
-                  borderRight:"1px solid var(--border)", minHeight:130, padding:0,
-                  outline: isToday ? "2px solid var(--accent)" : "none",
-                  outlineOffset: -2,
-                  background: day.weekend ? "rgba(212,53,106,0.03)" : "transparent",
-                }}>
-                  <div style={{ padding:"4px 6px 2px", borderBottom:"1px solid var(--border)", background:"rgba(0,0,0,0.02)", textAlign:"center" }}>
-                    <div style={{ fontSize:9, letterSpacing:1.5, color: day.weekend ? "#d4356a" : "var(--text3)", textTransform:"uppercase" }}>{day.name}</div>
-                    <div style={{ fontFamily:"Syne,sans-serif", fontSize:20, fontWeight:700, color: isToday ? "var(--accent)" : (day.weekend ? "#d4356a" : "var(--text)"), lineHeight:1.1 }}>
-                      {day.num}{isToday && <span style={{ display:"inline-block",width:5,height:5,background:"var(--accent)",borderRadius:"50%",marginLeft:3,verticalAlign:"middle" }}/>}
+      {/* Calendar weeks */}
+      {weeks.map((week, wi) => {
+        const hasDay = week.some(d=>d!==null);
+        if(!hasDay) return null;
+        const realDays = week.filter(d=>d!==null);
+        const firstReal = realDays[0], lastReal = realDays[realDays.length-1];
+        return (
+          <div key={wi} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,overflow:"hidden",marginBottom:10,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+            <div style={{background:"var(--bg4)",borderBottom:"1px solid var(--border)",padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontFamily:"Syne,sans-serif",fontSize:12,fontWeight:700,color:"var(--text)"}}>Week {wi+1}</span>
+              <span style={{fontSize:10,color:"var(--text3)"}}>{MONTHS_EN[curMonth].slice(0,3)} {firstReal}–{lastReal}, {curYear}</span>
+            </div>
+
+            {/* Desktop grid */}
+            <div className="planner-desktop" style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
+              {week.map((day,ci) => {
+                if(!day) return <div key={ci} style={{borderRight:"1px solid var(--border)",minHeight:120,background:"rgba(0,0,0,0.01)",opacity:.3}}/>;
+                const mm=String(curMonth+1).padStart(2,"0"), dd=String(day).padStart(2,"0");
+                const ds=`${curYear}-${mm}-${dd}`;
+                const isToday=ds===todayStr;
+                const isWknd=ci===0||ci===6;
+                const sessions=getSessions(ds,ci,wi);
+                const filtered=filter==="all"?sessions:sessions.filter(s=>s.t===filter);
+                return (
+                  <div key={ci} style={{borderRight:"1px solid var(--border)",minHeight:120,background:isWknd?"rgba(212,53,106,0.03)":"transparent",outline:isToday?"2px solid var(--accent)":"none",outlineOffset:-2}}>
+                    <div style={{padding:"4px 6px 2px",borderBottom:"1px solid var(--border)",background:"rgba(0,0,0,0.02)",textAlign:"center"}}>
+                      <div style={{fontSize:9,letterSpacing:1.5,color:isWknd?"#d4356a":"var(--text3)",textTransform:"uppercase"}}>{DAY_NAMES[ci]}</div>
+                      <div style={{fontFamily:"Syne,sans-serif",fontSize:19,fontWeight:700,color:isToday?"var(--accent)":isWknd?"#d4356a":"var(--text)",lineHeight:1.1}}>
+                        {day}{isToday&&<span style={{display:"inline-block",width:4,height:4,background:"var(--accent)",borderRadius:"50%",marginLeft:2,verticalAlign:"middle"}}/>}
+                      </div>
+                    </div>
+                    <div style={{padding:4}}>
+                      {filtered.map(sess=>{
+                        const col=SUBJECT_COLORS[sess.t]||SUBJECT_COLORS["s-rev"];
+                        const isDone=done[sess.key];
+                        const label=customText[sess.key]||sess.defaultText;
+                        return (
+                          <div key={sess.key} style={{...sStyle,borderColor:col.border,background:col.bg,color:col.text,opacity:isDone?.4:1,textDecoration:isDone?"line-through":"none"}}
+                            onDoubleClick={e=>{e.preventDefault();openEdit({key:sess.key,defaultText:sess.defaultText,type:sess.t,emoji:col.emoji,label:col.label});}}
+                            onTouchStart={()=>handlePressStart({key:sess.key,defaultText:sess.defaultText,type:sess.t,emoji:col.emoji,label:col.label})}
+                            onTouchEnd={handlePressEnd} onTouchMove={handlePressEnd}>
+                            <span onClick={()=>toggleDone(sess.key)} style={{flexShrink:0,width:11,height:11,border:`1.5px solid ${col.border}`,borderRadius:2,display:"flex",alignItems:"center",justifyContent:"center",marginTop:1,background:isDone?col.border:"transparent",fontSize:7,color:"#fff",fontWeight:900,cursor:"pointer"}}>
+                              {isDone?"✓":""}
+                            </span>
+                            <span onClick={()=>toggleDone(sess.key)} style={{flex:1,fontSize:8.5,lineHeight:1.3,cursor:"pointer"}}>{col.emoji} {label}</span>
+                            <span onClick={e=>{e.stopPropagation();openEdit({key:sess.key,defaultText:sess.defaultText,type:sess.t,emoji:col.emoji,label:col.label});}}
+                              style={{flexShrink:0,fontSize:10,opacity:.6,cursor:"pointer",paddingTop:1,lineHeight:1}} title="Chapter/Movie naam edit karo">✏️</span>
+                          </div>
+                        );
+                      })}
+                      {filtered.length===0&&filter!=="all"&&<div style={{fontSize:9,color:"var(--text3)",padding:"4px 2px",opacity:.5}}>—</div>}
                     </div>
                   </div>
-                  <div style={{ padding:5 }}>
-                    {filteredSessions.map(sess => {
-                      const col = SUBJECT_COLORS[sess.type] || SUBJECT_COLORS["s-rev"];
-                      const isDone = done[sess.id];
-                      const label = customText[sess.id] || sess.defaultText;
-                      return (
-                        <div
-                          key={sess.id}
-                          style={{ ...sStyle, borderColor:col.border, background:col.bg, color:col.text, opacity: isDone ? 0.4 : 1, textDecoration: isDone ? "line-through" : "none" }}
-                          onClick={()=>toggleDone(sess.id)}
-                          onDoubleClick={(e)=>{ e.preventDefault(); openEdit(sess); }}
-                          onTouchStart={()=>handlePressStart(sess)}
-                          onTouchEnd={handlePressEnd}
-                          onTouchMove={handlePressEnd}
-                          title="Click: done/undone | Double-click: edit"
-                        >
-                          <span style={{ flexShrink:0, width:11, height:11, border:`1.5px solid ${col.border}`, borderRadius:2, display:"flex", alignItems:"center", justifyContent:"center", marginTop:1, background: isDone ? col.border : "transparent", fontSize:7, color:"#fff", fontWeight:900 }}>
-                            {isDone ? "✓" : ""}
-                          </span>
-                          <span style={{ flex:1, fontSize:8.5, lineHeight:1.3 }}>{sess.emoji} {label}</span>
-                          <span onClick={(e)=>{e.stopPropagation();openEdit(sess);}} style={{ flexShrink:0, fontSize:9, opacity:0.5, cursor:"pointer", paddingTop:1 }} title="Edit name">✏️</span>
-                        </div>
-                      );
-                    })}
-                    {filteredSessions.length === 0 && filter !== "all" && (
-                      <div style={{ fontSize:9, color:"var(--text3)", padding:"4px 2px", opacity:0.5 }}>—</div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
 
-          {/* Mobile card list */}
-          <div className="planner-mobile" style={{ padding:10, display:"none", flexDirection:"column", gap:8 }}>
-            {week.days.map(day => {
-              const isToday = day.date === todayStr;
-              const filteredSessions = filter==="all" ? day.sessions : day.sessions.filter(s=>s.type===filter);
-              if (filteredSessions.length===0 && filter!=="all") return null;
-              return (
-                <div key={day.date} style={{ border:"1px solid var(--border)", borderRadius:8, overflow:"hidden" }}>
-                  <div style={{ padding:"8px 12px", background: isToday ? "rgba(124,111,255,0.1)" : (day.weekend ? "rgba(212,53,106,0.06)" : "var(--bg3)"), borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", gap:10, borderLeft: isToday ? "3px solid var(--accent)" : "none" }}>
-                    <span style={{ fontFamily:"Syne,sans-serif", fontSize:22, fontWeight:700, color: day.weekend?"#d4356a":"var(--text)" }}>{day.num}</span>
-                    <span style={{ fontSize:10, letterSpacing:2, color:"var(--text3)", textTransform:"uppercase" }}>{day.name}</span>
-                    {isToday && <span style={{ marginLeft:"auto", fontSize:9, background:"var(--accent)", color:"#fff", padding:"2px 8px", borderRadius:99, fontWeight:700 }}>TODAY</span>}
+            {/* Mobile list */}
+            <div className="planner-mobile" style={{padding:8,display:"none",flexDirection:"column",gap:6}}>
+              {week.map((day,ci) => {
+                if(!day) return null;
+                const mm=String(curMonth+1).padStart(2,"0"),dd=String(day).padStart(2,"0");
+                const ds=`${curYear}-${mm}-${dd}`;
+                const isToday=ds===todayStr, isWknd=ci===0||ci===6;
+                const sessions=getSessions(ds,ci,wi);
+                const filtered=filter==="all"?sessions:sessions.filter(s=>s.t===filter);
+                if(filtered.length===0&&filter!=="all") return null;
+                return (
+                  <div key={ci} style={{border:"1px solid var(--border)",borderRadius:8,overflow:"hidden"}}>
+                    <div style={{padding:"8px 12px",background:isToday?"rgba(124,111,255,0.1)":isWknd?"rgba(212,53,106,0.06)":"var(--bg3)",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",gap:10,borderLeft:isToday?"3px solid var(--accent)":"none"}}>
+                      <span style={{fontFamily:"Syne,sans-serif",fontSize:22,fontWeight:700,color:isWknd?"#d4356a":"var(--text)"}}>{day}</span>
+                      <span style={{fontSize:10,letterSpacing:2,color:"var(--text3)",textTransform:"uppercase"}}>{DAY_NAMES[ci]}</span>
+                      {isToday&&<span style={{marginLeft:"auto",fontSize:9,background:"var(--accent)",color:"#fff",padding:"2px 8px",borderRadius:99,fontWeight:700}}>TODAY</span>}
+                    </div>
+                    <div style={{padding:8}}>
+                      {filtered.map(sess=>{
+                        const col=SUBJECT_COLORS[sess.t]||SUBJECT_COLORS["s-rev"];
+                        const isDone=done[sess.key];
+                        const label=customText[sess.key]||sess.defaultText;
+                        return (
+                          <div key={sess.key} style={{...sStyle,borderColor:col.border,background:col.bg,color:col.text,fontSize:12,padding:"7px 10px 7px 9px",opacity:isDone?.4:1,textDecoration:isDone?"line-through":"none"}}>
+                            <span onClick={()=>toggleDone(sess.key)} style={{flexShrink:0,width:13,height:13,border:`1.5px solid ${col.border}`,borderRadius:2,display:"flex",alignItems:"center",justifyContent:"center",background:isDone?col.border:"transparent",fontSize:8,color:"#fff",fontWeight:900,cursor:"pointer"}}>{isDone?"✓":""}</span>
+                            <span onClick={()=>toggleDone(sess.key)} style={{flex:1,cursor:"pointer"}}>{col.emoji} {label}</span>
+                            <span onClick={e=>{e.stopPropagation();openEdit({key:sess.key,defaultText:sess.defaultText,type:sess.t,emoji:col.emoji,label:col.label});}} style={{flexShrink:0,fontSize:14,opacity:.6,cursor:"pointer",padding:"0 2px"}} title="Edit">✏️</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div style={{ padding:8 }}>
-                    {filteredSessions.map(sess => {
-                      const col = SUBJECT_COLORS[sess.type] || SUBJECT_COLORS["s-rev"];
-                      const isDone = done[sess.id];
-                      const label = customText[sess.id] || sess.defaultText;
-                      return (
-                        <div
-                          key={sess.id}
-                          style={{ ...sStyle, borderColor:col.border, background:col.bg, color:col.text, fontSize:12, padding:"7px 10px", opacity: isDone ? 0.4 : 1, textDecoration: isDone ? "line-through" : "none" }}
-                          onClick={()=>toggleDone(sess.id)}
-                          onDoubleClick={(e)=>{ e.preventDefault(); openEdit(sess); }}
-                          onTouchStart={()=>handlePressStart(sess)}
-                          onTouchEnd={handlePressEnd}
-                          onTouchMove={handlePressEnd}
-                        >
-                          <span style={{ flexShrink:0, width:13, height:13, border:`1.5px solid ${col.border}`, borderRadius:2, display:"flex", alignItems:"center", justifyContent:"center", background: isDone ? col.border : "transparent", fontSize:8, color:"#fff", fontWeight:900 }}>
-                            {isDone ? "✓" : ""}
-                          </span>
-                          <span style={{ flex:1 }}>{sess.emoji} {label}</span>
-                          <span onClick={(e)=>{e.stopPropagation();openEdit(sess);}} style={{ flexShrink:0, fontSize:12, opacity:0.5, cursor:"pointer" }} title="Edit">✏️</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {/* Edit Modal */}
       {editModal && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={()=>setEditModal(null)}>
-          <div style={{ background:"var(--bg2)", border:"1px solid var(--border2)", borderRadius:16, padding:24, width:"100%", maxWidth:380, boxShadow:"0 20px 60px rgba(0,0,0,0.4)" }} onClick={e=>e.stopPropagation()}>
-            <div style={{ marginBottom:16 }}>
-              <div style={{ fontSize:10, letterSpacing:3, color:"var(--text3)", textTransform:"uppercase", marginBottom:4 }}>Session Edit</div>
-              <div style={{ fontFamily:"Syne,sans-serif", fontSize:16, fontWeight:800, color:"var(--text)" }}>
-                {editModal.emoji} {editModal.subject} Session
-              </div>
-              <div style={{ fontSize:12, color:"var(--text3)", marginTop:2 }}>Default: "{editModal.defaultText}"</div>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>setEditModal(null)}>
+          <div style={{background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:16,padding:24,width:"100%",maxWidth:400,boxShadow:"0 20px 60px rgba(0,0,0,0.4)"}} onClick={e=>e.stopPropagation()}>
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:10,letterSpacing:3,color:"var(--text3)",textTransform:"uppercase",marginBottom:4}}>✏️ Session Edit Karo</div>
+              <div style={{fontFamily:"Syne,sans-serif",fontSize:16,fontWeight:800,color:"var(--text)"}}>{editModal.emoji} {editModal.label}</div>
+              <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>Default: "{editModal.defaultText}"</div>
             </div>
-            <div style={{ marginBottom:6, fontSize:11, color:"var(--text2)", fontWeight:600 }}>
-              Apna topic/chapter/movie name likhо:
+            <div style={{marginBottom:6,fontSize:11,color:"var(--text2)",fontWeight:600}}>
+              {SUBJECT_COLORS[editModal.type]?.label==="Movie" ? "🎬 Movie ka naam likhо:" : "📚 Chapter / Topic naam likhо:"}
             </div>
-            <input
-              autoFocus
-              type="text"
-              value={editValue}
+            <input autoFocus type="text" value={editValue}
               onChange={e=>setEditValue(e.target.value)}
-              onKeyDown={e=>{ if(e.key==="Enter") saveEdit(); if(e.key==="Escape") setEditModal(null); }}
-              placeholder={`e.g. ${editModal.subject==="Movie" ? "Interstellar, 3 Idiots..." : editModal.defaultText}`}
-              style={{ width:"100%", padding:"10px 14px", borderRadius:10, border:"1.5px solid var(--border2)", background:"var(--bg3)", color:"var(--text)", fontSize:14, outline:"none", fontFamily:"inherit", marginBottom:14 }}
+              onKeyDown={e=>{if(e.key==="Enter")saveEdit();if(e.key==="Escape")setEditModal(null);}}
+              placeholder={editModal.type==="s-mov"?"e.g. Interstellar, 3 Idiots, Dune...":editModal.defaultText}
+              style={{width:"100%",padding:"11px 14px",borderRadius:10,border:"1.5px solid var(--accent)",background:"var(--bg3)",color:"var(--text)",fontSize:14,outline:"none",fontFamily:"inherit",marginBottom:14,boxSizing:"border-box"}}
             />
-            <div style={{ display:"flex", gap:8 }}>
-              <button onClick={saveEdit} style={{ flex:1, padding:"10px", borderRadius:10, background:"var(--accent)", color:"#fff", border:"none", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"inherit" }}>
-                ✅ Save
-              </button>
-              <button onClick={()=>{ const nc={...customText}; delete nc[editModal.id]; setCustomText(nc); save(done,nc); setEditModal(null); }} style={{ padding:"10px 14px", borderRadius:10, background:"var(--bg4)", color:"var(--text3)", border:"1px solid var(--border)", fontWeight:600, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
-                Reset
-              </button>
-              <button onClick={()=>setEditModal(null)} style={{ padding:"10px 14px", borderRadius:10, background:"var(--bg4)", color:"var(--text3)", border:"1px solid var(--border)", fontWeight:600, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
-                Cancel
-              </button>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={saveEdit} style={{flex:2,padding:"10px",borderRadius:10,background:"var(--accent)",color:"#fff",border:"none",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>✅ Save</button>
+              <button onClick={resetEdit} style={{flex:1,padding:"10px 12px",borderRadius:10,background:"var(--bg4)",color:"var(--text3)",border:"1px solid var(--border)",fontWeight:600,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>↩ Reset</button>
+              <button onClick={()=>setEditModal(null)} style={{flex:1,padding:"10px 12px",borderRadius:10,background:"var(--bg4)",color:"var(--text3)",border:"1px solid var(--border)",fontWeight:600,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✕ Close</button>
             </div>
-            <div style={{ marginTop:10, fontSize:10, color:"var(--text3)", textAlign:"center" }}>Enter = Save · Esc = Cancel</div>
+            <div style={{marginTop:8,fontSize:10,color:"var(--text3)",textAlign:"center"}}>Enter = Save · Esc = Cancel</div>
           </div>
         </div>
       )}
@@ -4236,30 +4301,68 @@ function App() {
     if (data.onboarded !== undefined) { storage.set("onboarded", data.onboarded); }
   };
 
-  const ALL_NAV = [
-    { id:"home",     label:"Dashboard",   icon:"home",     alwaysShow:true },
-    { id:"schedule", label:"Schedule",    icon:"schedule"  },
-    { id:"planner",  label:"Monthly Plan", icon:"calendar"  },
-    { id:"habits",   label:"Habits",      icon:"habits"    },
-    { id:"lectures", label:"Lectures",    icon:"lectures"  },
-    { id:"workout",  label:"Workout",     icon:"workout"   },
-    { id:"goals",    label:"Goals",       icon:"goals"     },
-    { id:"notes",    label:"Notes",       icon:"notes"     },
-    { id:"analytics",label:"Analytics",   icon:"analytics" },
-    { id:"profile",  label:"Profile",     icon:"profile",  alwaysShow:true },
-    { id:"focus",    label:"Focus Mode",  icon:"timer"     },
-    { id:"revision", label:"Revision Lab",icon:"star"      },
-    { id:"report",   label:"Weekly Report",icon:"report"   },
-    { id:"admin",    label:"Admin Manager",icon:"profile",  ownerOnly:true },
-    { id:"settings", label:"Settings",    icon:"settings"  },
-    { id:"alarm",    label:"Alarm",        icon:"alarm"     },
+  const NAV_GROUPS = [
+    {
+      group: null,
+      items: [
+        { id:"home", label:"Dashboard", icon:"home", alwaysShow:true },
+      ]
+    },
+    {
+      group: "Goals & Planning",
+      items: [
+        { id:"goals",    label:"Goals",        icon:"goals"    },
+        { id:"planner",  label:"Monthly Plan",  icon:"calendar" },
+        { id:"schedule", label:"Schedule",      icon:"schedule" },
+      ]
+    },
+    {
+      group: "Execution",
+      items: [
+        { id:"focus",    label:"Focus Mode",   icon:"timer"    },
+        { id:"lectures", label:"Lectures",     icon:"lectures" },
+        { id:"notes",    label:"Notes",        icon:"notes"    },
+        { id:"revision", label:"Revision Lab", icon:"star"     },
+      ]
+    },
+    {
+      group: "Habits & Health",
+      items: [
+        { id:"habits",  label:"Habits",  icon:"habits"  },
+        { id:"workout", label:"Workout", icon:"workout" },
+      ]
+    },
+    {
+      group: "Insights",
+      items: [
+        { id:"analytics", label:"Analytics",    icon:"analytics" },
+        { id:"report",    label:"Weekly Report", icon:"report"    },
+      ]
+    },
+    {
+      group: "Tools",
+      items: [
+        { id:"alarm", label:"Alarm", icon:"alarm" },
+      ]
+    },
+    {
+      group: "Account",
+      items: [
+        { id:"profile",  label:"Profile",  icon:"profile",  alwaysShow:true },
+        { id:"settings", label:"Settings", icon:"settings"  },
+      ]
+    },
   ];
-  // Owner sees all; Admin sees only permitted pages + always-show pages
-  const navItems = ALL_NAV.filter(item =>
+
+  // Flat list for permission checks etc.
+  const ALL_NAV = NAV_GROUPS.flatMap(g => g.items);
+
+  const canSee = (item) =>
     currentUser?.role === "owner"
       ? true
-      : !item.ownerOnly && (item.alwaysShow || hasPermission(currentUser, item.id))
-  );
+      : !item.ownerOnly && (item.alwaysShow || hasPermission(currentUser, item.id));
+
+  const navItems = ALL_NAV.filter(canSee);
   const pageTitles = { home:"Dashboard",schedule:"Schedule",planner:"Monthly Planner",habits:"Habits",lectures:"Lectures",workout:"Workout",goals:"Goals",notes:"Notes",analytics:"Analytics",profile:"Profile",focus:"Focus Mode",revision:"Revision Lab",report:"Weekly Report",admin:"Admin Manager",settings:"Settings",alarm:"⏰ Alarm" };
 
   const navigateTo = (id) => {
@@ -4305,12 +4408,23 @@ function App() {
             )}
           </div>
           <nav className="sidebar-nav">
-            {navItems.map(item => (
-              <div key={item.id} className={`nav-item ${page===item.id?"active":""}`} onClick={() => navigateTo(item.id)} title={!isMobile && sidebarCollapsed ? item.label : ""}>
-                <div className="nav-icon"><Icon d={icons[item.icon]} size={18} stroke="currentColor"/></div>
-                <span className="nav-label">{item.label}</span>
-              </div>
-            ))}
+            {NAV_GROUPS.map(({ group, items }) => {
+              const visible = items.filter(canSee);
+              if (visible.length === 0) return null;
+              return (
+                <div key={group||"top"} className="nav-group">
+                  {group && (
+                    <div className="nav-group-label">{group}</div>
+                  )}
+                  {visible.map(item => (
+                    <div key={item.id} className={`nav-item ${page===item.id?"active":""}`} onClick={() => navigateTo(item.id)} title={!isMobile && sidebarCollapsed ? item.label : ""}>
+                      <div className="nav-icon"><Icon d={icons[item.icon]} size={18} stroke="currentColor"/></div>
+                      <span className="nav-label">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </nav>
           <div className="sidebar-footer">
             <div className="profile-mini" onClick={() => navigateTo("profile")}>
@@ -4324,7 +4438,7 @@ function App() {
               </div>
               <div className="profile-info">
                 <div className="profile-name">{userProfile?.name || currentUser?.displayName || "Student"}</div>
-                <div className="profile-sub">{currentUser?.role==="owner"?"👑 Owner":"🛡️ Admin"}</div>
+                <div className="profile-sub">{currentUser?.role==="owner"?"👑 Owner":currentUser?.role==="key"?"🔑 Key User":"🛡️ Admin"}</div>
               </div>
             </div>
             {currentUser?.role==="owner" && (
